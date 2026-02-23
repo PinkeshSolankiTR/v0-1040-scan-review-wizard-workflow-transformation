@@ -456,112 +456,212 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
                     </div>
                   </details>
 
-                  {/* Record rows */}
-                  <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: '1fr 1fr 5rem 5rem 9rem',
-                    alignItems: 'center', gap: '0.5rem',
-                    padding: '0.375rem 1.25rem',
-                    backgroundColor: 'oklch(0.97 0.003 260)',
-                    borderBlockEnd: '0.0625rem solid oklch(0.93 0.003 260)',
-                    fontSize: '0.625rem', fontWeight: 700, color: 'oklch(0.45 0.01 260)',
-                    textTransform: 'uppercase', letterSpacing: '0.05em',
-                  }}>
-                    <span>Organizer / Source</span>
-                    <span>Match Type</span>
-                    <span>Conf.</span>
-                    <span>Status</span>
-                    <span style={{ textAlign: 'end' }}>Actions</span>
-                  </div>
-
-                  {activeGroup.matchedRecords.map((r, idx) => {
-                    const itemKey = getItemKey(r)
-                    const isAccepted = decisions[itemKey] === 'accepted'
-                    const isDocOpen = openDocId === itemKey
+                  {/* Matched split table with inline values + Dup column */}
+                  {(() => {
+                    const fieldNames = activeGroup.matchedRecords
+                      .flatMap(r => r.comparedValues ?? [])
+                      .map(v => v.field)
+                      .filter((f, i, arr) => arr.indexOf(f) === i)
 
                     return (
-                      <article
-                        key={itemKey}
-                        style={{
-                          borderBlockStart: idx > 0 ? '0.0625rem solid oklch(0.93 0.003 260)' : 'none',
-                          backgroundColor: isAccepted ? 'oklch(0.985 0.01 145 / 0.25)' : 'oklch(1 0 0)',
-                        }}
-                      >
-                        <div style={{
-                          display: 'grid',
-                          gridTemplateColumns: '1fr 1fr 5rem 5rem 9rem',
-                          alignItems: 'center', gap: '0.5rem',
-                          padding: '0.625rem 1.25rem',
-                        }}>
-                          <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'oklch(0.2 0.01 260)' }}>
-                            {getRecordLabel(r)}
-                          </span>
-                          <span style={{
-                            fontSize: '0.625rem', fontWeight: 700,
-                            padding: '0.125rem 0.4375rem', borderRadius: '1rem',
-                            backgroundColor: 'oklch(0.94 0.04 145)', color: 'oklch(0.35 0.14 145)',
+                      <div style={{
+                        display: 'grid', gridTemplateColumns: '1fr 1fr',
+                        borderBlockStart: '0.0625rem solid oklch(0.91 0.005 260)',
+                        overflow: 'auto',
+                      }}>
+                        {/* Left: Organizer Pages */}
+                        <div style={{ borderInlineEnd: '0.125rem solid oklch(0.85 0.01 260)' }}>
+                          <div style={{
+                            padding: '0.5rem 1rem',
+                            backgroundColor: 'oklch(0.97 0.003 260)',
+                            borderBlockEnd: '0.0625rem solid oklch(0.93 0.003 260)',
+                            fontSize: '0.75rem', fontWeight: 700, color: 'oklch(0.3 0.01 260)',
+                            textAlign: 'center',
+                          }}>
+                            Organizer Pages
+                          </div>
+                          <div style={{
+                            display: 'flex', alignItems: 'center', gap: '0.25rem',
+                            padding: '0.3125rem 0.5rem',
+                            backgroundColor: 'oklch(0.97 0.003 260)',
+                            borderBlockEnd: '0.0625rem solid oklch(0.93 0.003 260)',
+                            fontSize: '0.5625rem', fontWeight: 700, color: 'oklch(0.45 0.01 260)',
                             textTransform: 'uppercase', letterSpacing: '0.04em',
-                            justifySelf: 'start',
+                            minInlineSize: 'max-content',
                           }}>
-                            {r.itemType === 'DUPLICATE_DATA' ? (r as DuplicateDataRecord).matchType : 'Doc Match'}
-                          </span>
-                          <ConfidenceBadge score={r.confidenceLevel} />
-                          <span style={{
-                            fontSize: '0.75rem', fontWeight: 600,
-                            color: isAccepted ? 'oklch(0.45 0.15 145)' : 'oklch(0.5 0.01 260)',
+                            <span style={{ inlineSize: '2rem', flexShrink: 0 }}>Sel</span>
+                            <span style={{ inlineSize: '2rem', flexShrink: 0 }}>Dup.</span>
+                            <span style={{ inlineSize: '8rem', flexShrink: 0 }}>InputForm</span>
+                            {fieldNames.map(f => (
+                              <span key={f} style={{ inlineSize: '6rem', flexShrink: 0, textAlign: 'end' }}>{f}</span>
+                            ))}
+                          </div>
+                          {activeGroup.matchedRecords.map((r, idx) => {
+                            const vals = r.comparedValues ?? []
+                            return (
+                              <div key={`m-org-${idx}`} style={{
+                                display: 'flex', alignItems: 'center', gap: '0.25rem',
+                                padding: '0.5rem 0.5rem',
+                                borderBlockStart: idx > 0 ? '0.0625rem solid oklch(0.95 0.003 260)' : 'none',
+                                minInlineSize: 'max-content',
+                              }}>
+                                <span style={{ inlineSize: '2rem', flexShrink: 0 }}>
+                                  <input type="checkbox" style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem', accentColor: 'oklch(0.45 0.18 240)' }} />
+                                </span>
+                                <span style={{ inlineSize: '2rem', flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
+                                  <button type="button" title="Toggle duplicate flag" style={{
+                                    background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                                    fontSize: '0.75rem', color: 'oklch(0.35 0.01 260)',
+                                  }}>
+                                    <FileText style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} />
+                                  </button>
+                                </span>
+                                <span style={{ inlineSize: '8rem', flexShrink: 0, fontSize: '0.8125rem', fontWeight: 600, color: 'oklch(0.3 0.12 240)', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {r.documentRefA?.formLabel ?? 'Unknown'}
+                                </span>
+                                {fieldNames.map(f => {
+                                  const cv = vals.find(v => v.field === f)
+                                  return (
+                                    <span key={f} style={{
+                                      inlineSize: '6rem', flexShrink: 0, textAlign: 'end',
+                                      fontSize: '0.75rem', fontWeight: 600,
+                                      color: cv && !cv.match ? 'oklch(0.45 0.18 25)' : 'oklch(0.25 0.01 260)',
+                                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                    }}>
+                                      {cv?.valueA ?? '-'}
+                                    </span>
+                                  )
+                                })}
+                              </div>
+                            )
+                          })}
+                          {/* Subtotal + Total */}
+                          <div style={{
+                            display: 'flex', alignItems: 'center', gap: '0.25rem',
+                            padding: '0.3125rem 0.5rem',
+                            backgroundColor: 'oklch(0.96 0.003 260)',
+                            borderBlockStart: '0.0625rem solid oklch(0.92 0.003 260)',
+                            fontSize: '0.6875rem', color: 'oklch(0.4 0.01 260)',
+                            minInlineSize: 'max-content',
                           }}>
-                            {isAccepted ? 'Accepted' : 'Pending'}
-                          </span>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', justifyContent: 'flex-end' }}>
-                            <Button
-                              variant="outline" size="sm"
-                              onClick={() => setOpenDocId(isDocOpen ? null : itemKey)}
-                              style={{ gap: '0.25rem', fontSize: '0.6875rem' }}
-                            >
-                              {isDocOpen
-                                ? <><EyeOff style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} /> Hide</>
-                                : <><Eye style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} /> View</>
-                              }
-                            </Button>
-                            {isAccepted ? (
-                              <Button variant="outline" size="sm" onClick={() => undo(itemKey, 'duplicate', r.confidenceLevel)} style={{ fontSize: '0.6875rem' }}>
-                                <Undo2 style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} /> Undo
-                              </Button>
-                            ) : (
-                              <Button variant="default" size="sm" onClick={() => accept(itemKey, 'duplicate', r.confidenceLevel, 'manual')} style={{ fontSize: '0.6875rem' }}>
-                                <Check style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} /> Accept
-                              </Button>
-                            )}
+                            <span style={{ inlineSize: '2rem', flexShrink: 0 }} />
+                            <span style={{ inlineSize: '2rem', flexShrink: 0 }} />
+                            <span style={{ inlineSize: '8rem', flexShrink: 0, fontStyle: 'italic' }}>Subtotal</span>
+                            {fieldNames.map(f => <span key={f} style={{ inlineSize: '6rem', flexShrink: 0 }} />)}
+                          </div>
+                          <div style={{
+                            display: 'flex', alignItems: 'center', gap: '0.25rem',
+                            padding: '0.4375rem 0.5rem',
+                            backgroundColor: 'oklch(0.95 0.005 240)',
+                            borderBlockStart: '0.0625rem solid oklch(0.9 0.005 260)',
+                            fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.3 0.01 260)',
+                            textTransform: 'uppercase', minInlineSize: 'max-content',
+                          }}>
+                            <span style={{ inlineSize: '2rem', flexShrink: 0 }} />
+                            <span style={{ inlineSize: '2rem', flexShrink: 0 }} />
+                            <span style={{ inlineSize: '8rem', flexShrink: 0 }}>Total</span>
+                            {fieldNames.map(f => <span key={f} style={{ inlineSize: '6rem', flexShrink: 0 }} />)}
                           </div>
                         </div>
 
-                        {isDocOpen && (r.documentRefA || r.documentRefB) && (
+                        {/* Right: Source Documents */}
+                        <div>
                           <div style={{
-                            display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem',
-                            borderBlockStart: '0.0625rem solid oklch(0.91 0.005 260)',
-                            padding: '1rem', backgroundColor: 'oklch(0.975 0.003 260)',
+                            padding: '0.5rem 1rem',
+                            backgroundColor: 'oklch(0.97 0.003 260)',
+                            borderBlockEnd: '0.0625rem solid oklch(0.93 0.003 260)',
+                            fontSize: '0.75rem', fontWeight: 700, color: 'oklch(0.3 0.01 260)',
+                            textAlign: 'center',
                           }}>
-                            {r.documentRefA && (
-                              <div>
-                                <p style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.4 0.01 260)', marginBlockEnd: '0.375rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                                  {r.documentRefA.formLabel}
-                                </p>
-                                <PdfPageViewer documentRef={r.documentRefA} stamp="DOC A" height="22rem" />
-                              </div>
-                            )}
-                            {r.documentRefB && (
-                              <div>
-                                <p style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.4 0.01 260)', marginBlockEnd: '0.375rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                                  {r.documentRefB.formLabel}
-                                </p>
-                                <PdfPageViewer documentRef={r.documentRefB} stamp="DOC B" height="22rem" />
-                              </div>
-                            )}
+                            Source Documents
                           </div>
-                        )}
-                      </article>
+                          <div style={{
+                            display: 'flex', alignItems: 'center', gap: '0.25rem',
+                            padding: '0.3125rem 0.5rem',
+                            backgroundColor: 'oklch(0.97 0.003 260)',
+                            borderBlockEnd: '0.0625rem solid oklch(0.93 0.003 260)',
+                            fontSize: '0.5625rem', fontWeight: 700, color: 'oklch(0.45 0.01 260)',
+                            textTransform: 'uppercase', letterSpacing: '0.04em',
+                            minInlineSize: 'max-content',
+                          }}>
+                            <span style={{ inlineSize: '2rem', flexShrink: 0 }}>Sel</span>
+                            <span style={{ inlineSize: '2rem', flexShrink: 0 }}>Dup.</span>
+                            <span style={{ inlineSize: '8rem', flexShrink: 0 }}>Recipients Name</span>
+                            {fieldNames.map(f => (
+                              <span key={f} style={{ inlineSize: '6rem', flexShrink: 0, textAlign: 'end' }}>{f}</span>
+                            ))}
+                          </div>
+                          {activeGroup.matchedRecords.map((r, idx) => {
+                            const vals = r.comparedValues ?? []
+                            return (
+                              <div key={`m-src-${idx}`} style={{
+                                display: 'flex', alignItems: 'center', gap: '0.25rem',
+                                padding: '0.5rem 0.5rem',
+                                borderBlockStart: idx > 0 ? '0.0625rem solid oklch(0.95 0.003 260)' : 'none',
+                                backgroundColor: idx % 2 === 0 ? 'oklch(0.97 0.01 240 / 0.15)' : 'transparent',
+                                minInlineSize: 'max-content',
+                              }}>
+                                <span style={{ inlineSize: '2rem', flexShrink: 0 }}>
+                                  <input type="checkbox" style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem', accentColor: 'oklch(0.45 0.18 240)' }} />
+                                </span>
+                                <span style={{ inlineSize: '2rem', flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
+                                  <button type="button" title="Toggle duplicate flag" style={{
+                                    background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                                    fontSize: '0.75rem', color: 'oklch(0.35 0.01 260)',
+                                  }}>
+                                    <FileText style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} />
+                                  </button>
+                                </span>
+                                <span style={{ inlineSize: '8rem', flexShrink: 0, fontSize: '0.8125rem', fontWeight: 600, color: 'oklch(0.3 0.12 240)', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {r.documentRefB?.formLabel ?? 'Unknown'}
+                                </span>
+                                {fieldNames.map(f => {
+                                  const cv = vals.find(v => v.field === f)
+                                  return (
+                                    <span key={f} style={{
+                                      inlineSize: '6rem', flexShrink: 0, textAlign: 'end',
+                                      fontSize: '0.75rem', fontWeight: 600,
+                                      color: cv && !cv.match ? 'oklch(0.45 0.18 25)' : 'oklch(0.25 0.01 260)',
+                                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                    }}>
+                                      {cv?.valueB ?? '-'}
+                                    </span>
+                                  )
+                                })}
+                              </div>
+                            )
+                          })}
+                          {/* Subtotal + Total */}
+                          <div style={{
+                            display: 'flex', alignItems: 'center', gap: '0.25rem',
+                            padding: '0.3125rem 0.5rem',
+                            backgroundColor: 'oklch(0.96 0.003 260)',
+                            borderBlockStart: '0.0625rem solid oklch(0.92 0.003 260)',
+                            fontSize: '0.6875rem', color: 'oklch(0.4 0.01 260)',
+                            minInlineSize: 'max-content',
+                          }}>
+                            <span style={{ inlineSize: '2rem', flexShrink: 0 }} />
+                            <span style={{ inlineSize: '2rem', flexShrink: 0 }} />
+                            <span style={{ inlineSize: '8rem', flexShrink: 0, fontStyle: 'italic' }}>Subtotal</span>
+                            {fieldNames.map(f => <span key={f} style={{ inlineSize: '6rem', flexShrink: 0 }} />)}
+                          </div>
+                          <div style={{
+                            display: 'flex', alignItems: 'center', gap: '0.25rem',
+                            padding: '0.4375rem 0.5rem',
+                            backgroundColor: 'oklch(0.95 0.005 240)',
+                            borderBlockStart: '0.0625rem solid oklch(0.9 0.005 260)',
+                            fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.3 0.01 260)',
+                            textTransform: 'uppercase', minInlineSize: 'max-content',
+                          }}>
+                            <span style={{ inlineSize: '2rem', flexShrink: 0 }} />
+                            <span style={{ inlineSize: '2rem', flexShrink: 0 }} />
+                            <span style={{ inlineSize: '8rem', flexShrink: 0 }}>Total</span>
+                            {fieldNames.map(f => <span key={f} style={{ inlineSize: '6rem', flexShrink: 0 }} />)}
+                          </div>
+                        </div>
+                      </div>
                     )
-                  })}
+                  })()}
                 </div>
               )
             })()}
@@ -742,105 +842,180 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
                   </p>
 
                   {/* Split table: Organizer Pages | Source Documents */}
-                  <div style={{
-                    display: 'grid', gridTemplateColumns: '1fr 1fr',
-                    borderBlockStart: '0.0625rem solid oklch(0.91 0.005 260)',
-                  }}>
-                    {/* Left: Organizer Pages */}
-                    <div style={{ borderInlineEnd: '0.0625rem solid oklch(0.88 0.01 260)' }}>
-                      <div style={{
-                        padding: '0.5rem 1rem',
-                        backgroundColor: 'oklch(0.97 0.003 260)',
-                        borderBlockEnd: '0.0625rem solid oklch(0.93 0.003 260)',
-                        fontSize: '0.75rem', fontWeight: 700, color: 'oklch(0.3 0.01 260)',
-                        textAlign: 'center',
-                      }}>
-                        Organizer Pages
-                      </div>
-                      <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: '2rem 1fr 5rem',
-                        alignItems: 'center', gap: '0.375rem',
-                        padding: '0.3125rem 0.75rem',
-                        backgroundColor: 'oklch(0.97 0.003 260)',
-                        borderBlockEnd: '0.0625rem solid oklch(0.93 0.003 260)',
-                        fontSize: '0.5625rem', fontWeight: 700, color: 'oklch(0.45 0.01 260)',
-                        textTransform: 'uppercase', letterSpacing: '0.04em',
-                      }}>
-                        <span>Sel</span>
-                        <span>InputForm</span>
-                        <span>Description</span>
-                      </div>
-                      {activeGroup.unmatchedRecords.map((r, idx) => (
-                        <div
-                          key={`org-${idx}`}
-                          style={{
-                            display: 'grid',
-                            gridTemplateColumns: '2rem 1fr 5rem',
-                            alignItems: 'center', gap: '0.375rem',
-                            padding: '0.5rem 0.75rem',
-                            borderBlockStart: idx > 0 ? '0.0625rem solid oklch(0.95 0.003 260)' : 'none',
-                          }}
-                        >
-                          <input type="checkbox" style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem', accentColor: 'oklch(0.45 0.18 240)' }} />
-                          <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'oklch(0.3 0.12 240)', cursor: 'pointer' }}>
-                            {r.documentRefA?.formLabel ?? 'Unknown'}
-                          </span>
-                          <span style={{ fontSize: '0.75rem', color: 'oklch(0.45 0.01 260)' }}>
-                            {r.documentRefA?.formType ?? '-'}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
+                  {(() => {
+                    /* Derive value column headers from compared fields across all unmatched records */
+                    const fieldNames = activeGroup.unmatchedRecords
+                      .flatMap(r => r.comparedValues ?? [])
+                      .map(v => v.field)
+                      .filter((f, i, arr) => arr.indexOf(f) === i)
 
-                    {/* Right: Source Documents */}
-                    <div>
+                    return (
                       <div style={{
-                        padding: '0.5rem 1rem',
-                        backgroundColor: 'oklch(0.97 0.003 260)',
-                        borderBlockEnd: '0.0625rem solid oklch(0.93 0.003 260)',
-                        fontSize: '0.75rem', fontWeight: 700, color: 'oklch(0.3 0.01 260)',
-                        textAlign: 'center',
+                        display: 'grid', gridTemplateColumns: '1fr 1fr',
+                        borderBlockStart: '0.0625rem solid oklch(0.91 0.005 260)',
+                        overflow: 'auto',
                       }}>
-                        Source Documents
-                      </div>
-                      <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: '2rem 1fr 5rem',
-                        alignItems: 'center', gap: '0.375rem',
-                        padding: '0.3125rem 0.75rem',
-                        backgroundColor: 'oklch(0.97 0.003 260)',
-                        borderBlockEnd: '0.0625rem solid oklch(0.93 0.003 260)',
-                        fontSize: '0.5625rem', fontWeight: 700, color: 'oklch(0.45 0.01 260)',
-                        textTransform: 'uppercase', letterSpacing: '0.04em',
-                      }}>
-                        <span>Sel</span>
-                        <span>Recipients Name</span>
-                        <span>Description</span>
-                      </div>
-                      {activeGroup.unmatchedRecords.map((r, idx) => (
-                        <div
-                          key={`src-${idx}`}
-                          style={{
-                            display: 'grid',
-                            gridTemplateColumns: '2rem 1fr 5rem',
-                            alignItems: 'center', gap: '0.375rem',
-                            padding: '0.5rem 0.75rem',
-                            borderBlockStart: idx > 0 ? '0.0625rem solid oklch(0.95 0.003 260)' : 'none',
-                            backgroundColor: idx % 2 === 0 ? 'oklch(0.97 0.01 240 / 0.2)' : 'transparent',
-                          }}
-                        >
-                          <input type="checkbox" style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem', accentColor: 'oklch(0.45 0.18 240)' }} />
-                          <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'oklch(0.3 0.12 240)', cursor: 'pointer' }}>
-                            {r.documentRefB?.formLabel ?? 'Unknown'}
-                          </span>
-                          <span style={{ fontSize: '0.75rem', color: 'oklch(0.45 0.01 260)' }}>
-                            {r.documentRefB?.formType ?? '-'}
-                          </span>
+                        {/* Left: Organizer Pages */}
+                        <div style={{ borderInlineEnd: '0.125rem solid oklch(0.85 0.01 260)' }}>
+                          <div style={{
+                            padding: '0.5rem 1rem',
+                            backgroundColor: 'oklch(0.97 0.003 260)',
+                            borderBlockEnd: '0.0625rem solid oklch(0.93 0.003 260)',
+                            fontSize: '0.75rem', fontWeight: 700, color: 'oklch(0.3 0.01 260)',
+                            textAlign: 'center',
+                          }}>
+                            Organizer Pages
+                          </div>
+                          {/* Column headers */}
+                          <div style={{
+                            display: 'flex', alignItems: 'center', gap: '0.25rem',
+                            padding: '0.3125rem 0.5rem',
+                            backgroundColor: 'oklch(0.97 0.003 260)',
+                            borderBlockEnd: '0.0625rem solid oklch(0.93 0.003 260)',
+                            fontSize: '0.5625rem', fontWeight: 700, color: 'oklch(0.45 0.01 260)',
+                            textTransform: 'uppercase', letterSpacing: '0.04em',
+                            minInlineSize: 'max-content',
+                          }}>
+                            <span style={{ inlineSize: '2rem', flexShrink: 0 }}>Sel</span>
+                            <span style={{ inlineSize: '8rem', flexShrink: 0 }}>InputForm</span>
+                            {fieldNames.map(f => (
+                              <span key={f} style={{ inlineSize: '6rem', flexShrink: 0, textAlign: 'end' }}>{f}</span>
+                            ))}
+                          </div>
+                          {/* Data rows */}
+                          {activeGroup.unmatchedRecords.map((r, idx) => {
+                            const vals = r.comparedValues ?? []
+                            return (
+                              <div
+                                key={`org-${idx}`}
+                                style={{
+                                  display: 'flex', alignItems: 'center', gap: '0.25rem',
+                                  padding: '0.5rem 0.5rem',
+                                  borderBlockStart: idx > 0 ? '0.0625rem solid oklch(0.95 0.003 260)' : 'none',
+                                  minInlineSize: 'max-content',
+                                }}
+                              >
+                                <span style={{ inlineSize: '2rem', flexShrink: 0 }}>
+                                  <input type="checkbox" style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem', accentColor: 'oklch(0.45 0.18 240)' }} />
+                                </span>
+                                <span style={{ inlineSize: '8rem', flexShrink: 0, fontSize: '0.8125rem', fontWeight: 600, color: 'oklch(0.3 0.12 240)', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {r.documentRefA?.formLabel ?? 'Unknown'}
+                                </span>
+                                {fieldNames.map(f => {
+                                  const cv = vals.find(v => v.field === f)
+                                  return (
+                                    <span key={f} style={{
+                                      inlineSize: '6rem', flexShrink: 0, textAlign: 'end',
+                                      fontSize: '0.75rem', fontWeight: 600,
+                                      color: cv && !cv.match ? 'oklch(0.45 0.18 25)' : 'oklch(0.25 0.01 260)',
+                                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                    }}>
+                                      {cv?.valueA ?? '-'}
+                                    </span>
+                                  )
+                                })}
+                              </div>
+                            )
+                          })}
+                          {/* Total row */}
+                          <div style={{
+                            display: 'flex', alignItems: 'center', gap: '0.25rem',
+                            padding: '0.4375rem 0.5rem',
+                            backgroundColor: 'oklch(0.95 0.005 240)',
+                            borderBlockStart: '0.0625rem solid oklch(0.9 0.005 260)',
+                            fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.3 0.01 260)',
+                            textTransform: 'uppercase', minInlineSize: 'max-content',
+                          }}>
+                            <span style={{ inlineSize: '2rem', flexShrink: 0 }} />
+                            <span style={{ inlineSize: '8rem', flexShrink: 0 }}>Total</span>
+                            {fieldNames.map(f => (
+                              <span key={f} style={{ inlineSize: '6rem', flexShrink: 0, textAlign: 'end' }} />
+                            ))}
+                          </div>
                         </div>
-                      ))}
-                    </div>
-                  </div>
+
+                        {/* Right: Source Documents */}
+                        <div>
+                          <div style={{
+                            padding: '0.5rem 1rem',
+                            backgroundColor: 'oklch(0.97 0.003 260)',
+                            borderBlockEnd: '0.0625rem solid oklch(0.93 0.003 260)',
+                            fontSize: '0.75rem', fontWeight: 700, color: 'oklch(0.3 0.01 260)',
+                            textAlign: 'center',
+                          }}>
+                            Source Documents
+                          </div>
+                          {/* Column headers */}
+                          <div style={{
+                            display: 'flex', alignItems: 'center', gap: '0.25rem',
+                            padding: '0.3125rem 0.5rem',
+                            backgroundColor: 'oklch(0.97 0.003 260)',
+                            borderBlockEnd: '0.0625rem solid oklch(0.93 0.003 260)',
+                            fontSize: '0.5625rem', fontWeight: 700, color: 'oklch(0.45 0.01 260)',
+                            textTransform: 'uppercase', letterSpacing: '0.04em',
+                            minInlineSize: 'max-content',
+                          }}>
+                            <span style={{ inlineSize: '2rem', flexShrink: 0 }}>Sel</span>
+                            <span style={{ inlineSize: '8rem', flexShrink: 0 }}>Recipients Name</span>
+                            {fieldNames.map(f => (
+                              <span key={f} style={{ inlineSize: '6rem', flexShrink: 0, textAlign: 'end' }}>{f}</span>
+                            ))}
+                          </div>
+                          {/* Data rows */}
+                          {activeGroup.unmatchedRecords.map((r, idx) => {
+                            const vals = r.comparedValues ?? []
+                            return (
+                              <div
+                                key={`src-${idx}`}
+                                style={{
+                                  display: 'flex', alignItems: 'center', gap: '0.25rem',
+                                  padding: '0.5rem 0.5rem',
+                                  borderBlockStart: idx > 0 ? '0.0625rem solid oklch(0.95 0.003 260)' : 'none',
+                                  backgroundColor: idx % 2 === 0 ? 'oklch(0.97 0.01 240 / 0.15)' : 'transparent',
+                                  minInlineSize: 'max-content',
+                                }}
+                              >
+                                <span style={{ inlineSize: '2rem', flexShrink: 0 }}>
+                                  <input type="checkbox" style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem', accentColor: 'oklch(0.45 0.18 240)' }} />
+                                </span>
+                                <span style={{ inlineSize: '8rem', flexShrink: 0, fontSize: '0.8125rem', fontWeight: 600, color: 'oklch(0.3 0.12 240)', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {r.documentRefB?.formLabel ?? 'Unknown'}
+                                </span>
+                                {fieldNames.map(f => {
+                                  const cv = vals.find(v => v.field === f)
+                                  return (
+                                    <span key={f} style={{
+                                      inlineSize: '6rem', flexShrink: 0, textAlign: 'end',
+                                      fontSize: '0.75rem', fontWeight: 600,
+                                      color: cv && !cv.match ? 'oklch(0.45 0.18 25)' : 'oklch(0.25 0.01 260)',
+                                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                    }}>
+                                      {cv?.valueB ?? '-'}
+                                    </span>
+                                  )
+                                })}
+                              </div>
+                            )
+                          })}
+                          {/* Total row */}
+                          <div style={{
+                            display: 'flex', alignItems: 'center', gap: '0.25rem',
+                            padding: '0.4375rem 0.5rem',
+                            backgroundColor: 'oklch(0.95 0.005 240)',
+                            borderBlockStart: '0.0625rem solid oklch(0.9 0.005 260)',
+                            fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.3 0.01 260)',
+                            textTransform: 'uppercase', minInlineSize: 'max-content',
+                          }}>
+                            <span style={{ inlineSize: '2rem', flexShrink: 0 }} />
+                            <span style={{ inlineSize: '8rem', flexShrink: 0 }}>Total</span>
+                            {fieldNames.map(f => (
+                              <span key={f} style={{ inlineSize: '6rem', flexShrink: 0, textAlign: 'end' }} />
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })()}
                 </div>
               )
             })()}
