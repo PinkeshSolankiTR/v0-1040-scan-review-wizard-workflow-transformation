@@ -30,9 +30,24 @@ function getRecordLabel(r: DuplicateRecord): string {
   return `Doc ${d.docIdA} / Doc ${d.docIdB}`
 }
 
-function isMatched(r: DuplicateRecord): boolean {
-  if (r.itemType === 'DUPLICATE_DATA') return (r as DuplicateDataRecord).decision === 'DuplicateData'
-  return (r as DuplicateDocRecord).decision === 'Duplicate'
+/**
+ * Determines if a record is "matched" based on runtime state.
+ * A record is matched if:
+ *  1. The user explicitly accepted/matched it (decisions[key] === 'accepted'), OR
+ *  2. AI auto-matched it (confidence >= 0.9) AND showAutoMatched is on
+ *     AND the user hasn't explicitly unmatched it (decisions[key] !== 'rejected')
+ */
+function isRecordMatched(
+  r: DuplicateRecord,
+  key: string,
+  decisions: Record<string, string>,
+  showAutoMatched: boolean
+): boolean {
+  if (decisions[key] === 'accepted') return true
+  if (decisions[key] === 'rejected') return false
+  // AI auto-match: high confidence items go to Matched when toggle is on
+  if (showAutoMatched && r.confidenceLevel >= 0.9) return true
+  return false
 }
 
 interface FormCategoryGroup {
@@ -45,7 +60,11 @@ interface FormCategoryGroup {
   allSignedOff: boolean
 }
 
-function groupByFormCategory(data: DuplicateRecord[]): FormCategoryGroup[] {
+function groupByFormCategory(
+  data: DuplicateRecord[],
+  decisions: Record<string, string>,
+  showAutoMatched: boolean
+): FormCategoryGroup[] {
   const map = new Map<string, DuplicateRecord[]>()
 
   for (const r of data) {
@@ -56,11 +75,13 @@ function groupByFormCategory(data: DuplicateRecord[]): FormCategoryGroup[] {
 
   const groups: FormCategoryGroup[] = []
   for (const [formType, records] of map.entries()) {
+    const matched = records.filter(r => isRecordMatched(r, getItemKey(r), decisions, showAutoMatched))
+    const unmatched = records.filter(r => !isRecordMatched(r, getItemKey(r), decisions, showAutoMatched))
     groups.push({
       formType,
       records,
-      matchedRecords: records.filter(r => isMatched(r)),
-      unmatchedRecords: records.filter(r => !isMatched(r)),
+      matchedRecords: matched,
+      unmatchedRecords: unmatched,
       needsReview: records.some(r => r.reviewRequired),
       averageConfidence: records.reduce((sum, r) => sum + r.confidenceLevel, 0) / records.length,
       allSignedOff: false,
@@ -79,17 +100,19 @@ function groupByFormCategory(data: DuplicateRecord[]): FormCategoryGroup[] {
 
 export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
   const { decisions, accept, undo, acceptAllHighConfidence } = useDecisions()
-  const groups = useMemo(() => groupByFormCategory(data), [data])
-
-  const [selectedCategory, setSelectedCategory] = useState<string>(groups[0]?.formType ?? '')
+  const [selectedCategory, setSelectedCategory] = useState<string>('')
   const [expandedSections, setExpandedSections] = useState<Set<string>>(() => new Set(['matched', 'unmatched']))
   const [openDocId, setOpenDocId] = useState<string | null>(null)
   const [showAutoMatched, setShowAutoMatched] = useState(true)
 
-  const activeGroup = groups.find(g => g.formType === selectedCategory) ?? groups[0]
+  const groups = useMemo(() => groupByFormCategory(data, decisions, showAutoMatched), [data, decisions, showAutoMatched])
+
+  // Initialize category to first group if not set
+  const effectiveCategory = selectedCategory || groups[0]?.formType || ''
+  const activeGroup = groups.find(g => g.formType === effectiveCategory) ?? groups[0]
   const highCount = data.filter(r => getConfidenceLevel(r.confidenceLevel) === 'high').length
-  const totalMatched = data.filter(r => isMatched(r)).length
-  const totalUnmatched = data.filter(r => !isMatched(r)).length
+  const totalMatched = activeGroup?.matchedRecords.length ?? 0
+  const totalUnmatched = activeGroup?.unmatchedRecords.length ?? 0
 
   const toggleSection = (section: string) => {
     setExpandedSections(prev => {
@@ -106,6 +129,16 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
         .filter(r => r.confidenceLevel >= 0.9)
         .map(r => ({ key: getItemKey(r), wizardType: 'duplicate' as const, confidence: r.confidenceLevel }))
     )
+  }
+
+  /** Move a record to the Matched section */
+  const matchRecord = (r: DuplicateRecord) => {
+    accept(getItemKey(r), 'duplicate', r.confidenceLevel, 'manual')
+  }
+
+  /** Move a record back to the Unmatched section */
+  const unmatchRecord = (r: DuplicateRecord) => {
+    undo(getItemKey(r), 'duplicate', r.confidenceLevel)
   }
 
   /* ── Empty state ── */
@@ -198,7 +231,7 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
         )}
 
         {groups.map(g => {
-          const isActive = g.formType === selectedCategory
+          const isActive = g.formType === effectiveCategory
           const allAccepted = g.records.every(r => decisions[getItemKey(r)] === 'accepted')
           return (
             <button

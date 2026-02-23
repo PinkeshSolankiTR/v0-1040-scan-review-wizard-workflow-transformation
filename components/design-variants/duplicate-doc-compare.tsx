@@ -32,9 +32,16 @@ function getRecordLabel(r: DuplicateRecord): string {
   return `Doc ${d.docIdA} / ${d.docIdB}`
 }
 
-function isMatched(r: DuplicateRecord): boolean {
-  if (r.itemType === 'DUPLICATE_DATA') return (r as DuplicateDataRecord).decision === 'DuplicateData'
-  return (r as DuplicateDocRecord).decision === 'Duplicate'
+function isRecordMatched(
+  r: DuplicateRecord,
+  key: string,
+  decisions: Record<string, string>,
+  showAutoMatched: boolean
+): boolean {
+  if (decisions[key] === 'accepted') return true
+  if (decisions[key] === 'rejected') return false
+  if (showAutoMatched && r.confidenceLevel >= 0.9) return true
+  return false
 }
 
 interface FormCategoryGroup {
@@ -46,7 +53,11 @@ interface FormCategoryGroup {
   averageConfidence: number
 }
 
-function groupByFormCategory(data: DuplicateRecord[]): FormCategoryGroup[] {
+function groupByFormCategory(
+  data: DuplicateRecord[],
+  decisions: Record<string, string>,
+  showAutoMatched: boolean
+): FormCategoryGroup[] {
   const map = new Map<string, DuplicateRecord[]>()
   for (const r of data) {
     const key = r.documentRefA?.formType ?? 'Unknown'
@@ -55,10 +66,12 @@ function groupByFormCategory(data: DuplicateRecord[]): FormCategoryGroup[] {
   }
   const groups: FormCategoryGroup[] = []
   for (const [formType, records] of map.entries()) {
+    const matched = records.filter(r => isRecordMatched(r, getItemKey(r), decisions, showAutoMatched))
+    const unmatched = records.filter(r => !isRecordMatched(r, getItemKey(r), decisions, showAutoMatched))
     groups.push({
       formType, records,
-      matchedRecords: records.filter(r => isMatched(r)),
-      unmatchedRecords: records.filter(r => !isMatched(r)),
+      matchedRecords: matched,
+      unmatchedRecords: unmatched,
       needsReview: records.some(r => r.reviewRequired),
       averageConfidence: records.reduce((sum, r) => sum + r.confidenceLevel, 0) / records.length,
     })
@@ -74,7 +87,8 @@ function groupByFormCategory(data: DuplicateRecord[]): FormCategoryGroup[] {
 
 export function DuplicateDocCompare({ data }: { data: DuplicateRecord[] }) {
   const { decisions, accept, undo } = useDecisions()
-  const groups = useMemo(() => groupByFormCategory(data), [data])
+  const [showAutoMatched, setShowAutoMatched] = useState(true)
+  const groups = useMemo(() => groupByFormCategory(data, decisions, showAutoMatched), [data, decisions, showAutoMatched])
 
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => new Set(groups.map(g => g.formType)))
   const [selectedKey, setSelectedKey] = useState<string | null>(data[0] ? getItemKey(data[0]) : null)
