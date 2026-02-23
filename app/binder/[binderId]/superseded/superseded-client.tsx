@@ -65,10 +65,12 @@ function groupByFormType(data: SupersededRecord[]): FormGroup[] {
 
 export function SupersededClient({ data }: { data: SupersededRecord[] }) {
   const { decisions, accept, undo, acceptAllHighConfidence } = useDecisions()
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
+  const groups = useMemo(() => groupByFormType(data), [data])
+
+  // All groups expanded by default so category headers + records are immediately visible
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => new Set(groups.map(g => g.formType)))
   const [openDocId, setOpenDocId] = useState<number | null>(null)
 
-  const groups = useMemo(() => groupByFormType(data), [data])
   const highCount = data.filter(r => getConfidenceLevel(r.confidenceLevel) === 'high').length
   const totalOriginal = data.filter(r => r.decisionType === 'Original').length
   const totalSuperseded = data.filter(r => r.decisionType === 'Superseded').length
@@ -149,10 +151,11 @@ export function SupersededClient({ data }: { data: SupersededRecord[] }) {
           <section
             key={group.formType}
             style={{
-              border: '0.0625rem solid oklch(0.91 0.005 260)',
+              border: '0.0625rem solid oklch(0.88 0.01 260)',
               borderRadius: 'var(--radius)',
               overflow: 'hidden',
               backgroundColor: 'oklch(1 0 0)',
+              boxShadow: '0 0.0625rem 0.1875rem oklch(0 0 0 / 0.06)',
             }}
           >
             {/* ── Category header ── */}
@@ -161,10 +164,11 @@ export function SupersededClient({ data }: { data: SupersededRecord[] }) {
               onClick={() => toggleGroup(group.formType)}
               style={{
                 display: 'flex', alignItems: 'center', gap: '0.75rem',
-                inlineSize: '100%', padding: '0.875rem 1rem',
-                backgroundColor: allGroupAccepted ? 'oklch(0.97 0.02 145 / 0.4)' : 'oklch(0.975 0.003 260)',
+                inlineSize: '100%', padding: '1rem 1.25rem',
+                backgroundColor: allGroupAccepted ? 'oklch(0.95 0.03 145 / 0.35)' : 'oklch(0.965 0.005 260)',
                 border: 'none', cursor: 'pointer', textAlign: 'start',
-                borderBlockEnd: isExpanded ? '0.0625rem solid oklch(0.91 0.005 260)' : 'none',
+                borderBlockEnd: isExpanded ? '0.125rem solid oklch(0.88 0.01 260)' : 'none',
+                borderInlineStart: `0.25rem solid ${group.needsReview ? 'oklch(0.65 0.18 60)' : 'var(--ai-accent)'}`,
               }}
               aria-expanded={isExpanded}
             >
@@ -176,10 +180,10 @@ export function SupersededClient({ data }: { data: SupersededRecord[] }) {
               {/* Form type icon + label */}
               <FileText style={{ inlineSize: '1.125rem', blockSize: '1.125rem', color: 'var(--ai-accent)', flexShrink: 0 }} />
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.125rem', minInlineSize: 0 }}>
-                <span style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--foreground)' }}>
+                <span style={{ fontSize: '1.0625rem', fontWeight: 700, color: 'var(--foreground)', letterSpacing: '-0.01em' }}>
                   {group.formType}
                 </span>
-                <span style={{ fontSize: '0.75rem', color: 'oklch(0.5 0.01 260)' }}>
+                <span style={{ fontSize: '0.8125rem', color: 'oklch(0.45 0.01 260)', fontWeight: 500 }}>
                   {group.formEntity}
                 </span>
               </div>
