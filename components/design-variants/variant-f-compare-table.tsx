@@ -92,7 +92,8 @@ export function VariantFCompareTable({ data }: { data: SupersededRecord[] }) {
   const totalSuperseded = data.filter(r => r.decisionType === 'Superseded').length
   const totalReview = data.filter(r => r.reviewRequired).length
 
-  const toggleGroup = useCallback((formType: string) => {
+  const toggleGroup = useCallback((formType: string, gIdx: number) => {
+    setSelectedGroupIdx(gIdx)
     setExpandedGroups(prev => {
       const next = new Set(prev)
       if (next.has(formType)) next.delete(formType)
@@ -106,6 +107,7 @@ export function VariantFCompareTable({ data }: { data: SupersededRecord[] }) {
     const ft = groups[idx]?.formType
     if (ft) {
       setExpandedGroups(prev => {
+        if (prev.has(ft)) return prev
         const next = new Set(prev)
         next.add(ft)
         return next
@@ -233,7 +235,7 @@ export function VariantFCompareTable({ data }: { data: SupersededRecord[] }) {
                       {/* Group header */}
                       <button
                         type="button"
-                        onClick={() => { toggleGroup(group.formType); selectGroup(gIdx) }}
+                        onClick={() => toggleGroup(group.formType, gIdx)}
                         style={{
                           display: 'flex', alignItems: 'flex-start', gap: '0.375rem',
                           inlineSize: '100%', padding: '0.5rem 0.75rem',
@@ -662,7 +664,7 @@ export function VariantFCompareTable({ data }: { data: SupersededRecord[] }) {
               {/* Category header */}
               <button
                 type="button"
-                onClick={() => { toggleGroup(group.formType); selectGroup(gIdx) }}
+                onClick={() => toggleGroup(group.formType, gIdx)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: '0.625rem',
                   inlineSize: '100%', padding: '0.75rem 1rem',

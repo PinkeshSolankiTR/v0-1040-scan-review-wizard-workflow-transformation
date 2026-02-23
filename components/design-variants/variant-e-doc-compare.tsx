@@ -77,7 +77,8 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
 
   const activeGroup = groups[selectedGroupIdx] ?? groups[0]
 
-  const toggleGroup = (formType: string) => {
+  const toggleGroup = (formType: string, gIdx: number) => {
+    setSelectedGroupIdx(gIdx)
     setExpandedGroups(prev => {
       const next = new Set(prev)
       if (next.has(formType)) next.delete(formType)
@@ -91,6 +92,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
     const ft = groups[idx]?.formType
     if (ft) {
       setExpandedGroups(prev => {
+        if (prev.has(ft)) return prev
         const next = new Set(prev)
         next.add(ft)
         return next
@@ -254,7 +256,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                   {/* ── Group header ── */}
                   <button
                     type="button"
-                    onClick={() => { toggleGroup(group.formType); selectGroup(gIdx) }}
+                    onClick={() => toggleGroup(group.formType, gIdx)}
                     style={{
                       display: 'flex', alignItems: 'flex-start', gap: '0.5rem',
                       inlineSize: '100%', padding: '0.625rem 0.75rem',
