@@ -321,11 +321,6 @@ export function VariantBSuperseded({ data }: { data: SupersededRecord[] }) {
                             </div>
                           )}
 
-                          {/* Field comparison */}
-                          {r.comparedValues && r.comparedValues.length > 0 && (
-                            <FieldComparison values={r.comparedValues} labelA={r.documentRef?.formLabel ?? 'Doc A'} labelB="Compared Version" />
-                          )}
-
                           {/* PDF page viewer */}
                           {isDocOpen && r.documentRef && (
                             <div className="flex flex-col gap-3 pt-2 border-t" style={{ borderColor: 'oklch(0.93 0.005 80)' }}>
@@ -350,6 +345,28 @@ export function VariantBSuperseded({ data }: { data: SupersededRecord[] }) {
                     </Card>
                   )
                 })}
+
+                {/* ── Group-level field comparison ── */}
+                {(() => {
+                  const allCompared = group.records.flatMap(r => r.comparedValues ?? [])
+                  const unique = allCompared.filter((v, i, arr) => arr.findIndex(x => x.field === v.field) === i)
+                  if (unique.length === 0) return null
+                  const originalRec = group.records.find(r => r.decisionType === 'Original') ?? group.records[0]
+                  const supersededRec = group.records.find(r => r.decisionType === 'Superseded')
+                  return (
+                    <div className="px-5 py-4 border-t-2" style={{ borderColor: 'oklch(0.91 0.01 80)', backgroundColor: 'oklch(0.98 0.005 80)' }}>
+                      <p className="text-sm font-bold mb-3 flex items-center gap-1.5" style={{ color: 'oklch(0.25 0 0)' }}>
+                        <Sparkles className="size-3.5" style={{ color: 'oklch(0.5 0.12 80)' }} />
+                        Field Comparison &mdash; {group.formType}
+                      </p>
+                      <FieldComparison
+                        values={unique}
+                        labelA={originalRec.documentRef?.formLabel ?? 'Original'}
+                        labelB={supersededRec?.documentRef?.formLabel ?? 'Superseding Version'}
+                      />
+                    </div>
+                  )
+                })()}
               </div>
             )}
           </div>

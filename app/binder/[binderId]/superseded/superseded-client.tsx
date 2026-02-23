@@ -388,16 +388,6 @@ export function SupersededClient({ data }: { data: SupersededRecord[] }) {
                           </div>
                         )}
 
-                        {/* Field comparison inline+expandable */}
-                        {r.comparedValues && r.comparedValues.length > 0 && (
-                          <div style={{ marginBlockStart: '0.625rem' }}>
-                            <FieldComparison
-                              values={r.comparedValues}
-                              labelA={r.documentRef?.formLabel ?? 'This Document'}
-                              labelB={r.decisionType === 'Superseded' ? 'Superseding Version' : r.decisionType === 'RetainBoth' ? 'Compared Document' : 'Binder Search'}
-                            />
-                          </div>
-                        )}
                       </div>
 
                       {/* ── Document preview: PDF page with stamp ── */}
@@ -457,6 +447,32 @@ export function SupersededClient({ data }: { data: SupersededRecord[] }) {
                     </article>
                   )
                 })}
+
+                {/* ── Group-level field comparison (one per form type) ── */}
+                {(() => {
+                  const allCompared = group.records.flatMap(r => r.comparedValues ?? [])
+                  const unique = allCompared.filter((v, i, arr) => arr.findIndex(x => x.field === v.field) === i)
+                  if (unique.length === 0) return null
+                  const originalRec = group.records.find(r => r.decisionType === 'Original') ?? group.records[0]
+                  const supersededRec = group.records.find(r => r.decisionType === 'Superseded')
+                  return (
+                    <div style={{
+                      padding: '1rem 1.25rem',
+                      borderBlockStart: '0.125rem solid oklch(0.91 0.005 260)',
+                      backgroundColor: 'oklch(0.98 0.003 260)',
+                    }}>
+                      <p style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'oklch(0.25 0 0)', marginBlockEnd: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                        <Sparkles style={{ inlineSize: '0.875rem', blockSize: '0.875rem', color: 'var(--ai-accent)' }} />
+                        Field Comparison &mdash; {group.formType}
+                      </p>
+                      <FieldComparison
+                        values={unique}
+                        labelA={originalRec.documentRef?.formLabel ?? 'Original'}
+                        labelB={supersededRec?.documentRef?.formLabel ?? 'Superseding Version'}
+                      />
+                    </div>
+                  )
+                })()}
               </div>
             )}
           </section>

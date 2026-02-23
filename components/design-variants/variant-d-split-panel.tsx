@@ -236,7 +236,29 @@ export function VariantDSuperseded({ data }: { data: SupersededRecord[] }) {
               </span>
             </div>
           )}
-          {record.comparedValues && record.comparedValues.length > 0 && <FieldComparison values={record.comparedValues} labelA="Document A" labelB="Document B" />}
+          {/* Group-level field comparison */}
+          {(() => {
+            const recordGroup = groups.find(g => g.records.some(r => r.engagementPageId === record.engagementPageId))
+            if (!recordGroup) return null
+            const allCompared = recordGroup.records.flatMap(r => r.comparedValues ?? [])
+            const unique = allCompared.filter((v, i, arr) => arr.findIndex(x => x.field === v.field) === i)
+            if (unique.length === 0) return null
+            const originalRec = recordGroup.records.find(r => r.decisionType === 'Original') ?? recordGroup.records[0]
+            const supersededRec = recordGroup.records.find(r => r.decisionType === 'Superseded')
+            return (
+              <div>
+                <p className="text-xs font-bold mb-2 flex items-center gap-1.5" style={{ color: 'oklch(0.25 0 0)' }}>
+                  <Sparkles className="size-3" style={{ color: 'oklch(0.5 0.15 240)' }} />
+                  Field Comparison &mdash; {recordGroup.formType}
+                </p>
+                <FieldComparison
+                  values={unique}
+                  labelA={originalRec.documentRef?.formLabel ?? 'Original'}
+                  labelB={supersededRec?.documentRef?.formLabel ?? 'Superseding Version'}
+                />
+              </div>
+            )
+          })()}
           {/* PDF page viewer */}
           {record.documentRef && (
             record.decisionType === 'Superseded' && record.retainedPageId ? (

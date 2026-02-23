@@ -239,7 +239,6 @@ export function VariantCSuperseded({ data }: { data: SupersededRecord[] }) {
                           </span>
                         </div>
                       )}
-                      {r.comparedValues && r.comparedValues.length > 0 && <FieldComparison values={r.comparedValues} labelA="Doc A" labelB="Doc B" />}
                       {r.documentRef && (
                         r.decisionType === 'Superseded' && r.retainedPageId ? (
                           <div className="flex flex-col gap-2">
@@ -270,6 +269,28 @@ export function VariantCSuperseded({ data }: { data: SupersededRecord[] }) {
               )
             }}
           />
+
+          {/* ── Group-level field comparison ── */}
+          {(() => {
+            const allCompared = group.records.flatMap(r => r.comparedValues ?? [])
+            const unique = allCompared.filter((v, i, arr) => arr.findIndex(x => x.field === v.field) === i)
+            if (unique.length === 0) return null
+            const originalRec = group.records.find(r => r.decisionType === 'Original') ?? group.records[0]
+            const supersededRec = group.records.find(r => r.decisionType === 'Superseded')
+            return (
+              <div className="mt-3 rounded-lg p-4 border" style={{ borderColor: 'oklch(0.88 0.01 260)', backgroundColor: 'oklch(0.98 0.003 260)' }}>
+                <p className="text-xs font-bold mb-2 flex items-center gap-1.5" style={{ color: 'oklch(0.25 0 0)' }}>
+                  <Sparkles className="size-3" style={{ color: 'oklch(0.5 0.15 260)' }} />
+                  Field Comparison &mdash; {group.formType}
+                </p>
+                <FieldComparison
+                  values={unique}
+                  labelA={originalRec.documentRef?.formLabel ?? 'Original'}
+                  labelB={supersededRec?.documentRef?.formLabel ?? 'Superseding Version'}
+                />
+              </div>
+            )
+          })()}
         </div>
       ))}
     </section>
