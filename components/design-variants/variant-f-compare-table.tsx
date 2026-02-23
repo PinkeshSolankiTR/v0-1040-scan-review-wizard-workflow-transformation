@@ -22,7 +22,7 @@ import {
   Eye, EyeOff, ArrowRight, ChevronDown, ChevronRight,
   CircleAlert, CircleCheck, FolderOpen,
   ZoomIn, ZoomOut, RotateCw, FlipHorizontal, FlipVertical, Maximize,
-  MoveHorizontal, GripVertical,
+  MoveHorizontal, GripVertical, TableProperties,
 } from 'lucide-react'
 
 /* ── Types ── */
@@ -206,112 +206,246 @@ export function VariantFCompareTable({ data }: { data: SupersededRecord[] }) {
                   padding: '0.375rem 0.75rem 0.625rem 1.75rem',
                   fontSize: '0.6875rem', lineHeight: '1.5', color: 'oklch(0.4 0.01 260)',
                 }}>
-                  <p>Select a form group to compare the superseded and original versions side by side. Scroll down to review all documents in the table.</p>
+                  <p>Review each form group below. Expand to see pages, AI analysis, and field comparisons inline. The selected group drives the PDF viewers.</p>
                 </div>
               </details>
 
-              {/* Document tree */}
-              {groups.map((group, gIdx) => {
-                const isExpanded = expandedGroups.has(group.formType)
-                const isActive = gIdx === selectedGroupIdx
-                const groupAccepted = group.records.every(r => decisions[`sup-pg${r.engagementPageId}`] === 'accepted')
-                const avgConf = Math.round(group.averageConfidence * 100)
-                const confColor = avgConf >= 90
-                  ? 'oklch(0.55 0.17 145)'
-                  : avgConf >= 70 ? 'oklch(0.65 0.14 80)' : 'oklch(0.6 0.18 15)'
+              {/* Document tree with inline accordions */}
+              <div style={{ flex: '1 1 auto', overflowY: 'auto' }}>
+                {groups.map((group, gIdx) => {
+                  const isExpanded = expandedGroups.has(group.formType)
+                  const isActive = gIdx === selectedGroupIdx
+                  const groupAccepted = group.records.every(r => decisions[`sup-pg${r.engagementPageId}`] === 'accepted')
+                  const avgConf = Math.round(group.averageConfidence * 100)
+                  const confColor = avgConf >= 90
+                    ? 'oklch(0.55 0.17 145)'
+                    : avgConf >= 70 ? 'oklch(0.65 0.14 80)' : 'oklch(0.6 0.18 15)'
+                  const groupSuperseded = group.supersededRecords[0]
+                  const groupOriginal = group.originalRecord
+                  const groupCompared = group.records.flatMap(r => r.comparedValues ?? [])
+                    .filter((v, i, arr) => arr.findIndex(x => x.field === v.field) === i)
 
-                return (
-                  <div key={group.formType} style={{ borderBlockEnd: '0.0625rem solid oklch(0.93 0.003 260)' }}>
-                    <button
-                      type="button"
-                      onClick={() => { toggleGroup(group.formType); selectGroup(gIdx) }}
-                      style={{
-                        display: 'flex', alignItems: 'flex-start', gap: '0.375rem',
-                        inlineSize: '100%', padding: '0.5rem 0.75rem',
-                        border: 'none', cursor: 'pointer', textAlign: 'start',
-                        backgroundColor: isActive ? 'oklch(0.94 0.02 240)' : 'transparent',
-                        borderInlineStart: isActive ? '0.1875rem solid oklch(0.5 0.18 240)' : '0.1875rem solid transparent',
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={groupAccepted}
-                        readOnly
-                        aria-label={`${group.formType} group accepted`}
-                        style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem', accentColor: 'oklch(0.45 0.18 145)', flexShrink: 0, marginBlockStart: '0.0625rem' }}
-                      />
-                      <div style={{ flex: '1 1 0', minInlineSize: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                          {isExpanded
-                            ? <ChevronDown style={{ inlineSize: '0.6875rem', blockSize: '0.6875rem', color: 'oklch(0.5 0 0)', flexShrink: 0 }} />
-                            : <ChevronRight style={{ inlineSize: '0.6875rem', blockSize: '0.6875rem', color: 'oklch(0.5 0 0)', flexShrink: 0 }} />
-                          }
-                          <span style={{
-                            fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.2 0.01 260)',
-                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minInlineSize: 0,
-                          }}>
-                            {group.formType}: {group.formEntity.toUpperCase().substring(0, 20)}...
-                          </span>
+                  return (
+                    <div key={group.formType} style={{
+                      borderBlockEnd: '0.0625rem solid oklch(0.91 0.005 260)',
+                      backgroundColor: isActive ? 'oklch(0.97 0.01 240 / 0.4)' : 'transparent',
+                    }}>
+                      {/* Group header */}
+                      <button
+                        type="button"
+                        onClick={() => { toggleGroup(group.formType); selectGroup(gIdx) }}
+                        style={{
+                          display: 'flex', alignItems: 'flex-start', gap: '0.375rem',
+                          inlineSize: '100%', padding: '0.5rem 0.75rem',
+                          border: 'none', cursor: 'pointer', textAlign: 'start',
+                          backgroundColor: 'transparent',
+                          borderInlineStart: isActive ? '0.1875rem solid oklch(0.5 0.18 240)' : '0.1875rem solid transparent',
+                        }}
+                      >
+                        <input
+                          type="checkbox" checked={groupAccepted} readOnly
+                          aria-label={`${group.formType} group accepted`}
+                          style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem', accentColor: 'oklch(0.45 0.18 145)', flexShrink: 0, marginBlockStart: '0.0625rem' }}
+                        />
+                        <div style={{ flex: '1 1 0', minInlineSize: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                            {isExpanded
+                              ? <ChevronDown style={{ inlineSize: '0.6875rem', blockSize: '0.6875rem', color: 'oklch(0.5 0 0)', flexShrink: 0 }} />
+                              : <ChevronRight style={{ inlineSize: '0.6875rem', blockSize: '0.6875rem', color: 'oklch(0.5 0 0)', flexShrink: 0 }} />
+                            }
+                            <span style={{
+                              fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.2 0.01 260)',
+                              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minInlineSize: 0,
+                            }}>
+                              {group.formType}: {group.formEntity.toUpperCase().substring(0, 20)}...
+                            </span>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginBlockStart: '0.1875rem', paddingInlineStart: '0.9375rem' }}>
+                            <span style={{
+                              fontSize: '0.5625rem', fontWeight: 700, fontFamily: 'var(--font-mono)',
+                              padding: '0.0625rem 0.25rem', borderRadius: '0.125rem',
+                              backgroundColor: `${confColor} / 0.12`, color: confColor,
+                            }}>
+                              {avgConf}%
+                            </span>
+                            <span style={{ fontSize: '0.5625rem', fontWeight: 600, color: 'oklch(0.5 0.01 260)' }}>
+                              {group.records.length} {group.records.length === 1 ? 'page' : 'pages'}
+                            </span>
+                            {group.needsReview && (
+                              <AlertTriangle style={{ inlineSize: '0.5625rem', blockSize: '0.5625rem', color: 'oklch(0.6 0.18 60)' }} />
+                            )}
+                          </div>
                         </div>
-                        {/* Confidence + page count */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginBlockStart: '0.1875rem', paddingInlineStart: '0.9375rem' }}>
-                          <span style={{
-                            fontSize: '0.5625rem', fontWeight: 700, fontFamily: 'var(--font-mono)',
-                            padding: '0.0625rem 0.25rem', borderRadius: '0.125rem',
-                            backgroundColor: `${confColor} / 0.12`, color: confColor,
-                          }}>
-                            {avgConf}%
-                          </span>
-                          <span style={{ fontSize: '0.5625rem', fontWeight: 600, color: 'oklch(0.5 0.01 260)' }}>
-                            {group.records.length} {group.records.length === 1 ? 'page' : 'pages'}
-                          </span>
-                        </div>
-                      </div>
-                    </button>
+                      </button>
 
-                    {isExpanded && group.records.map(r => {
-                      const isAccepted = decisions[`sup-pg${r.engagementPageId}`] === 'accepted'
-                      const isSup = r.decisionType === 'Superseded'
-                      return (
-                        <button
-                          key={r.engagementPageId}
-                          type="button"
-                          onClick={() => selectGroup(gIdx)}
-                          style={{
-                            display: 'flex', alignItems: 'center', gap: '0.375rem',
-                            inlineSize: '100%', padding: '0.3125rem 0.75rem 0.3125rem 1.75rem',
-                            border: 'none', cursor: 'pointer', textAlign: 'start',
-                            backgroundColor: isActive ? 'oklch(0.92 0.03 240)' : 'transparent',
-                          }}
-                        >
-                          <input
-                            type="checkbox" checked={isAccepted} readOnly
-                            aria-label={`Page ${r.engagementPageId} accepted`}
-                            style={{ inlineSize: '0.75rem', blockSize: '0.75rem', accentColor: 'oklch(0.45 0.18 145)', flexShrink: 0 }}
-                          />
-                          <FileText style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.5 0.01 260)', flexShrink: 0 }} />
-                          <span style={{ fontSize: '0.6875rem', fontWeight: 500, color: 'oklch(0.25 0.01 260)' }}>
-                            {r.engagementPageId} ({r.documentRef?.pageNumber})
-                          </span>
-                          {/* Superseded / Original label */}
-                          <span style={{
-                            marginInlineStart: 'auto', flexShrink: 0,
-                            fontSize: '0.5rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em',
-                            padding: '0.0625rem 0.25rem', borderRadius: '0.125rem',
-                            backgroundColor: isSup ? 'oklch(0.94 0.04 25)' : 'oklch(0.94 0.04 145)',
-                            color: isSup ? 'oklch(0.45 0.18 25)' : 'oklch(0.35 0.14 145)',
+                      {/* Expanded content */}
+                      {isExpanded && (
+                        <div style={{ paddingInlineStart: '0.1875rem' }}>
+                          {/* Page items */}
+                          {group.records.map(r => {
+                            const isAccepted = decisions[`sup-pg${r.engagementPageId}`] === 'accepted'
+                            const isSup = r.decisionType === 'Superseded'
+                            return (
+                              <button
+                                key={r.engagementPageId}
+                                type="button"
+                                onClick={() => selectGroup(gIdx)}
+                                style={{
+                                  display: 'flex', alignItems: 'center', gap: '0.375rem',
+                                  inlineSize: '100%', padding: '0.3125rem 0.75rem 0.3125rem 1.75rem',
+                                  border: 'none', cursor: 'pointer', textAlign: 'start',
+                                  backgroundColor: 'transparent',
+                                }}
+                              >
+                                <input
+                                  type="checkbox" checked={isAccepted} readOnly
+                                  aria-label={`Page ${r.engagementPageId} accepted`}
+                                  style={{ inlineSize: '0.75rem', blockSize: '0.75rem', accentColor: 'oklch(0.45 0.18 145)', flexShrink: 0 }}
+                                />
+                                <FileText style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.5 0.01 260)', flexShrink: 0 }} />
+                                <span style={{ fontSize: '0.6875rem', fontWeight: 500, color: 'oklch(0.25 0.01 260)' }}>
+                                  {r.engagementPageId} ({r.documentRef?.pageNumber})
+                                </span>
+                                <span style={{
+                                  marginInlineStart: 'auto', flexShrink: 0,
+                                  fontSize: '0.5rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em',
+                                  padding: '0.0625rem 0.25rem', borderRadius: '0.125rem',
+                                  backgroundColor: isSup ? 'oklch(0.94 0.04 25)' : 'oklch(0.94 0.04 145)',
+                                  color: isSup ? 'oklch(0.45 0.18 25)' : 'oklch(0.35 0.14 145)',
+                                }}>
+                                  {isSup ? 'Superseded' : 'Original'}
+                                </span>
+                              </button>
+                            )
+                          })}
+
+                          {/* Inline: AI Analysis accordion */}
+                          <details open={isActive} style={{
+                            marginInlineStart: '1.75rem', marginBlockStart: '0.25rem',
+                            borderRadius: '0.25rem', overflow: 'hidden',
+                            border: '0.0625rem solid oklch(0.92 0.01 240)',
                           }}>
-                            {isSup ? 'Superseded' : 'Original'}
-                          </span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                )
-              })}
+                            <summary style={{
+                              display: 'flex', alignItems: 'center', gap: '0.375rem',
+                              padding: '0.3125rem 0.5rem',
+                              fontSize: '0.625rem', fontWeight: 700,
+                              color: 'var(--ai-accent)',
+                              backgroundColor: 'oklch(0.97 0.005 240)',
+                              cursor: 'pointer', listStyle: 'none',
+                              textTransform: 'uppercase', letterSpacing: '0.04em',
+                            }}>
+                              <Sparkles style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
+                              AI Analysis
+                              {groupSuperseded?.reviewRequired && (
+                                <AlertTriangle style={{ inlineSize: '0.5625rem', blockSize: '0.5625rem', color: 'oklch(0.6 0.18 60)', marginInlineStart: 'auto' }} />
+                              )}
+                            </summary>
+                            <div style={{
+                              padding: '0.375rem 0.5rem', backgroundColor: 'oklch(0.98 0.003 240)',
+                              display: 'flex', flexDirection: 'column', gap: '0.375rem',
+                            }}>
+                              {/* Rule + confidence */}
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{
+                                  fontSize: '0.5625rem', fontWeight: 600, fontFamily: 'var(--font-mono)',
+                                  padding: '0.0625rem 0.1875rem', borderRadius: '0.125rem',
+                                  backgroundColor: 'oklch(0.94 0.005 260)', color: 'oklch(0.4 0.01 260)',
+                                }}>
+                                  {groupSuperseded?.appliedRuleSet} / {groupSuperseded?.decisionRule}
+                                </span>
+                                <span style={{ fontSize: '0.75rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: confColor }}>
+                                  {avgConf}%
+                                </span>
+                              </div>
+
+                              {/* Reasoning */}
+                              <p style={{ fontSize: '0.625rem', lineHeight: '1.5', color: 'oklch(0.3 0.01 260)' }}>
+                                {groupSuperseded?.decisionReason}
+                              </p>
+
+                              {/* Escalation */}
+                              {groupSuperseded?.escalationReason && (
+                                <div style={{
+                                  display: 'flex', alignItems: 'flex-start', gap: '0.25rem',
+                                  padding: '0.25rem 0.375rem', borderRadius: '0.1875rem',
+                                  backgroundColor: 'oklch(0.96 0.04 60)', border: '0.0625rem solid oklch(0.88 0.08 60)',
+                                }}>
+                                  <AlertTriangle style={{ inlineSize: '0.625rem', blockSize: '0.625rem', color: 'oklch(0.6 0.18 60)', flexShrink: 0, marginBlockStart: '0.0625rem' }} />
+                                  <div>
+                                    <p style={{ fontSize: '0.5625rem', fontWeight: 700, color: 'oklch(0.5 0.16 60)' }}>Escalation</p>
+                                    <p style={{ fontSize: '0.625rem', color: 'oklch(0.35 0.1 60)', lineHeight: '1.4' }}>{groupSuperseded.escalationReason}</p>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Key differences */}
+                              {groupCompared.some(v => !v.match) && (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1875rem' }}>
+                                  <span style={{ fontSize: '0.5625rem', fontWeight: 700, color: 'oklch(0.45 0.12 25)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                    Key Differences
+                                  </span>
+                                  {groupCompared.filter(v => !v.match).map(v => (
+                                    <div key={v.field} style={{ display: 'flex', flexDirection: 'column', gap: '0.0625rem' }}>
+                                      <span style={{ fontSize: '0.5625rem', fontWeight: 600, color: 'oklch(0.35 0.01 260)' }}>{v.field}</span>
+                                      <div style={{ display: 'flex', gap: '0.1875rem', fontSize: '0.5rem', flexWrap: 'wrap' }}>
+                                        <span style={{ padding: '0.0625rem 0.1875rem', borderRadius: '0.125rem', backgroundColor: 'oklch(0.94 0.04 25)', color: 'oklch(0.45 0.14 25)' }}>
+                                          {v.valueA}
+                                        </span>
+                                        <span style={{ color: 'oklch(0.55 0.01 260)' }}>&rarr;</span>
+                                        <span style={{ padding: '0.0625rem 0.1875rem', borderRadius: '0.125rem', backgroundColor: 'oklch(0.94 0.04 145)', color: 'oklch(0.35 0.12 145)' }}>
+                                          {v.valueB}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </details>
+
+                          {/* Inline: Field Comparison accordion */}
+                          {groupCompared.length > 0 && (
+                            <details style={{
+                              marginInlineStart: '1.75rem', marginBlockStart: '0.25rem', marginBlockEnd: '0.5rem',
+                              borderRadius: '0.25rem', overflow: 'hidden',
+                              border: '0.0625rem solid oklch(0.92 0.005 260)',
+                            }}>
+                              <summary style={{
+                                display: 'flex', alignItems: 'center', gap: '0.375rem',
+                                padding: '0.3125rem 0.5rem',
+                                fontSize: '0.625rem', fontWeight: 700,
+                                color: 'oklch(0.35 0.01 260)',
+                                backgroundColor: 'oklch(0.97 0.003 260)',
+                                cursor: 'pointer', listStyle: 'none',
+                                textTransform: 'uppercase', letterSpacing: '0.04em',
+                              }}>
+                                <TableProperties style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
+                                Field Comparison
+                                <span style={{
+                                  fontSize: '0.5rem', fontWeight: 600, color: 'oklch(0.5 0.01 260)',
+                                  marginInlineStart: 'auto',
+                                }}>
+                                  {groupCompared.filter(v => !v.match).length}/{groupCompared.length} differ
+                                </span>
+                              </summary>
+                              <div style={{ padding: '0.375rem', backgroundColor: 'oklch(0.99 0.002 260)' }}>
+                                <FieldComparison
+                                  values={groupCompared}
+                                  labelA={groupSuperseded?.documentRef?.formLabel ?? 'Superseded'}
+                                  labelB={groupOriginal?.documentRef?.formLabel ?? 'Original'}
+                                />
+                              </div>
+                            </details>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
 
               {/* Next Step button */}
-              <div style={{ marginBlockStart: 'auto', padding: '0.625rem' }}>
+              <div style={{ padding: '0.625rem', borderBlockStart: '0.0625rem solid oklch(0.91 0.005 260)' }}>
                 <button
                   type="button"
                   style={{
