@@ -108,7 +108,6 @@ interface FormGroup {
   records: SupersededRecord[]
   originalCount: number
   supersededCount: number
-  retainBothCount: number
   needsReview: boolean
   lowestConfidence: number
   averageConfidence: number
@@ -131,7 +130,6 @@ function groupByFormType(data: SupersededRecord[]): FormGroup[] {
       records,
       originalCount: records.filter(r => r.decisionType === 'Original').length,
       supersededCount: records.filter(r => r.decisionType === 'Superseded').length,
-      retainBothCount: records.filter(r => r.decisionType === 'RetainBoth').length,
       needsReview: records.some(r => r.reviewRequired),
       lowestConfidence: Math.min(...records.map(r => r.confidenceLevel)),
       averageConfidence: records.reduce((sum, r) => sum + r.confidenceLevel, 0) / records.length,
@@ -187,11 +185,7 @@ export function VariantBSuperseded({ data }: { data: SupersededRecord[] }) {
         <span style={{ ...smallPill, backgroundColor: 'oklch(0.94 0.04 25)', color: 'oklch(0.40 0.18 25)' }}>
           {data.filter(r => r.decisionType === 'Superseded').length} Superseded
         </span>
-        {data.some(r => r.decisionType === 'RetainBoth') && (
-          <span style={{ ...smallPill, backgroundColor: 'oklch(0.94 0.04 250)', color: 'oklch(0.35 0.14 250)' }}>
-            {data.filter(r => r.decisionType === 'RetainBoth').length} Retain Both
-          </span>
-        )}
+
       </div>
 
       {/* Form type swimlanes */}
@@ -229,7 +223,7 @@ export function VariantBSuperseded({ data }: { data: SupersededRecord[] }) {
               <div className="flex items-center gap-1.5 flex-wrap">
                 {group.originalCount > 0 && <span style={{ ...smallPill, backgroundColor: 'oklch(0.94 0.04 145)', color: 'oklch(0.35 0.14 145)' }}>{group.originalCount} Original</span>}
                 {group.supersededCount > 0 && <span style={{ ...smallPill, backgroundColor: 'oklch(0.94 0.04 25)', color: 'oklch(0.40 0.18 25)' }}>{group.supersededCount} Superseded</span>}
-                {group.retainBothCount > 0 && <span style={{ ...smallPill, backgroundColor: 'oklch(0.94 0.04 250)', color: 'oklch(0.35 0.14 250)' }}>{group.retainBothCount} Retain</span>}
+
               </div>
               <ConfChip score={group.averageConfidence} />
               <div className="ml-auto shrink-0">
@@ -257,9 +251,9 @@ export function VariantBSuperseded({ data }: { data: SupersededRecord[] }) {
                         ? 'bg-[oklch(0.72_0.14_80)]'
                         : 'bg-[oklch(0.6_0.2_15)]'
 
-                  const stampLabel = r.decisionType === 'Original' ? 'ORIGINAL' : r.decisionType === 'Superseded' ? 'SUPERSEDED' : 'RETAIN BOTH'
-                  const stampBg = stampLabel === 'ORIGINAL' ? 'oklch(0.94 0.04 145)' : stampLabel === 'SUPERSEDED' ? 'oklch(0.94 0.04 25)' : 'oklch(0.94 0.04 250)'
-                  const stampFg = stampLabel === 'ORIGINAL' ? 'oklch(0.35 0.14 145)' : stampLabel === 'SUPERSEDED' ? 'oklch(0.40 0.18 25)' : 'oklch(0.35 0.14 250)'
+                const stampLabel = r.decisionType === 'Original' ? 'ORIGINAL' : 'SUPERSEDED'
+                const stampBg = r.decisionType === 'Original' ? 'oklch(0.94 0.04 145)' : 'oklch(0.94 0.04 25)'
+                const stampFg = r.decisionType === 'Original' ? 'oklch(0.35 0.14 145)' : 'oklch(0.40 0.18 25)'
 
                   return (
                     <Card

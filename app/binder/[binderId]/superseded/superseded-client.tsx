@@ -23,7 +23,6 @@ interface FormGroup {
   records: SupersededRecord[]
   originalCount: number
   supersededCount: number
-  retainBothCount: number
   needsReview: boolean
   lowestConfidence: number
   averageConfidence: number
@@ -47,7 +46,6 @@ function groupByFormType(data: SupersededRecord[]): FormGroup[] {
       records,
       originalCount: records.filter(r => r.decisionType === 'Original').length,
       supersededCount: records.filter(r => r.decisionType === 'Superseded').length,
-      retainBothCount: records.filter(r => r.decisionType === 'RetainBoth').length,
       needsReview: records.some(r => r.reviewRequired),
       lowestConfidence: Math.min(...records.map(r => r.confidenceLevel)),
       averageConfidence: records.reduce((sum, r) => sum + r.confidenceLevel, 0) / records.length,
@@ -76,7 +74,6 @@ export function SupersededClient({ data }: { data: SupersededRecord[] }) {
   const highCount = data.filter(r => getConfidenceLevel(r.confidenceLevel) === 'high').length
   const totalOriginal = data.filter(r => r.decisionType === 'Original').length
   const totalSuperseded = data.filter(r => r.decisionType === 'Superseded').length
-  const totalRetainBoth = data.filter(r => r.decisionType === 'RetainBoth').length
   const totalReview = data.filter(r => r.reviewRequired).length
 
   const toggleGroup = (formType: string) => {
@@ -125,11 +122,6 @@ export function SupersededClient({ data }: { data: SupersededRecord[] }) {
         <span style={{ ...pillStyle, backgroundColor: 'oklch(0.94 0.04 25)', color: 'oklch(0.40 0.18 25)' }}>
           {totalSuperseded} Superseded
         </span>
-        {totalRetainBoth > 0 && (
-          <span style={{ ...pillStyle, backgroundColor: 'oklch(0.94 0.04 250)', color: 'oklch(0.35 0.14 250)' }}>
-            {totalRetainBoth} Retain Both
-          </span>
-        )}
         {totalReview > 0 && (
           <span style={{ ...pillStyle, backgroundColor: 'oklch(0.95 0.04 60)', color: 'oklch(0.45 0.15 60)' }}>
             {totalReview} Need Review
@@ -212,11 +204,6 @@ export function SupersededClient({ data }: { data: SupersededRecord[] }) {
                     {group.supersededCount} Superseded
                   </span>
                 )}
-                {group.retainBothCount > 0 && (
-                  <span style={{ ...smallPillStyle, backgroundColor: 'oklch(0.94 0.04 250)', color: 'oklch(0.35 0.14 250)' }}>
-                    {group.retainBothCount} Retain
-                  </span>
-                )}
               </div>
 
               {/* Group-level confidence badge */}
@@ -252,17 +239,9 @@ export function SupersededClient({ data }: { data: SupersededRecord[] }) {
                   const isDocOpen = openDocId === r.engagementPageId
                   const level = getConfidenceLevel(r.confidenceLevel)
 
-                  const stampLabel = r.decisionType === 'Original' ? 'ORIGINAL' :
-                    r.decisionType === 'Superseded' ? 'SUPERSEDED' : 'RETAIN BOTH'
-
-                  const stampBg =
-                    stampLabel === 'ORIGINAL' ? 'oklch(0.94 0.04 145)' :
-                    stampLabel === 'SUPERSEDED' ? 'oklch(0.94 0.04 25)' :
-                    'oklch(0.94 0.04 250)'
-                  const stampFg =
-                    stampLabel === 'ORIGINAL' ? 'oklch(0.35 0.14 145)' :
-                    stampLabel === 'SUPERSEDED' ? 'oklch(0.40 0.18 25)' :
-                    'oklch(0.35 0.14 250)'
+                  const stampLabel = r.decisionType === 'Original' ? 'ORIGINAL' : 'SUPERSEDED'
+                  const stampBg = r.decisionType === 'Original' ? 'oklch(0.94 0.04 145)' : 'oklch(0.94 0.04 25)'
+                  const stampFg = r.decisionType === 'Original' ? 'oklch(0.35 0.14 145)' : 'oklch(0.40 0.18 25)'
 
                   const borderLeft =
                     level === 'high' ? 'var(--confidence-high)' :

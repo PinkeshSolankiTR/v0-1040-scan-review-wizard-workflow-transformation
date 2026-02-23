@@ -65,9 +65,7 @@ export function W2Form({ stamp, highlightFields = [], comparedValues, variant = 
       ? "ORIGINAL"
       : stamp === "SUPERSEDED"
         ? "SUPERSEDED"
-        : stamp === "RETAIN"
-          ? "RETAIN BOTH"
-          : null
+        : null
 
   return (
     <article

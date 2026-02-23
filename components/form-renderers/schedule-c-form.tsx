@@ -52,13 +52,11 @@ export function ScheduleCForm({ stamp, highlightFields = [], comparedValues, var
 
   const stampColor =
     stamp === "ORIGINAL" ? "oklch(0.55 0.17 145)" :
-    stamp === "SUPERSEDED" ? "oklch(0.55 0.22 25)" :
-    "oklch(0.55 0.15 250)"
+    "oklch(0.55 0.22 25)"
 
   const stampLabel =
     stamp === "ORIGINAL" ? "ORIGINAL" :
-    stamp === "SUPERSEDED" ? "SUPERSEDED" :
-    stamp === "RETAIN" ? "RETAIN BOTH" : null
+    stamp === "SUPERSEDED" ? "SUPERSEDED" : null
 
   return (
     <article

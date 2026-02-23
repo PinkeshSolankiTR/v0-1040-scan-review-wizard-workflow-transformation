@@ -92,7 +92,6 @@ interface FormGroup {
   records: SupersededRecord[]
   originalCount: number
   supersededCount: number
-  retainBothCount: number
   averageConfidence: number
 }
 
@@ -112,7 +111,6 @@ function groupByFormType(data: SupersededRecord[]): FormGroup[] {
       records,
       originalCount: records.filter(r => r.decisionType === 'Original').length,
       supersededCount: records.filter(r => r.decisionType === 'Superseded').length,
-      retainBothCount: records.filter(r => r.decisionType === 'RetainBoth').length,
       averageConfidence: records.reduce((sum, r) => sum + r.confidenceLevel, 0) / records.length,
     })
   }
@@ -131,7 +129,7 @@ export function VariantDSuperseded({ data }: { data: SupersededRecord[] }) {
   const groups = useMemo(() => groupByFormType(data), [data])
   const record = data.find((r) => r.engagementPageId === selected)
 
-  const stampLabel = record?.decisionType === 'Original' ? 'ORIGINAL' : record?.decisionType === 'Superseded' ? 'SUPERSEDED' : 'RETAIN BOTH'
+  const stampLabel = record?.decisionType === 'Original' ? 'ORIGINAL' : 'SUPERSEDED'
 
   return (
     <SplitShell wizardIcon={FileStack} title="Superseded Review" count={data.length}
@@ -148,7 +146,7 @@ export function VariantDSuperseded({ data }: { data: SupersededRecord[] }) {
                 <div className="flex items-center gap-1 ml-auto">
                   {group.originalCount > 0 && <span style={{ ...smallPill, backgroundColor: 'oklch(0.94 0.04 145)', color: 'oklch(0.35 0.14 145)' }}>{group.originalCount} O</span>}
                   {group.supersededCount > 0 && <span style={{ ...smallPill, backgroundColor: 'oklch(0.94 0.04 25)', color: 'oklch(0.40 0.18 25)' }}>{group.supersededCount} S</span>}
-                  {group.retainBothCount > 0 && <span style={{ ...smallPill, backgroundColor: 'oklch(0.94 0.04 250)', color: 'oklch(0.35 0.14 250)' }}>{group.retainBothCount} R</span>}
+  
                 </div>
               </div>
               {/* Records in group */}
@@ -196,8 +194,8 @@ export function VariantDSuperseded({ data }: { data: SupersededRecord[] }) {
           <dl className="grid grid-cols-2 gap-4">
             <DetailField label="Decision" value={
               <span className="inline-flex rounded px-2 py-0.5 text-xs font-semibold" style={{
-                backgroundColor: record.decisionType === 'Superseded' ? 'oklch(0.6 0.18 15 / 0.12)' : record.decisionType === 'RetainBoth' ? 'oklch(0.55 0.15 250 / 0.12)' : 'oklch(0.55 0.17 160 / 0.12)',
-                color: record.decisionType === 'Superseded' ? 'oklch(0.45 0.16 15)' : record.decisionType === 'RetainBoth' ? 'oklch(0.35 0.14 250)' : 'oklch(0.35 0.12 160)',
+                backgroundColor: record.decisionType === 'Superseded' ? 'oklch(0.6 0.18 15 / 0.12)' : 'oklch(0.55 0.17 160 / 0.12)',
+                color: record.decisionType === 'Superseded' ? 'oklch(0.45 0.16 15)' : 'oklch(0.35 0.12 160)',
               }}>{record.decisionType}</span>
             } />
             <DetailField label="Rule Set" value={record.appliedRuleSet} />
@@ -253,7 +251,7 @@ export function VariantDSuperseded({ data }: { data: SupersededRecord[] }) {
           })()}
           {/* PDF page viewer */}
           {record.documentRef && (
-              <PdfPageViewer documentRef={record.documentRef} stamp={record.decisionType === 'Superseded' ? 'SUPERSEDED' : record.decisionType === 'Original' ? 'ORIGINAL' : 'RETAIN BOTH'} height="24rem" />
+              <PdfPageViewer documentRef={record.documentRef} stamp={record.decisionType === 'Superseded' ? 'SUPERSEDED' : 'ORIGINAL'} height="24rem" />
           )}
         </div>
       ) : (

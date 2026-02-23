@@ -76,25 +76,7 @@ export const supersededA: SupersededRecord[] = [
       { field: 'Box 3 (Other Income)', valueA: '$14,921.24', valueB: '(no other filing)', match: true },
     ],
   },
-  {
-    engagementPageId: 4,
-    isSuperseded: false,
-    retainedPageId: null,
-    confidenceLevel: 0.82,
-    decisionType: 'RetainBoth',
-    appliedRuleSet: 'SourceDocs',
-    decisionRule: 'PARTIAL_OVERLAP',
-    decisionReason: 'W-2 for JILL ANDERSON and 1099-MISC for JACK ANDERSON share the same address (1234 MAIN STREET, DALLAS, TX 75202) but are for different taxpayers with different TINs. Both forms are valid.',
-    reviewRequired: true,
-    escalationReason: null,
-    documentRef: { pdfPath: PDF_PATH, pageNumber: 1, formType: 'W-2', formLabel: 'W-2 (WHYNOT STOP INC)' },
-    comparedValues: [
-      { field: 'Taxpayer Name', valueA: 'JILL ANDERSON', valueB: 'JACK ANDERSON', match: false },
-      { field: 'TIN', valueA: '***-**-1234', valueB: '111-11-1111', match: false },
-      { field: 'Address', valueA: '1234 MAIN STREET, DALLAS, TX 75202', valueB: '1234 MAIN STREET, DALLAS, TX 75202', match: true },
-      { field: 'Form Type', valueA: 'W-2', valueB: '1099-MISC', match: false },
-    ],
-  },
+
   {
     engagementPageId: 5,
     isSuperseded: true,

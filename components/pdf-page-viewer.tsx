@@ -2,7 +2,7 @@
 
 import type { DocumentRef } from '@/lib/types'
 
-type StampType = 'ORIGINAL' | 'SUPERSEDED' | 'RETAIN BOTH'
+type StampType = 'ORIGINAL' | 'SUPERSEDED'
 
 interface PdfPageViewerProps {
   documentRef: DocumentRef
@@ -24,7 +24,6 @@ export function PdfPageViewer({ documentRef, stamp, height = '32rem' }: PdfPageV
   const stampColor =
     stamp === 'ORIGINAL' ? { bg: 'oklch(0.92 0.06 145)', fg: 'oklch(0.35 0.17 145)', border: 'oklch(0.78 0.12 145)' } :
     stamp === 'SUPERSEDED' ? { bg: 'oklch(0.92 0.06 25)', fg: 'oklch(0.40 0.22 25)', border: 'oklch(0.78 0.14 25)' } :
-    stamp === 'RETAIN BOTH' ? { bg: 'oklch(0.92 0.06 250)', fg: 'oklch(0.35 0.17 250)', border: 'oklch(0.78 0.12 250)' } :
     null
 
   return (

@@ -33,7 +33,7 @@ export interface SupersededRecord {
   isSuperseded: boolean
   retainedPageId: number | null
   confidenceLevel: number
-  decisionType: 'Original' | 'Superseded' | 'RetainBoth'
+  decisionType: 'Original' | 'Superseded'
   appliedRuleSet: 'SourceDocs' | 'ConsolidatedStatements'
   decisionRule: string
   decisionReason: string

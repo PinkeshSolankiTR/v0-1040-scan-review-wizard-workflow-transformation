@@ -33,12 +33,7 @@ export const supersededB: SupersededRecord[] = [
     decisionReason: 'W-2C received after original W-2. Corrected amounts differ.',
     reviewRequired: true, escalationReason: null,
   },
-  {
-    engagementPageId: 13, isSuperseded: false, retainedPageId: null, confidenceLevel: 0.79,
-    decisionType: 'RetainBoth', appliedRuleSet: 'SourceDocs', decisionRule: 'PARTIAL_OVERLAP',
-    decisionReason: 'Forms share taxpayer SSN but cover different schedule types.',
-    reviewRequired: true, escalationReason: null,
-  },
+
   {
     engagementPageId: 14, isSuperseded: true, retainedPageId: 11, confidenceLevel: 0.73,
     decisionType: 'Superseded', appliedRuleSet: 'SourceDocs', decisionRule: 'SUPERSEDED_BY_AMENDED',
@@ -51,12 +46,7 @@ export const supersededB: SupersededRecord[] = [
     decisionReason: 'Dates very close. Could be a re-scan rather than a supersession.',
     reviewRequired: true, escalationReason: 'Dates within 24 hours of each other.',
   },
-  {
-    engagementPageId: 16, isSuperseded: false, retainedPageId: null, confidenceLevel: 0.55,
-    decisionType: 'RetainBoth', appliedRuleSet: 'SourceDocs', decisionRule: 'AMBIGUOUS_RELATIONSHIP',
-    decisionReason: 'Cannot determine if forms are related. Different form types with matching SSN only.',
-    reviewRequired: true, escalationReason: 'Insufficient data to determine relationship.',
-  },
+
   {
     engagementPageId: 17, isSuperseded: true, retainedPageId: 13, confidenceLevel: 0.48,
     decisionType: 'Superseded', appliedRuleSet: 'SourceDocs', decisionRule: 'SUPERSEDED_UNCERTAIN',

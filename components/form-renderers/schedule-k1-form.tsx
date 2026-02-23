@@ -3,7 +3,7 @@
 import { type ComparedValue } from "@/lib/types"
 
 interface ScheduleK1FormProps {
-  stamp?: "ORIGINAL" | "SUPERSEDED" | "RETAIN"
+  stamp?: "ORIGINAL" | "SUPERSEDED"
   comparedValues?: ComparedValue[]
   variant?: "original" | "amended"
 }
@@ -38,8 +38,8 @@ export function ScheduleK1Form({ stamp, comparedValues, variant = "original" }: 
     (comparedValues ?? []).filter((v) => !v.match).map((v) => v.field)
   )
 
-  const stampColor = stamp === "ORIGINAL" ? "oklch(0.55 0.17 145)" : stamp === "SUPERSEDED" ? "oklch(0.55 0.22 25)" : "oklch(0.55 0.15 250)"
-  const stampLabel = stamp === "ORIGINAL" ? "ORIGINAL" : stamp === "SUPERSEDED" ? "SUPERSEDED" : stamp === "RETAIN" ? "RETAIN BOTH" : null
+  const stampColor = stamp === "ORIGINAL" ? "oklch(0.55 0.17 145)" : "oklch(0.55 0.22 25)"
+  const stampLabel = stamp === "ORIGINAL" ? "ORIGINAL" : stamp === "SUPERSEDED" ? "SUPERSEDED" : null
 
   return (
     <article style={{
