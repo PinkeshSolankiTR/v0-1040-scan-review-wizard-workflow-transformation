@@ -2,10 +2,11 @@
 
 /**
  * DESIGN VARIANT D: "Split Panel / Master-Detail"
- * Compact list on left, rich detail pane on right with field comparison + document preview.
+ * Compact list on left grouped by form type for Superseded,
+ * rich detail pane on right with field comparison + PDF page viewer.
  */
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Sparkles,
@@ -19,9 +20,11 @@ import {
   ArrowRight,
   CheckCircle,
   XCircle,
+  FileText,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { FieldComparison } from '@/components/field-comparison'
+import { PdfPageViewer } from '@/components/pdf-page-viewer'
 import { DocumentPreviewButton, DualDocumentPreview } from '@/components/document-preview'
 import type {
   SupersededRecord,
@@ -35,11 +38,10 @@ import type {
 /* ── Shared layout primitives ── */
 
 function SplitShell({
-  wizardIcon: WizardIcon, title, count, listItems, selectedId, onSelect, detailContent,
+  wizardIcon: WizardIcon, title, count, listContent, detailContent,
 }: {
   wizardIcon: React.ElementType; title: string; count: number
-  listItems: { id: string; label: string; sublabel: string; confidence: number; formType?: string }[]
-  selectedId: string | null; onSelect: (id: string) => void; detailContent: React.ReactNode
+  listContent: React.ReactNode; detailContent: React.ReactNode
 }) {
   return (
     <section className="flex flex-col overflow-hidden rounded-lg border" style={{ borderColor: 'oklch(0.88 0.01 240)' }}>
@@ -51,33 +53,11 @@ function SplitShell({
         <span className="rounded-full px-2 py-0.5 text-xs font-semibold" style={{ backgroundColor: 'oklch(0.35 0.03 240)' }}>{count}</span>
       </div>
       <div className="grid grid-cols-5" style={{ backgroundColor: 'oklch(0.98 0.002 240)' }}>
-        <div className="col-span-2 flex flex-col border-r" style={{ borderColor: 'oklch(0.91 0.005 240)' }}>
-          {listItems.map((item) => {
-            const isSelected = item.id === selectedId
-            const dotColor = item.confidence >= 0.9 ? 'oklch(0.55 0.17 160)' : item.confidence >= 0.7 ? 'oklch(0.72 0.14 80)' : 'oklch(0.6 0.18 15)'
-            return (
-              <button
-                key={item.id} onClick={() => onSelect(item.id)}
-                className={cn('flex items-center gap-2.5 border-b px-3 py-2.5 text-left transition-colors', isSelected ? 'border-l-2' : 'border-l-2 border-l-transparent')}
-                style={{ borderBottomColor: 'oklch(0.93 0.005 240)', ...(isSelected ? { backgroundColor: 'oklch(0.96 0.01 240)', borderLeftColor: 'oklch(0.5 0.15 240)' } : {}) }}
-                aria-selected={isSelected} type="button"
-              >
-                <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: dotColor }} aria-hidden="true" />
-                <div className="flex flex-col gap-0.5 min-w-0">
-                  <span className="text-sm font-medium truncate" style={{ color: 'oklch(0.2 0.01 240)' }}>{item.label}</span>
-                  <span className="text-xs truncate" style={{ color: 'oklch(0.5 0.01 240)' }}>{item.sublabel}</span>
-                </div>
-                <span className="ml-auto shrink-0 font-mono text-xs tabular-nums" style={{ color: dotColor }}>{Math.round(item.confidence * 100)}%</span>
-              </button>
-            )
-          })}
+        <div className="col-span-2 flex flex-col border-r overflow-y-auto" style={{ borderColor: 'oklch(0.91 0.005 240)', maxHeight: '40rem' }}>
+          {listContent}
         </div>
-        <div className="col-span-3 p-4 min-h-[14rem] overflow-y-auto" style={{ backgroundColor: 'oklch(1 0 0)', maxHeight: '36rem' }}>
-          {detailContent || (
-            <div className="flex h-full items-center justify-center">
-              <p className="text-sm" style={{ color: 'oklch(0.6 0.01 240)' }}>Select an item from the list to view details</p>
-            </div>
-          )}
+        <div className="col-span-3 p-4 min-h-[14rem] overflow-y-auto" style={{ backgroundColor: 'oklch(1 0 0)', maxHeight: '40rem' }}>
+          {detailContent}
         </div>
       </div>
     </section>
@@ -105,23 +85,103 @@ function DetailField({ label, value }: { label: string; value: React.ReactNode }
   )
 }
 
+/* ── Superseded grouping ── */
+interface FormGroup {
+  formType: string
+  formEntity: string
+  records: SupersededRecord[]
+  originalCount: number
+  supersededCount: number
+  retainBothCount: number
+}
+
+function groupByFormType(data: SupersededRecord[]): FormGroup[] {
+  const map = new Map<string, SupersededRecord[]>()
+  for (const r of data) {
+    const key = r.documentRef?.formType ?? 'Unknown'
+    if (!map.has(key)) map.set(key, [])
+    map.get(key)!.push(r)
+  }
+  const groups: FormGroup[] = []
+  for (const [formType, records] of map.entries()) {
+    const entityParts = records[0].documentRef?.formLabel?.replace(formType, '').replace(/[()]/g, '').trim()
+    groups.push({
+      formType,
+      formEntity: entityParts || formType,
+      records,
+      originalCount: records.filter(r => r.decisionType === 'Original').length,
+      supersededCount: records.filter(r => r.decisionType === 'Superseded').length,
+      retainBothCount: records.filter(r => r.decisionType === 'RetainBoth').length,
+    })
+  }
+  return groups
+}
+
+const smallPill: React.CSSProperties = {
+  fontSize: '0.5625rem', fontWeight: 700, padding: '0.0625rem 0.3125rem',
+  borderRadius: '1rem', textTransform: 'uppercase' as const, letterSpacing: '0.03em',
+}
+
 /* ── SUPERSEDED ── */
 export function VariantDSuperseded({ data }: { data: SupersededRecord[] }) {
   const [selected, setSelected] = useState<number | null>(data[0]?.engagementPageId ?? null)
   const [accepted, setAccepted] = useState<Record<number, boolean>>({})
+  const groups = useMemo(() => groupByFormType(data), [data])
   const record = data.find((r) => r.engagementPageId === selected)
+
+  const stampLabel = record?.decisionType === 'Original' ? 'ORIGINAL' : record?.decisionType === 'Superseded' ? 'SUPERSEDED' : 'RETAIN BOTH'
 
   return (
     <SplitShell wizardIcon={FileStack} title="Superseded Review" count={data.length}
-      listItems={data.map((r) => ({
-        id: String(r.engagementPageId),
-        label: r.documentRef?.formLabel ?? `Page ${r.engagementPageId}`,
-        sublabel: r.decisionType,
-        confidence: r.confidenceLevel,
-        formType: r.documentRef?.formType,
-      }))}
-      selectedId={selected != null ? String(selected) : null}
-      onSelect={(id) => setSelected(Number(id))}
+      listContent={
+        <>
+          {groups.map((group) => (
+            <div key={group.formType}>
+              {/* Form type group header */}
+              <div className="flex items-center gap-2 px-3 py-2 border-b" style={{ backgroundColor: 'oklch(0.96 0.005 240)', borderColor: 'oklch(0.91 0.005 240)' }}>
+                <FileText className="size-3.5 shrink-0" style={{ color: 'oklch(0.5 0.15 240)' }} />
+                <span className="text-xs font-bold" style={{ color: 'oklch(0.25 0.01 240)' }}>{group.formType}</span>
+                <span className="flex size-4 items-center justify-center rounded-full text-[0.5625rem] font-bold text-white" style={{ backgroundColor: 'oklch(0.5 0.15 240)' }}>{group.records.length}</span>
+                <div className="flex items-center gap-1 ml-auto">
+                  {group.originalCount > 0 && <span style={{ ...smallPill, backgroundColor: 'oklch(0.94 0.04 145)', color: 'oklch(0.35 0.14 145)' }}>{group.originalCount} O</span>}
+                  {group.supersededCount > 0 && <span style={{ ...smallPill, backgroundColor: 'oklch(0.94 0.04 25)', color: 'oklch(0.40 0.18 25)' }}>{group.supersededCount} S</span>}
+                  {group.retainBothCount > 0 && <span style={{ ...smallPill, backgroundColor: 'oklch(0.94 0.04 250)', color: 'oklch(0.35 0.14 250)' }}>{group.retainBothCount} R</span>}
+                </div>
+              </div>
+              {/* Records in group */}
+              {group.records.map((r) => {
+                const isSelected = r.engagementPageId === selected
+                const dotColor = r.confidenceLevel >= 0.9 ? 'oklch(0.55 0.17 160)' : r.confidenceLevel >= 0.7 ? 'oklch(0.72 0.14 80)' : 'oklch(0.6 0.18 15)'
+                const decStampBg = r.decisionType === 'Original' ? 'oklch(0.94 0.04 145)' : r.decisionType === 'Superseded' ? 'oklch(0.94 0.04 25)' : 'oklch(0.94 0.04 250)'
+                const decStampFg = r.decisionType === 'Original' ? 'oklch(0.35 0.14 145)' : r.decisionType === 'Superseded' ? 'oklch(0.40 0.18 25)' : 'oklch(0.35 0.14 250)'
+
+                return (
+                  <button
+                    key={r.engagementPageId}
+                    onClick={() => setSelected(r.engagementPageId)}
+                    className={cn('flex items-center gap-2.5 border-b px-3 py-2.5 text-left transition-colors w-full', isSelected ? 'border-l-2' : 'border-l-2 border-l-transparent')}
+                    style={{
+                      borderBottomColor: 'oklch(0.93 0.005 240)',
+                      ...(isSelected ? { backgroundColor: 'oklch(0.96 0.01 240)', borderLeftColor: 'oklch(0.5 0.15 240)' } : {}),
+                    }}
+                    aria-selected={isSelected} type="button"
+                  >
+                    <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: dotColor }} aria-hidden="true" />
+                    <div className="flex flex-col gap-0.5 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-sm font-medium truncate" style={{ color: 'oklch(0.2 0.01 240)' }}>Pg {r.engagementPageId}</span>
+                        <span className="rounded px-1 py-0.5 text-[0.5625rem] font-bold" style={{ backgroundColor: decStampBg, color: decStampFg }}>{r.decisionType}</span>
+                      </div>
+                      <span className="text-xs truncate" style={{ color: 'oklch(0.5 0.01 240)' }}>{r.documentRef?.formLabel ?? 'No label'}</span>
+                    </div>
+                    <span className="ml-auto shrink-0 font-mono text-xs tabular-nums" style={{ color: dotColor }}>{Math.round(r.confidenceLevel * 100)}%</span>
+                  </button>
+                )
+              })}
+            </div>
+          ))}
+        </>
+      }
       detailContent={record ? (
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
@@ -132,10 +192,23 @@ export function VariantDSuperseded({ data }: { data: SupersededRecord[] }) {
             <DetailAction accepted={!!accepted[record.engagementPageId]} onAccept={() => setAccepted((p) => ({ ...p, [record.engagementPageId]: true }))} onUndo={() => setAccepted((p) => ({ ...p, [record.engagementPageId]: false }))} />
           </div>
           <dl className="grid grid-cols-3 gap-4">
-            <DetailField label="Decision" value={<span className="inline-flex rounded px-2 py-0.5 text-xs font-semibold" style={{ backgroundColor: record.decisionType === 'Superseded' ? 'oklch(0.6 0.18 15 / 0.12)' : 'oklch(0.55 0.17 160 / 0.12)', color: record.decisionType === 'Superseded' ? 'oklch(0.45 0.16 15)' : 'oklch(0.35 0.12 160)' }}>{record.decisionType}</span>} />
+            <DetailField label="Decision" value={
+              <span className="inline-flex rounded px-2 py-0.5 text-xs font-semibold" style={{
+                backgroundColor: record.decisionType === 'Superseded' ? 'oklch(0.6 0.18 15 / 0.12)' : record.decisionType === 'RetainBoth' ? 'oklch(0.55 0.15 250 / 0.12)' : 'oklch(0.55 0.17 160 / 0.12)',
+                color: record.decisionType === 'Superseded' ? 'oklch(0.45 0.16 15)' : record.decisionType === 'RetainBoth' ? 'oklch(0.35 0.14 250)' : 'oklch(0.35 0.12 160)',
+              }}>{record.decisionType}</span>
+            } />
             <DetailField label="Confidence" value={`${Math.round(record.confidenceLevel * 100)}%`} />
             <DetailField label="Rule Set" value={record.appliedRuleSet} />
           </dl>
+          {record.decisionType === 'Superseded' && record.retainedPageId && (
+            <div className="flex items-center gap-2 rounded-md px-3 py-2" style={{ backgroundColor: 'oklch(0.97 0.005 240)' }}>
+              <ArrowRight className="size-3.5" style={{ color: 'oklch(0.5 0.15 240)' }} />
+              <span className="text-sm" style={{ color: 'oklch(0.3 0.01 240)' }}>
+                This page is superseded by <strong>Page {record.retainedPageId}</strong>
+              </span>
+            </div>
+          )}
           <div className="flex flex-col gap-1.5 rounded-md p-3" style={{ backgroundColor: 'oklch(0.97 0.005 240)' }}>
             <div className="flex items-center gap-1.5">
               <Sparkles className="size-3.5" style={{ color: 'oklch(0.5 0.15 240)' }} />
@@ -152,10 +225,40 @@ export function VariantDSuperseded({ data }: { data: SupersededRecord[] }) {
               </div>
             </div>
           )}
+          {/* Key difference callout */}
+          {record.comparedValues && record.comparedValues.some(v => !v.match) && (
+            <div className="flex items-center gap-2 rounded px-3 py-2" style={{ backgroundColor: 'oklch(0.97 0.015 25 / 0.5)', border: '0.0625rem solid oklch(0.92 0.03 25)' }}>
+              <AlertTriangle className="size-4 shrink-0" style={{ color: 'oklch(0.6 0.2 25)' }} />
+              <span className="text-xs" style={{ color: 'oklch(0.4 0.12 25)' }}>
+                <strong>Key difference:</strong>{' '}
+                {(() => { const m = record.comparedValues!.find(v => !v.match)!; return `${m.field}: "${m.valueA}" vs "${m.valueB}"` })()}
+              </span>
+            </div>
+          )}
           {record.comparedValues && record.comparedValues.length > 0 && <FieldComparison values={record.comparedValues} labelA="Document A" labelB="Document B" />}
-          {record.documentRef && <DocumentPreviewButton docRef={record.documentRef} />}
+          {/* PDF page viewer */}
+          {record.documentRef && (
+            record.decisionType === 'Superseded' && record.retainedPageId ? (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: 'oklch(0.50 0.20 25)' }}>Superseded</p>
+                  <PdfPageViewer documentRef={record.documentRef} stamp="SUPERSEDED" height="20rem" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: 'oklch(0.45 0.17 145)' }}>Retained</p>
+                  <PdfPageViewer documentRef={{ pdfPath: record.documentRef.pdfPath, pageNumber: record.retainedPageId, formType: record.documentRef.formType, formLabel: `${record.documentRef.formType} (Corrected)` }} stamp="ORIGINAL" height="20rem" />
+                </div>
+              </div>
+            ) : (
+              <PdfPageViewer documentRef={record.documentRef} stamp={record.decisionType === 'Original' ? 'ORIGINAL' : 'RETAIN BOTH'} height="24rem" />
+            )
+          )}
         </div>
-      ) : null}
+      ) : (
+        <div className="flex h-full items-center justify-center">
+          <p className="text-sm" style={{ color: 'oklch(0.6 0.01 240)' }}>Select an item from the list to view details</p>
+        </div>
+      )}
     />
   )
 }
@@ -169,54 +272,48 @@ export function VariantDDuplicate({ data }: { data: DuplicateRecord[] }) {
 
   return (
     <SplitShell wizardIcon={Copy} title="Duplicate Review" count={data.length}
-      listItems={data.map((r) => {
-        const isData = r.itemType === 'DUPLICATE_DATA'
-        return {
-          id: getKey(r),
-          label: isData ? (r as DuplicateDataRecord).organizerItemId : `Doc ${(r as DuplicateDocRecord).docIdA}/${(r as DuplicateDocRecord).docIdB}`,
-          sublabel: isData ? 'Data' : 'Document',
-          confidence: r.confidenceLevel,
-        }
-      })}
-      selectedId={selected} onSelect={setSelected}
+      listContent={
+        data.map((r) => {
+          const key = getKey(r)
+          const isSelected = key === selected
+          const dotColor = r.confidenceLevel >= 0.9 ? 'oklch(0.55 0.17 160)' : r.confidenceLevel >= 0.7 ? 'oklch(0.72 0.14 80)' : 'oklch(0.6 0.18 15)'
+          return (
+            <button key={key} onClick={() => setSelected(key)}
+              className={cn('flex items-center gap-2.5 border-b px-3 py-2.5 text-left transition-colors w-full', isSelected ? 'border-l-2' : 'border-l-2 border-l-transparent')}
+              style={{ borderBottomColor: 'oklch(0.93 0.005 240)', ...(isSelected ? { backgroundColor: 'oklch(0.96 0.01 240)', borderLeftColor: 'oklch(0.5 0.15 240)' } : {}) }}
+              aria-selected={isSelected} type="button"
+            >
+              <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: dotColor }} />
+              <div className="flex flex-col gap-0.5 min-w-0">
+                <span className="text-sm font-medium truncate" style={{ color: 'oklch(0.2 0.01 240)' }}>{r.itemType === 'DUPLICATE_DATA' ? (r as DuplicateDataRecord).organizerItemId : `Doc ${(r as DuplicateDocRecord).docIdA}/${(r as DuplicateDocRecord).docIdB}`}</span>
+                <span className="text-xs truncate" style={{ color: 'oklch(0.5 0.01 240)' }}>{r.itemType === 'DUPLICATE_DATA' ? 'Data' : 'Document'}</span>
+              </div>
+              <span className="ml-auto shrink-0 font-mono text-xs tabular-nums" style={{ color: dotColor }}>{Math.round(r.confidenceLevel * 100)}%</span>
+            </button>
+          )
+        })
+      }
       detailContent={record ? (
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <h3 className="text-lg font-bold" style={{ color: 'oklch(0.15 0.01 240)' }}>
-                {record.itemType === 'DUPLICATE_DATA' ? (record as DuplicateDataRecord).organizerItemId : `Doc ${(record as DuplicateDocRecord).docIdA} / ${(record as DuplicateDocRecord).docIdB}`}
-              </h3>
-              <Sparkles className="size-4" style={{ color: 'oklch(0.5 0.15 240)' }} />
-            </div>
+            <h3 className="text-lg font-bold" style={{ color: 'oklch(0.15 0.01 240)' }}>
+              {record.itemType === 'DUPLICATE_DATA' ? (record as DuplicateDataRecord).organizerItemId : `Doc ${(record as DuplicateDocRecord).docIdA} / ${(record as DuplicateDocRecord).docIdB}`}
+            </h3>
             <DetailAction accepted={!!accepted[getKey(record)]} onAccept={() => setAccepted((p) => ({ ...p, [getKey(record)]: true }))} onUndo={() => setAccepted((p) => ({ ...p, [getKey(record)]: false }))} />
           </div>
           <dl className="grid grid-cols-3 gap-4">
-            <DetailField label="Type" value={record.itemType === 'DUPLICATE_DATA' ? 'Data Duplicate' : 'Document Duplicate'} />
+            <DetailField label="Type" value={record.itemType === 'DUPLICATE_DATA' ? 'Data' : 'Document'} />
             <DetailField label="Confidence" value={`${Math.round(record.confidenceLevel * 100)}%`} />
             <DetailField label="Decision" value={record.decision} />
           </dl>
           <div className="flex flex-col gap-1.5 rounded-md p-3" style={{ backgroundColor: 'oklch(0.97 0.005 240)' }}>
-            <div className="flex items-center gap-1.5">
-              <Sparkles className="size-3.5" style={{ color: 'oklch(0.5 0.15 240)' }} />
-              <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'oklch(0.5 0.15 240)' }}>AI Reasoning</span>
-            </div>
+            <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'oklch(0.5 0.15 240)' }}>AI Reasoning</span>
             <p className="text-sm leading-relaxed" style={{ color: 'oklch(0.3 0.01 240)' }}>{record.decisionReason}</p>
           </div>
-          {record.escalationReason && (
-            <div className="flex items-start gap-2 rounded-md p-3" style={{ backgroundColor: 'oklch(0.6 0.18 15 / 0.06)' }}>
-              <AlertTriangle className="mt-0.5 size-4 shrink-0" style={{ color: 'oklch(0.6 0.18 15)' }} />
-              <div>
-                <p className="text-xs font-bold" style={{ color: 'oklch(0.5 0.16 15)' }}>Escalation Required</p>
-                <p className="text-sm leading-relaxed" style={{ color: 'oklch(0.35 0.1 15)' }}>{record.escalationReason}</p>
-              </div>
-            </div>
-          )}
-          {record.comparedValues && record.comparedValues.length > 0 && (
-            <FieldComparison values={record.comparedValues} labelA={record.documentRefA?.formLabel ?? 'Source A'} labelB={record.documentRefB?.formLabel ?? 'Source B'} />
-          )}
+          {record.comparedValues && record.comparedValues.length > 0 && <FieldComparison values={record.comparedValues} labelA={record.documentRefA?.formLabel ?? 'A'} labelB={record.documentRefB?.formLabel ?? 'B'} />}
           {record.documentRefA && record.documentRefB && <DualDocumentPreview docRefA={record.documentRefA} docRefB={record.documentRefB} />}
         </div>
-      ) : null}
+      ) : <div className="flex h-full items-center justify-center"><p className="text-sm" style={{ color: 'oklch(0.6 0.01 240)' }}>Select an item</p></div>}
     />
   )
 }
@@ -229,14 +326,26 @@ export function VariantDCfa({ data }: { data: CfaRecord[] }) {
 
   return (
     <SplitShell wizardIcon={Link2} title="Child Form Association" count={data.length}
-      listItems={data.map((r) => ({
-        id: String(r.EngagementFaxFormId),
-        label: r.childFormLabel || `Form ${r.EngagementFaxFormId}`,
-        sublabel: r.parentFormLabel || `Parent: ${r.ParentEngagementFaxFormId}`,
-        confidence: r.ConfidenceLevel,
-      }))}
-      selectedId={selected != null ? String(selected) : null}
-      onSelect={(id) => setSelected(Number(id))}
+      listContent={
+        data.map((r) => {
+          const isSelected = r.EngagementFaxFormId === selected
+          const dotColor = r.ConfidenceLevel >= 0.9 ? 'oklch(0.55 0.17 160)' : r.ConfidenceLevel >= 0.7 ? 'oklch(0.72 0.14 80)' : 'oklch(0.6 0.18 15)'
+          return (
+            <button key={r.EngagementFaxFormId} onClick={() => setSelected(r.EngagementFaxFormId)}
+              className={cn('flex items-center gap-2.5 border-b px-3 py-2.5 text-left transition-colors w-full', isSelected ? 'border-l-2' : 'border-l-2 border-l-transparent')}
+              style={{ borderBottomColor: 'oklch(0.93 0.005 240)', ...(isSelected ? { backgroundColor: 'oklch(0.96 0.01 240)', borderLeftColor: 'oklch(0.5 0.15 240)' } : {}) }}
+              aria-selected={isSelected} type="button"
+            >
+              <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: dotColor }} />
+              <div className="flex flex-col gap-0.5 min-w-0">
+                <span className="text-sm font-medium truncate" style={{ color: 'oklch(0.2 0.01 240)' }}>{r.childFormLabel || `Form ${r.EngagementFaxFormId}`}</span>
+                <span className="text-xs truncate" style={{ color: 'oklch(0.5 0.01 240)' }}>{r.parentFormLabel || `Parent: ${r.ParentEngagementFaxFormId}`}</span>
+              </div>
+              <span className="ml-auto shrink-0 font-mono text-xs tabular-nums" style={{ color: dotColor }}>{Math.round(r.ConfidenceLevel * 100)}%</span>
+            </button>
+          )
+        })
+      }
       detailContent={record ? (
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
@@ -250,12 +359,12 @@ export function VariantDCfa({ data }: { data: CfaRecord[] }) {
           <dl className="grid grid-cols-3 gap-4">
             <DetailField label="Confidence" value={`${Math.round(record.ConfidenceLevel * 100)}%`} />
             <DetailField label="DWP Code" value={record.ParentFaxFormDwpCode} />
-            <DetailField label="Type" value={record.IsAddForm ? <span className="rounded-full px-2 py-0.5 text-xs font-semibold text-white" style={{ backgroundColor: 'oklch(0.5 0.15 240)' }}>Add Form</span> : 'Standard'} />
+            <DetailField label="Type" value={record.IsAddForm ? 'Add Form' : 'Standard'} />
           </dl>
-          {record.comparedValues && record.comparedValues.length > 0 && <FieldComparison values={record.comparedValues} labelA="Child Form" labelB="Parent Return" />}
+          {record.comparedValues && record.comparedValues.length > 0 && <FieldComparison values={record.comparedValues} labelA="Child" labelB="Parent" />}
           {record.documentRef && <DocumentPreviewButton docRef={record.documentRef} />}
         </div>
-      ) : null}
+      ) : <div className="flex h-full items-center justify-center"><p className="text-sm" style={{ color: 'oklch(0.6 0.01 240)' }}>Select an item</p></div>}
     />
   )
 }
@@ -268,20 +377,31 @@ export function VariantDNfr({ data }: { data: NfrRecord[] }) {
 
   return (
     <SplitShell wizardIcon={FileSearch} title="New Form Review" count={data.length}
-      listItems={data.map((r) => ({
-        id: `${r.EngagementPageId}-${r.FaxRowNumber}`,
-        label: r.fieldLabel || `Form ${r.EngagementFormId}`,
-        sublabel: `${r.sourceValue ?? `Row ${r.FaxRowNumber}`}`,
-        confidence: r.ConfidenceLevel,
-      }))}
-      selectedId={selected} onSelect={setSelected}
+      listContent={
+        data.map((r) => {
+          const key = `${r.EngagementPageId}-${r.FaxRowNumber}`
+          const isSelected = key === selected
+          const dotColor = r.ConfidenceLevel >= 0.9 ? 'oklch(0.55 0.17 160)' : r.ConfidenceLevel >= 0.7 ? 'oklch(0.72 0.14 80)' : 'oklch(0.6 0.18 15)'
+          return (
+            <button key={key} onClick={() => setSelected(key)}
+              className={cn('flex items-center gap-2.5 border-b px-3 py-2.5 text-left transition-colors w-full', isSelected ? 'border-l-2' : 'border-l-2 border-l-transparent')}
+              style={{ borderBottomColor: 'oklch(0.93 0.005 240)', ...(isSelected ? { backgroundColor: 'oklch(0.96 0.01 240)', borderLeftColor: 'oklch(0.5 0.15 240)' } : {}) }}
+              aria-selected={isSelected} type="button"
+            >
+              <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: dotColor }} />
+              <div className="flex flex-col gap-0.5 min-w-0">
+                <span className="text-sm font-medium truncate" style={{ color: 'oklch(0.2 0.01 240)' }}>{r.fieldLabel || `Form ${r.EngagementFormId}`}</span>
+                <span className="text-xs truncate" style={{ color: 'oklch(0.5 0.01 240)' }}>{r.sourceValue ?? `Row ${r.FaxRowNumber}`}</span>
+              </div>
+              <span className="ml-auto shrink-0 font-mono text-xs tabular-nums" style={{ color: dotColor }}>{Math.round(r.ConfidenceLevel * 100)}%</span>
+            </button>
+          )
+        })
+      }
       detailContent={record ? (
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <h3 className="text-lg font-bold" style={{ color: 'oklch(0.15 0.01 240)' }}>{record.fieldLabel || `Form ${record.EngagementFormId}`}</h3>
-              <Sparkles className="size-4" style={{ color: 'oklch(0.5 0.15 240)' }} />
-            </div>
+            <h3 className="text-lg font-bold" style={{ color: 'oklch(0.15 0.01 240)' }}>{record.fieldLabel || `Form ${record.EngagementFormId}`}</h3>
             <DetailAction
               accepted={!!accepted[`${record.EngagementPageId}-${record.FaxRowNumber}`]}
               onAccept={() => setAccepted((p) => ({ ...p, [`${record.EngagementPageId}-${record.FaxRowNumber}`]: true }))}
@@ -298,10 +418,10 @@ export function VariantDNfr({ data }: { data: NfrRecord[] }) {
                 : <span className="flex items-center gap-1 text-sm font-medium" style={{ color: 'oklch(0.6 0.18 15)' }}><XCircle className="size-4" /> Unmatched</span>
             } />
           </dl>
-          {record.comparedValues && record.comparedValues.length > 0 && <FieldComparison values={record.comparedValues} labelA="Source Document" labelB="Tax Return" />}
+          {record.comparedValues && record.comparedValues.length > 0 && <FieldComparison values={record.comparedValues} labelA="Source" labelB="Return" />}
           {record.documentRef && <DocumentPreviewButton docRef={record.documentRef} />}
         </div>
-      ) : null}
+      ) : <div className="flex h-full items-center justify-center"><p className="text-sm" style={{ color: 'oklch(0.6 0.01 240)' }}>Select an item</p></div>}
     />
   )
 }
