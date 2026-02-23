@@ -5,12 +5,14 @@ import type { SupersededRecord } from '@/lib/types'
 import { SupersededClient } from './superseded-client'
 import { VariantDSuperseded } from '@/components/design-variants/variant-d-split-panel'
 import { VariantEDocCompare } from '@/components/design-variants/variant-e-doc-compare'
-import { LayoutList, PanelLeftClose, Columns2, Check } from 'lucide-react'
+import { VariantFCompareTable } from '@/components/design-variants/variant-f-compare-table'
+import { LayoutList, PanelLeftClose, Columns2, LayoutDashboard, Check } from 'lucide-react'
 
 const VARIANTS = [
   { id: 'baseline', label: 'Table View', description: 'Category swimlanes with expandable rows', icon: LayoutList },
   { id: 'split-panel', label: 'Split Panel', description: 'Master-detail side by side', icon: PanelLeftClose },
   { id: 'doc-compare', label: 'Document Compare', description: 'Side-by-side PDF comparison', icon: Columns2 },
+  { id: 'compare-table', label: 'Compare + Table', description: 'PDF comparison with review table', icon: LayoutDashboard },
 ] as const
 
 type VariantId = typeof VARIANTS[number]['id']
@@ -136,6 +138,7 @@ export function SupersededWithVariants({ data }: { data: SupersededRecord[] }) {
         {activeVariant === 'baseline' && <SupersededClient data={data} />}
         {activeVariant === 'split-panel' && <VariantDSuperseded data={data} />}
         {activeVariant === 'doc-compare' && <VariantEDocCompare data={data} />}
+        {activeVariant === 'compare-table' && <VariantFCompareTable data={data} />}
       </div>
     </div>
   )
