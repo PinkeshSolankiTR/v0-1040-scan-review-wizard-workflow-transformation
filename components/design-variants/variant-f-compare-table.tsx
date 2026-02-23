@@ -16,7 +16,7 @@ import { PdfPageViewer } from '@/components/pdf-page-viewer'
 import { useDecisions } from '@/contexts/decision-context'
 import { getConfidenceLevel, type SupersededRecord } from '@/lib/types'
 import {
-  Check, Undo2, FileText, AlertTriangle,
+  Sparkles, Check, Undo2, FileText, AlertTriangle,
   ChevronDown, ChevronRight,
   CircleAlert, CircleCheck, FolderOpen,
   ZoomIn, ZoomOut, RotateCw, Maximize,
@@ -507,145 +507,173 @@ export function VariantFCompareTable({ data }: { data: SupersededRecord[] }) {
                 </div>
               </button>
 
-              {/* Expanded: compact table rows */}
-              {isExpanded && (
-                <div>
-                  {/* Table header */}
-                  <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: '3.5rem 1fr 5.5rem minmax(8rem, 16rem) 7rem',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    padding: '0.375rem 1rem 0.375rem 1.25rem',
-                    backgroundColor: 'oklch(0.97 0.003 260)',
-                    borderBlockEnd: '0.0625rem solid oklch(0.93 0.003 260)',
-                    fontSize: '0.5625rem', fontWeight: 700, color: 'oklch(0.45 0.01 260)',
-                    textTransform: 'uppercase', letterSpacing: '0.05em',
-                  }}>
-                    <span>Page</span>
-                    <span>Rule / Reasoning</span>
-                    <span>Confidence</span>
-                    <span>Flags</span>
-                    <span style={{ textAlign: 'end' }}>Actions</span>
-                  </div>
+              {/* Expanded content */}
+              {isExpanded && (() => {
+                const groupSuperseded = group.supersededRecords[0]
+                const groupCompared = group.records.flatMap(r => r.comparedValues ?? [])
+                  .filter((v, i, arr) => arr.findIndex(x => x.field === v.field) === i)
+                const avgConf = Math.round(group.averageConfidence * 100)
+                const confColor = avgConf >= 90
+                  ? 'oklch(0.55 0.17 145)'
+                  : avgConf >= 70 ? 'oklch(0.65 0.14 80)' : 'oklch(0.6 0.18 15)'
 
-                  {group.records.map((r, idx) => {
-                    const itemKey = `sup-pg${r.engagementPageId}`
-                    const isAccepted = decisions[itemKey] === 'accepted'
-                    const level = getConfidenceLevel(r.confidenceLevel)
-                    const isSup = r.decisionType === 'Superseded'
-                    const borderLeft = level === 'high' ? 'var(--confidence-high)' : level === 'medium' ? 'var(--confidence-medium)' : 'var(--confidence-low)'
-                    const hasDiff = r.comparedValues?.some(v => !v.match)
+                return (
+                  <div>
+                    {/* ── Group-level AI Analysis (like Variant E) ── */}
+                    <details open={isActive} style={{
+                      borderBlockEnd: '0.0625rem solid oklch(0.91 0.005 260)',
+                    }}>
+                      <summary style={{
+                        display: 'flex', alignItems: 'center', gap: '0.375rem',
+                        padding: '0.4375rem 1rem',
+                        fontSize: '0.6875rem', fontWeight: 700,
+                        color: 'var(--ai-accent)',
+                        backgroundColor: 'oklch(0.97 0.005 240)',
+                        cursor: 'pointer', listStyle: 'none',
+                        textTransform: 'uppercase', letterSpacing: '0.04em',
+                      }}>
+                        <Sparkles style={{ inlineSize: '0.6875rem', blockSize: '0.6875rem' }} />
+                        AI Analysis
+                        {groupSuperseded?.reviewRequired && (
+                          <AlertTriangle style={{ inlineSize: '0.625rem', blockSize: '0.625rem', color: 'oklch(0.6 0.18 60)', marginInlineStart: '0.25rem' }} />
+                        )}
+                        <span style={{
+                          marginInlineStart: 'auto',
+                          fontSize: '0.625rem', fontWeight: 600, fontFamily: 'var(--font-mono)',
+                          color: 'oklch(0.45 0.01 260)',
+                        }}>
+                          {groupSuperseded?.appliedRuleSet} / {groupSuperseded?.decisionRule}
+                        </span>
+                      </summary>
+                      <div style={{
+                        padding: '0.5rem 1rem', backgroundColor: 'oklch(0.98 0.003 240)',
+                        display: 'flex', flexDirection: 'column', gap: '0.5rem',
+                      }}>
+                        {/* Reasoning */}
+                        <p style={{ fontSize: '0.75rem', lineHeight: '1.5', color: 'oklch(0.3 0.01 260)' }}>
+                          {groupSuperseded?.decisionReason}
+                        </p>
 
-                    return (
-                      <div
-                        key={r.engagementPageId}
-                        onClick={() => selectGroup(gIdx)}
-                        role="row"
-                        style={{
-                          display: 'grid',
-                          gridTemplateColumns: '3.5rem 1fr 5.5rem minmax(8rem, 16rem) 7rem',
-                          alignItems: 'center',
-                          gap: '0.5rem',
-                          padding: '0.5rem 1rem 0.5rem 1.25rem',
-                          borderBlockStart: idx > 0 ? '0.0625rem solid oklch(0.95 0.003 260)' : 'none',
-                          borderInlineStart: `0.1875rem solid ${borderLeft}`,
-                          backgroundColor: isAccepted ? 'oklch(0.985 0.01 145 / 0.25)' : 'oklch(1 0 0)',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        {/* Page + Type */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.125rem' }}>
+                        {/* Escalation */}
+                        {groupSuperseded?.escalationReason && (
+                          <div style={{
+                            display: 'flex', alignItems: 'flex-start', gap: '0.375rem',
+                            padding: '0.375rem 0.5rem', borderRadius: '0.25rem',
+                            backgroundColor: 'oklch(0.96 0.04 60)', border: '0.0625rem solid oklch(0.88 0.08 60)',
+                          }}>
+                            <AlertTriangle style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.6 0.18 60)', flexShrink: 0, marginBlockStart: '0.0625rem' }} />
+                            <div>
+                              <p style={{ fontSize: '0.625rem', fontWeight: 700, color: 'oklch(0.5 0.16 60)' }}>Escalation</p>
+                              <p style={{ fontSize: '0.6875rem', color: 'oklch(0.35 0.1 60)', lineHeight: '1.4' }}>{groupSuperseded.escalationReason}</p>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Key differences */}
+                        {groupCompared.some(v => !v.match) && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                            <span style={{ fontSize: '0.625rem', fontWeight: 700, color: 'oklch(0.45 0.12 25)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                              Key Differences
+                            </span>
+                            {groupCompared.filter(v => !v.match).map(v => (
+                              <div key={v.field} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', flexWrap: 'wrap' }}>
+                                <span style={{ fontSize: '0.625rem', fontWeight: 600, color: 'oklch(0.35 0.01 260)' }}>{v.field}:</span>
+                                <span style={{ fontSize: '0.5625rem', padding: '0.0625rem 0.25rem', borderRadius: '0.125rem', backgroundColor: 'oklch(0.94 0.04 25)', color: 'oklch(0.45 0.14 25)' }}>
+                                  {v.valueA}
+                                </span>
+                                <span style={{ fontSize: '0.5625rem', color: 'oklch(0.55 0.01 260)' }}>&rarr;</span>
+                                <span style={{ fontSize: '0.5625rem', padding: '0.0625rem 0.25rem', borderRadius: '0.125rem', backgroundColor: 'oklch(0.94 0.04 145)', color: 'oklch(0.35 0.12 145)' }}>
+                                  {v.valueB}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </details>
+
+                    {/* ── Record rows (compact: Page | Type | Status | Actions) ── */}
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: '4rem 5.5rem 1fr 7rem',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      padding: '0.3125rem 1rem',
+                      backgroundColor: 'oklch(0.97 0.003 260)',
+                      borderBlockEnd: '0.0625rem solid oklch(0.93 0.003 260)',
+                      fontSize: '0.5625rem', fontWeight: 700, color: 'oklch(0.45 0.01 260)',
+                      textTransform: 'uppercase', letterSpacing: '0.05em',
+                    }}>
+                      <span>Page</span>
+                      <span>Type</span>
+                      <span>Status</span>
+                      <span style={{ textAlign: 'end' }}>Actions</span>
+                    </div>
+
+                    {group.records.map((r, idx) => {
+                      const itemKey = `sup-pg${r.engagementPageId}`
+                      const isAccepted = decisions[itemKey] === 'accepted'
+                      const isSup = r.decisionType === 'Superseded'
+
+                      return (
+                        <div
+                          key={r.engagementPageId}
+                          onClick={() => selectGroup(gIdx)}
+                          role="row"
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: '4rem 5.5rem 1fr 7rem',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            padding: '0.4375rem 1rem',
+                            borderBlockStart: idx > 0 ? '0.0625rem solid oklch(0.95 0.003 260)' : 'none',
+                            backgroundColor: isAccepted ? 'oklch(0.985 0.01 145 / 0.25)' : 'oklch(1 0 0)',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {/* Page */}
                           <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'oklch(0.2 0.01 260)' }}>
                             {r.engagementPageId}
                           </span>
+
+                          {/* Type badge */}
                           <span style={{
-                            fontSize: '0.5rem', fontWeight: 700,
-                            padding: '0.0625rem 0.25rem', borderRadius: '0.125rem',
+                            fontSize: '0.5625rem', fontWeight: 700,
+                            padding: '0.125rem 0.375rem', borderRadius: '1rem',
                             backgroundColor: isSup ? 'oklch(0.94 0.04 25)' : 'oklch(0.94 0.04 145)',
                             color: isSup ? 'oklch(0.40 0.18 25)' : 'oklch(0.35 0.14 145)',
                             textTransform: 'uppercase', letterSpacing: '0.04em',
-                            alignSelf: 'flex-start',
+                            justifySelf: 'start',
                           }}>
-                            {isSup ? 'Sup' : 'Orig'}
+                            {isSup ? 'Superseded' : 'Original'}
                           </span>
-                        </div>
 
-                        {/* Rule + Reasoning (compact single line) */}
-                        <div style={{ minInlineSize: 0, overflow: 'hidden' }}>
+                          {/* Status */}
                           <span style={{
-                            fontSize: '0.5625rem', fontWeight: 600, fontFamily: 'var(--font-mono)',
-                            color: 'oklch(0.45 0.01 260)',
+                            fontSize: '0.6875rem', fontWeight: 600,
+                            color: isAccepted ? 'oklch(0.45 0.15 145)' : 'oklch(0.5 0.01 260)',
                           }}>
-                            {r.decisionRule}
+                            {isAccepted ? 'Accepted' : 'Pending'}
                           </span>
-                          <p style={{
-                            fontSize: '0.6875rem', color: 'oklch(0.3 0.01 260)', lineHeight: '1.4',
-                            overflow: 'hidden', textOverflow: 'ellipsis',
-                            display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const,
-                            marginBlockStart: '0.125rem',
-                          }}>
-                            {r.decisionReason}
-                          </p>
-                        </div>
 
-                        {/* Confidence */}
-                        <ConfidenceBadge score={r.confidenceLevel} />
-
-                        {/* Flags column */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1875rem', minInlineSize: 0 }}>
-                          {r.reviewRequired && (
-                            <span style={{
-                              display: 'inline-flex', alignItems: 'center', gap: '0.1875rem',
-                              fontSize: '0.5625rem', fontWeight: 600, color: 'oklch(0.55 0.18 60)',
-                            }}>
-                              <AlertTriangle style={{ inlineSize: '0.625rem', blockSize: '0.625rem', flexShrink: 0 }} />
-                              Review Required
-                            </span>
-                          )}
-                          {hasDiff && (
-                            <span style={{
-                              fontSize: '0.5625rem', color: 'oklch(0.4 0.12 25)',
-                              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                            }}>
-                              {(() => {
-                                const m = r.comparedValues!.find(v => !v.match)!
-                                return `${m.field}: "${m.valueA}" \u2192 "${m.valueB}"`
-                              })()}
-                            </span>
-                          )}
-                          {r.escalationReason && (
-                            <span style={{
-                              fontSize: '0.5625rem', color: 'oklch(0.45 0.10 60)',
-                              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                            }}>
-                              Escalation: {r.escalationReason}
-                            </span>
-                          )}
-                          {!r.reviewRequired && !hasDiff && !r.escalationReason && isAccepted && (
-                            <span style={{ fontSize: '0.5625rem', fontWeight: 600, color: 'oklch(0.45 0.15 145)' }}>
-                              Accepted
-                            </span>
-                          )}
+                          {/* Actions */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', justifyContent: 'flex-end' }}>
+                            {isAccepted ? (
+                              <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); undo(itemKey, 'superseded', r.confidenceLevel) }} style={{ fontSize: '0.625rem', padding: '0.1875rem 0.375rem' }}>
+                                <Undo2 style={{ inlineSize: '0.6875rem', blockSize: '0.6875rem' }} /> Undo
+                              </Button>
+                            ) : (
+                              <Button variant="default" size="sm" onClick={(e) => { e.stopPropagation(); accept(itemKey, 'superseded', r.confidenceLevel, 'manual') }} style={{ fontSize: '0.625rem', padding: '0.1875rem 0.375rem' }}>
+                                <Check style={{ inlineSize: '0.6875rem', blockSize: '0.6875rem' }} /> Accept
+                              </Button>
+                            )}
+                          </div>
                         </div>
-
-                        {/* Actions */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', justifyContent: 'flex-end' }}>
-                          {isAccepted ? (
-                            <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); undo(itemKey, 'superseded', r.confidenceLevel) }} style={{ fontSize: '0.625rem', padding: '0.1875rem 0.375rem' }}>
-                              <Undo2 style={{ inlineSize: '0.6875rem', blockSize: '0.6875rem' }} /> Undo
-                            </Button>
-                          ) : (
-                            <Button variant="default" size="sm" onClick={(e) => { e.stopPropagation(); accept(itemKey, 'superseded', r.confidenceLevel, 'manual') }} style={{ fontSize: '0.625rem', padding: '0.1875rem 0.375rem' }}>
-                              <Check style={{ inlineSize: '0.6875rem', blockSize: '0.6875rem' }} /> Accept
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
+                      )
+                    })}
+                  </div>
+                )
+              })()}
             </section>
           )
         })}
