@@ -1,0 +1,403 @@
+'use client'
+
+/**
+ * DESIGN VARIANT B: "Card Stack"
+ * ───────────────────────────────
+ * Style:  Each AI decision is a stacked Card with a left-edge confidence strip.
+ *         Inline reasoning accordion. Warm neutral palette with teal accents.
+ * Layout: Vertical card list, each card self-contained with all info visible.
+ * Interaction: Click card to expand full reasoning; inline accept/reject buttons.
+ * Color: Warm stone neutrals + teal primary + amber warnings + rose escalations.
+ */
+
+import { useState } from 'react'
+import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import {
+  Sparkles,
+  ChevronDown,
+  CheckCircle2,
+  Undo2,
+  FileStack,
+  Copy,
+  Link2,
+  FileSearch,
+  AlertTriangle,
+  ArrowRight,
+  CheckCircle,
+  XCircle,
+} from 'lucide-react'
+import { cn } from '@/lib/utils'
+import type {
+  SupersededRecord,
+  DuplicateRecord,
+  DuplicateDataRecord,
+  DuplicateDocRecord,
+  CfaRecord,
+  NfrRecord,
+} from '@/lib/types'
+
+/* ── Shared sub-components ── */
+
+function StripCard({
+  confidence,
+  children,
+  className,
+}: {
+  confidence: number
+  children: React.ReactNode
+  className?: string
+}) {
+  const stripColor =
+    confidence >= 0.9
+      ? 'bg-[oklch(0.55_0.17_175)]' /* teal */
+      : confidence >= 0.7
+        ? 'bg-[oklch(0.72_0.14_80)]' /* amber */
+        : 'bg-[oklch(0.6_0.2_15)]' /* rose */
+
+  return (
+    <Card
+      className={cn(
+        'relative overflow-hidden border-[oklch(0.88_0.01_80)] transition-shadow hover:shadow-md',
+        className
+      )}
+      style={{ backgroundColor: 'oklch(0.995 0.003 80)' }}
+    >
+      <div className={cn('absolute inset-y-0 left-0 w-1', stripColor)} aria-hidden="true" />
+      <CardContent className="py-4 pl-5 pr-4">{children}</CardContent>
+    </Card>
+  )
+}
+
+function ConfChip({ score }: { score: number }) {
+  const pct = Math.round(score * 100)
+  const bg =
+    score >= 0.9
+      ? 'bg-[oklch(0.55_0.17_175)]/12 text-[oklch(0.4_0.12_175)]'
+      : score >= 0.7
+        ? 'bg-[oklch(0.72_0.14_80)]/15 text-[oklch(0.45_0.12_80)]'
+        : 'bg-[oklch(0.6_0.2_15)]/12 text-[oklch(0.45_0.18_15)]'
+  const label = score >= 0.9 ? 'High' : score >= 0.7 ? 'Medium' : 'Low'
+
+  return (
+    <span
+      className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold', bg)}
+      aria-label={`${label} confidence: ${pct}%`}
+    >
+      {label} {pct}%
+    </span>
+  )
+}
+
+function InlineReason({ reason, escalation }: { reason: string; escalation?: string | null }) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-1 text-xs font-medium hover:underline"
+        style={{ color: 'oklch(0.55 0.17 175)' }}
+        aria-expanded={open}
+      >
+        <Sparkles className="size-3" />
+        AI Reasoning
+        <ChevronDown className={cn('size-3 transition-transform', open && 'rotate-180')} />
+      </button>
+      {open && (
+        <div className="flex flex-col gap-2 rounded-md px-3 py-2" style={{ backgroundColor: 'oklch(0.97 0.005 175 / 0.3)' }}>
+          <p className="text-sm leading-relaxed" style={{ color: 'oklch(0.25 0.01 80)' }}>
+            {reason}
+          </p>
+          {escalation && (
+            <div className="flex items-start gap-1.5 rounded px-2 py-1.5" style={{ backgroundColor: 'oklch(0.6 0.2 15 / 0.08)' }}>
+              <AlertTriangle className="mt-0.5 size-3.5 shrink-0" style={{ color: 'oklch(0.6 0.2 15)' }} />
+              <p className="text-xs leading-relaxed" style={{ color: 'oklch(0.45 0.15 15)' }}>
+                {escalation}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ActionPair({
+  accepted,
+  onAccept,
+  onUndo,
+}: {
+  accepted: boolean
+  onAccept: () => void
+  onUndo: () => void
+}) {
+  if (accepted) {
+    return (
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={onUndo}
+        className="gap-1 text-xs"
+        style={{ color: 'oklch(0.5 0.01 80)' }}
+      >
+        <Undo2 className="size-3.5" /> Undo
+      </Button>
+    )
+  }
+  return (
+    <Button
+      size="sm"
+      onClick={onAccept}
+      className="gap-1 text-xs text-white"
+      style={{ backgroundColor: 'oklch(0.55 0.17 175)' }}
+    >
+      <CheckCircle2 className="size-3.5" /> Accept
+    </Button>
+  )
+}
+
+/* ── SUPERSEDED ── */
+export function VariantBSuperseded({ data }: { data: SupersededRecord[] }) {
+  const [accepted, setAccepted] = useState<Record<number, boolean>>({})
+
+  return (
+    <section className="flex flex-col gap-3">
+      <header className="flex items-center gap-2 px-1">
+        <FileStack className="size-5" style={{ color: 'oklch(0.55 0.17 175)' }} />
+        <h2 className="text-lg font-bold" style={{ color: 'oklch(0.2 0.01 80)' }}>
+          Superseded Review
+        </h2>
+        <Badge variant="secondary" className="ml-auto text-xs" style={{ backgroundColor: 'oklch(0.94 0.005 80)', color: 'oklch(0.4 0.01 80)' }}>
+          {data.length} items
+        </Badge>
+      </header>
+
+      {data.map((r) => (
+        <StripCard key={r.engagementPageId} confidence={r.confidenceLevel}>
+          <div className="flex flex-col gap-2.5">
+            {/* Top row */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-sm font-medium" style={{ color: 'oklch(0.2 0.01 80)' }}>
+                  Page {r.engagementPageId}
+                </span>
+                <Badge
+                  variant="outline"
+                  className="text-xs"
+                  style={{
+                    borderColor:
+                      r.decisionType === 'Superseded'
+                        ? 'oklch(0.6 0.2 15)'
+                        : r.decisionType === 'RetainBoth'
+                          ? 'oklch(0.72 0.14 80)'
+                          : 'oklch(0.55 0.17 175)',
+                    color:
+                      r.decisionType === 'Superseded'
+                        ? 'oklch(0.5 0.18 15)'
+                        : r.decisionType === 'RetainBoth'
+                          ? 'oklch(0.45 0.12 80)'
+                          : 'oklch(0.4 0.12 175)',
+                  }}
+                >
+                  {r.decisionType}
+                </Badge>
+                <ConfChip score={r.confidenceLevel} />
+              </div>
+              <ActionPair
+                accepted={!!accepted[r.engagementPageId]}
+                onAccept={() => setAccepted((p) => ({ ...p, [r.engagementPageId]: true }))}
+                onUndo={() => setAccepted((p) => ({ ...p, [r.engagementPageId]: false }))}
+              />
+            </div>
+            {/* Rule tag */}
+            <div className="flex items-center gap-2">
+              <span className="rounded-md px-2 py-0.5 text-xs font-mono" style={{ backgroundColor: 'oklch(0.94 0.005 80)', color: 'oklch(0.4 0.01 80)' }}>
+                {r.appliedRuleSet}
+              </span>
+              <span className="text-xs" style={{ color: 'oklch(0.5 0.01 80)' }}>{r.decisionRule}</span>
+            </div>
+            {/* Inline reason */}
+            <InlineReason reason={r.decisionReason} escalation={r.escalationReason} />
+          </div>
+        </StripCard>
+      ))}
+    </section>
+  )
+}
+
+/* ── DUPLICATE ── */
+export function VariantBDuplicate({ data }: { data: DuplicateRecord[] }) {
+  const [accepted, setAccepted] = useState<Record<string, boolean>>({})
+
+  const getKey = (r: DuplicateRecord) =>
+    r.itemType === 'DUPLICATE_DATA'
+      ? (r as DuplicateDataRecord).organizerItemId
+      : `${(r as DuplicateDocRecord).docIdA}-${(r as DuplicateDocRecord).docIdB}`
+
+  return (
+    <section className="flex flex-col gap-3">
+      <header className="flex items-center gap-2 px-1">
+        <Copy className="size-5" style={{ color: 'oklch(0.55 0.17 175)' }} />
+        <h2 className="text-lg font-bold" style={{ color: 'oklch(0.2 0.01 80)' }}>
+          Duplicate Review
+        </h2>
+        <Badge variant="secondary" className="ml-auto text-xs" style={{ backgroundColor: 'oklch(0.94 0.005 80)', color: 'oklch(0.4 0.01 80)' }}>
+          {data.length} items
+        </Badge>
+      </header>
+
+      {data.map((r) => {
+        const key = getKey(r)
+        const isData = r.itemType === 'DUPLICATE_DATA'
+        return (
+          <StripCard key={key} confidence={r.confidenceLevel}>
+            <div className="flex flex-col gap-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-sm font-medium" style={{ color: 'oklch(0.2 0.01 80)' }}>
+                    {isData ? (r as DuplicateDataRecord).organizerItemId : `Doc ${(r as DuplicateDocRecord).docIdA} / ${(r as DuplicateDocRecord).docIdB}`}
+                  </span>
+                  <Badge variant="outline" className="text-xs" style={{
+                    borderColor: isData ? 'oklch(0.55 0.17 175)' : 'oklch(0.6 0.15 250)',
+                    color: isData ? 'oklch(0.4 0.12 175)' : 'oklch(0.45 0.12 250)',
+                  }}>
+                    {isData ? 'Data' : 'Document'}
+                  </Badge>
+                  <ConfChip score={r.confidenceLevel} />
+                </div>
+                <ActionPair
+                  accepted={!!accepted[key]}
+                  onAccept={() => setAccepted((p) => ({ ...p, [key]: true }))}
+                  onUndo={() => setAccepted((p) => ({ ...p, [key]: false }))}
+                />
+              </div>
+              {/* Fields compared */}
+              {'fieldsCompared' in r && (r as DuplicateDataRecord).fieldsCompared && (
+                <div className="flex flex-wrap gap-1">
+                  {(r as DuplicateDataRecord | DuplicateDocRecord).fieldsCompared.map((f) => (
+                    <span key={f} className="rounded px-1.5 py-0.5 text-xs" style={{ backgroundColor: 'oklch(0.94 0.005 175)', color: 'oklch(0.4 0.12 175)' }}>
+                      {f}
+                    </span>
+                  ))}
+                </div>
+              )}
+              <InlineReason reason={r.decisionReason} escalation={r.escalationReason} />
+            </div>
+          </StripCard>
+        )
+      })}
+    </section>
+  )
+}
+
+/* ── CFA ── */
+export function VariantBCfa({ data }: { data: CfaRecord[] }) {
+  const [accepted, setAccepted] = useState<Record<number, boolean>>({})
+
+  return (
+    <section className="flex flex-col gap-3">
+      <header className="flex items-center gap-2 px-1">
+        <Link2 className="size-5" style={{ color: 'oklch(0.55 0.17 175)' }} />
+        <h2 className="text-lg font-bold" style={{ color: 'oklch(0.2 0.01 80)' }}>
+          Child Form Association
+        </h2>
+        <Badge variant="secondary" className="ml-auto text-xs" style={{ backgroundColor: 'oklch(0.94 0.005 80)', color: 'oklch(0.4 0.01 80)' }}>
+          {data.length} items
+        </Badge>
+      </header>
+
+      {data.map((r) => (
+        <StripCard key={r.EngagementFaxFormId} confidence={r.ConfidenceLevel}>
+          <div className="flex flex-col gap-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <span className="font-mono text-sm font-medium" style={{ color: 'oklch(0.2 0.01 80)' }}>
+                  {r.EngagementFaxFormId}
+                </span>
+                <ArrowRight className="size-3.5" style={{ color: 'oklch(0.5 0.01 80)' }} />
+                <span className="font-mono text-sm" style={{ color: 'oklch(0.4 0.01 80)' }}>
+                  {r.ParentEngagementFaxFormId}
+                </span>
+                <ConfChip score={r.ConfidenceLevel} />
+                {r.IsAddForm && (
+                  <span className="rounded-full px-2 py-0.5 text-xs font-semibold text-white" style={{ backgroundColor: 'oklch(0.55 0.17 175)' }}>
+                    Add Form
+                  </span>
+                )}
+              </div>
+              <ActionPair
+                accepted={!!accepted[r.EngagementFaxFormId]}
+                onAccept={() => setAccepted((p) => ({ ...p, [r.EngagementFaxFormId]: true }))}
+                onUndo={() => setAccepted((p) => ({ ...p, [r.EngagementFaxFormId]: false }))}
+              />
+            </div>
+            <span className="rounded-md px-2 py-0.5 text-xs font-mono w-fit" style={{ backgroundColor: 'oklch(0.94 0.005 80)', color: 'oklch(0.4 0.01 80)' }}>
+              DWP: {r.ParentFaxFormDwpCode}
+            </span>
+          </div>
+        </StripCard>
+      ))}
+    </section>
+  )
+}
+
+/* ── NFR ── */
+const FIELD_GROUPS_B: Record<number, string> = {
+  100: 'Income', 200: 'Deductions', 300: 'Wages', 400: 'Interest', 500: 'Business Income',
+}
+
+export function VariantBNfr({ data }: { data: NfrRecord[] }) {
+  const [accepted, setAccepted] = useState<Record<string, boolean>>({})
+
+  return (
+    <section className="flex flex-col gap-3">
+      <header className="flex items-center gap-2 px-1">
+        <FileSearch className="size-5" style={{ color: 'oklch(0.55 0.17 175)' }} />
+        <h2 className="text-lg font-bold" style={{ color: 'oklch(0.2 0.01 80)' }}>
+          New Form Review
+        </h2>
+        <Badge variant="secondary" className="ml-auto text-xs" style={{ backgroundColor: 'oklch(0.94 0.005 80)', color: 'oklch(0.4 0.01 80)' }}>
+          {data.length} items
+        </Badge>
+      </header>
+
+      {data.map((r) => {
+        const key = `${r.EngagementPageId}-${r.FaxRowNumber}`
+        return (
+          <StripCard key={key} confidence={r.ConfidenceLevel}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="font-mono text-sm font-medium" style={{ color: 'oklch(0.2 0.01 80)' }}>
+                  Form {r.EngagementFormId}
+                </span>
+                <span className="rounded px-1.5 py-0.5 text-xs" style={{ backgroundColor: 'oklch(0.94 0.005 80)', color: 'oklch(0.4 0.01 80)' }}>
+                  {FIELD_GROUPS_B[r.FieldGroupId] ?? `Group ${r.FieldGroupId}`}
+                </span>
+                <span className="text-xs" style={{ color: 'oklch(0.5 0.01 80)' }}>
+                  Row {r.FaxRowNumber}
+                </span>
+                {r.MatchStatus ? (
+                  <span className="flex items-center gap-1 text-xs font-medium" style={{ color: 'oklch(0.55 0.17 175)' }}>
+                    <CheckCircle className="size-3.5" /> Matched
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 text-xs font-medium" style={{ color: 'oklch(0.6 0.2 15)' }}>
+                    <XCircle className="size-3.5" /> Unmatched
+                  </span>
+                )}
+                <ConfChip score={r.ConfidenceLevel} />
+              </div>
+              <ActionPair
+                accepted={!!accepted[key]}
+                onAccept={() => setAccepted((p) => ({ ...p, [key]: true }))}
+                onUndo={() => setAccepted((p) => ({ ...p, [key]: false }))}
+              />
+            </div>
+          </StripCard>
+        )
+      })}
+    </section>
+  )
+}
