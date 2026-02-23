@@ -26,6 +26,7 @@ interface FormGroup {
   retainBothCount: number
   needsReview: boolean
   lowestConfidence: number
+  averageConfidence: number
 }
 
 function groupByFormType(data: SupersededRecord[]): FormGroup[] {
@@ -49,6 +50,7 @@ function groupByFormType(data: SupersededRecord[]): FormGroup[] {
       retainBothCount: records.filter(r => r.decisionType === 'RetainBoth').length,
       needsReview: records.some(r => r.reviewRequired),
       lowestConfidence: Math.min(...records.map(r => r.confidenceLevel)),
+      averageConfidence: records.reduce((sum, r) => sum + r.confidenceLevel, 0) / records.length,
     })
   }
 
@@ -217,6 +219,9 @@ export function SupersededClient({ data }: { data: SupersededRecord[] }) {
                 )}
               </div>
 
+              {/* Group-level confidence badge */}
+              <ConfidenceBadge score={group.averageConfidence} />
+
               {/* Review/status indicator */}
               <div style={{ marginInlineStart: 'auto', flexShrink: 0 }}>
                 {group.needsReview ? (
@@ -292,7 +297,6 @@ export function SupersededClient({ data }: { data: SupersededRecord[] }) {
                               Retained Page {r.retainedPageId}
                             </span>
                           )}
-                          <ConfidenceBadge score={r.confidenceLevel} />
                           <span style={{
                             padding: '0.125rem 0.5rem', borderRadius: '1rem', fontSize: '0.625rem', fontWeight: 700,
                             backgroundColor: stampBg, color: stampFg,

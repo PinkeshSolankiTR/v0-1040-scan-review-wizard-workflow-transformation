@@ -111,6 +111,7 @@ interface FormGroup {
   retainBothCount: number
   needsReview: boolean
   lowestConfidence: number
+  averageConfidence: number
 }
 
 function groupByFormType(data: SupersededRecord[]): FormGroup[] {
@@ -133,6 +134,7 @@ function groupByFormType(data: SupersededRecord[]): FormGroup[] {
       retainBothCount: records.filter(r => r.decisionType === 'RetainBoth').length,
       needsReview: records.some(r => r.reviewRequired),
       lowestConfidence: Math.min(...records.map(r => r.confidenceLevel)),
+      averageConfidence: records.reduce((sum, r) => sum + r.confidenceLevel, 0) / records.length,
     })
   }
   groups.sort((a, b) => {
@@ -229,6 +231,7 @@ export function VariantBSuperseded({ data }: { data: SupersededRecord[] }) {
                 {group.supersededCount > 0 && <span style={{ ...smallPill, backgroundColor: 'oklch(0.94 0.04 25)', color: 'oklch(0.40 0.18 25)' }}>{group.supersededCount} Superseded</span>}
                 {group.retainBothCount > 0 && <span style={{ ...smallPill, backgroundColor: 'oklch(0.94 0.04 250)', color: 'oklch(0.35 0.14 250)' }}>{group.retainBothCount} Retain</span>}
               </div>
+              <ConfChip score={group.averageConfidence} />
               <div className="ml-auto shrink-0">
                 {group.needsReview ? (
                   <span className="flex items-center gap-1 text-xs font-semibold" style={{ color: 'oklch(0.55 0.18 60)' }}>
@@ -285,7 +288,6 @@ export function VariantBSuperseded({ data }: { data: SupersededRecord[] }) {
                               }}>
                                 {stampLabel}
                               </span>
-                              <ConfChip score={r.confidenceLevel} />
                               {r.reviewRequired && <Badge variant="outline" className="text-xs" style={{ borderColor: 'oklch(0.72 0.14 80)', color: 'oklch(0.45 0.12 80)' }}>Review</Badge>}
                             </div>
                             <div className="flex items-center gap-2">

@@ -93,6 +93,7 @@ interface FormGroup {
   originalCount: number
   supersededCount: number
   retainBothCount: number
+  averageConfidence: number
 }
 
 function groupByFormType(data: SupersededRecord[]): FormGroup[] {
@@ -112,6 +113,7 @@ function groupByFormType(data: SupersededRecord[]): FormGroup[] {
       originalCount: records.filter(r => r.decisionType === 'Original').length,
       supersededCount: records.filter(r => r.decisionType === 'Superseded').length,
       retainBothCount: records.filter(r => r.decisionType === 'RetainBoth').length,
+      averageConfidence: records.reduce((sum, r) => sum + r.confidenceLevel, 0) / records.length,
     })
   }
   return groups
@@ -142,6 +144,7 @@ export function VariantDSuperseded({ data }: { data: SupersededRecord[] }) {
                 <FileText className="size-3.5 shrink-0" style={{ color: 'oklch(0.5 0.15 240)' }} />
                 <span className="text-xs font-bold" style={{ color: 'oklch(0.25 0.01 240)' }}>{group.formType}</span>
                 <span className="flex size-4 items-center justify-center rounded-full text-[0.5625rem] font-bold text-white" style={{ backgroundColor: 'oklch(0.5 0.15 240)' }}>{group.records.length}</span>
+                <span className="text-xs font-mono tabular-nums" style={{ color: group.averageConfidence >= 0.9 ? 'oklch(0.55 0.17 160)' : group.averageConfidence >= 0.7 ? 'oklch(0.72 0.14 80)' : 'oklch(0.6 0.18 15)' }}>{Math.round(group.averageConfidence * 100)}%</span>
                 <div className="flex items-center gap-1 ml-auto">
                   {group.originalCount > 0 && <span style={{ ...smallPill, backgroundColor: 'oklch(0.94 0.04 145)', color: 'oklch(0.35 0.14 145)' }}>{group.originalCount} O</span>}
                   {group.supersededCount > 0 && <span style={{ ...smallPill, backgroundColor: 'oklch(0.94 0.04 25)', color: 'oklch(0.40 0.18 25)' }}>{group.supersededCount} S</span>}
@@ -174,7 +177,6 @@ export function VariantDSuperseded({ data }: { data: SupersededRecord[] }) {
                       </div>
                       <span className="text-xs truncate" style={{ color: 'oklch(0.5 0.01 240)' }}>{r.documentRef?.formLabel ?? 'No label'}</span>
                     </div>
-                    <span className="ml-auto shrink-0 font-mono text-xs tabular-nums" style={{ color: dotColor }}>{Math.round(r.confidenceLevel * 100)}%</span>
                   </button>
                 )
               })}
@@ -191,14 +193,13 @@ export function VariantDSuperseded({ data }: { data: SupersededRecord[] }) {
             </div>
             <DetailAction accepted={!!accepted[record.engagementPageId]} onAccept={() => setAccepted((p) => ({ ...p, [record.engagementPageId]: true }))} onUndo={() => setAccepted((p) => ({ ...p, [record.engagementPageId]: false }))} />
           </div>
-          <dl className="grid grid-cols-3 gap-4">
+          <dl className="grid grid-cols-2 gap-4">
             <DetailField label="Decision" value={
               <span className="inline-flex rounded px-2 py-0.5 text-xs font-semibold" style={{
                 backgroundColor: record.decisionType === 'Superseded' ? 'oklch(0.6 0.18 15 / 0.12)' : record.decisionType === 'RetainBoth' ? 'oklch(0.55 0.15 250 / 0.12)' : 'oklch(0.55 0.17 160 / 0.12)',
                 color: record.decisionType === 'Superseded' ? 'oklch(0.45 0.16 15)' : record.decisionType === 'RetainBoth' ? 'oklch(0.35 0.14 250)' : 'oklch(0.35 0.12 160)',
               }}>{record.decisionType}</span>
             } />
-            <DetailField label="Confidence" value={`${Math.round(record.confidenceLevel * 100)}%`} />
             <DetailField label="Rule Set" value={record.appliedRuleSet} />
           </dl>
           {record.decisionType === 'Superseded' && record.retainedPageId && (

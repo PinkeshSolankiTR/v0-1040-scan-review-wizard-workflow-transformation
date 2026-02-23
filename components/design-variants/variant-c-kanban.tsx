@@ -152,6 +152,7 @@ interface FormGroup {
   originalCount: number
   supersededCount: number
   retainBothCount: number
+  averageConfidence: number
 }
 
 function groupByFormType(data: SupersededRecord[]): FormGroup[] {
@@ -171,6 +172,7 @@ function groupByFormType(data: SupersededRecord[]): FormGroup[] {
       originalCount: records.filter(r => r.decisionType === 'Original').length,
       supersededCount: records.filter(r => r.decisionType === 'Superseded').length,
       retainBothCount: records.filter(r => r.decisionType === 'RetainBoth').length,
+      averageConfidence: records.reduce((sum, r) => sum + r.confidenceLevel, 0) / records.length,
     })
   }
   return groups
@@ -205,6 +207,7 @@ export function VariantCSuperseded({ data }: { data: SupersededRecord[] }) {
             <span className="text-sm font-bold" style={{ color: 'oklch(0.2 0.01 260)' }}>{group.formType}</span>
             <span className="text-xs" style={{ color: 'oklch(0.5 0.01 260)' }}>{group.formEntity}</span>
             <span className="flex size-5 items-center justify-center rounded-full text-xs font-bold text-white" style={{ backgroundColor: 'oklch(0.5 0.15 260)' }}>{group.records.length}</span>
+            <KanbanPctBar score={group.averageConfidence} />
             <div className="flex items-center gap-1">
               {group.originalCount > 0 && <span style={{ ...smallPill, backgroundColor: 'oklch(0.94 0.04 145)', color: 'oklch(0.35 0.14 145)' }}>{group.originalCount} Orig</span>}
               {group.supersededCount > 0 && <span style={{ ...smallPill, backgroundColor: 'oklch(0.94 0.04 25)', color: 'oklch(0.40 0.18 25)' }}>{group.supersededCount} Sup</span>}
@@ -255,7 +258,6 @@ export function VariantCSuperseded({ data }: { data: SupersededRecord[] }) {
                       <span className="text-sm font-semibold" style={{ color: 'oklch(0.15 0.01 260)' }}>Pg {r.engagementPageId}</span>
                       <KanbanAction accepted={!!accepted[r.engagementPageId]} onAccept={() => setAccepted((p) => ({ ...p, [r.engagementPageId]: true }))} onUndo={() => setAccepted((p) => ({ ...p, [r.engagementPageId]: false }))} />
                     </div>
-                    <KanbanPctBar score={r.confidenceLevel} />
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="rounded px-1.5 py-0.5 text-xs font-semibold" style={{ backgroundColor: stampBg, color: stampFg }}>{stampLabel}</span>
                       {r.decisionType === 'Superseded' && r.retainedPageId && (
