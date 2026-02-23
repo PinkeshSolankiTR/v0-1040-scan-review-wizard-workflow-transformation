@@ -3,15 +3,11 @@
 import { useState } from 'react'
 import type { SupersededRecord } from '@/lib/types'
 import { SupersededClient } from './superseded-client'
-import { VariantBSuperseded } from '@/components/design-variants/variant-b-card-stack'
-import { VariantCSuperseded } from '@/components/design-variants/variant-c-kanban'
 import { VariantDSuperseded } from '@/components/design-variants/variant-d-split-panel'
-import { LayoutList, Layers, Columns3, PanelLeftClose, Check } from 'lucide-react'
+import { LayoutList, PanelLeftClose, Check } from 'lucide-react'
 
 const VARIANTS = [
   { id: 'baseline', label: 'Table View', description: 'Category swimlanes with expandable rows', icon: LayoutList },
-  { id: 'card-stack', label: 'Card Stack', description: 'Vertical cards with teal accent', icon: Layers },
-  { id: 'kanban', label: 'Kanban Board', description: 'Columns by confidence tier', icon: Columns3 },
   { id: 'split-panel', label: 'Split Panel', description: 'Master-detail side by side', icon: PanelLeftClose },
 ] as const
 
@@ -136,8 +132,6 @@ export function SupersededWithVariants({ data }: { data: SupersededRecord[] }) {
       {/* ── Active variant ── */}
       <div role="tabpanel" aria-label={`${VARIANTS.find(v => v.id === activeVariant)?.label} layout`}>
         {activeVariant === 'baseline' && <SupersededClient data={data} />}
-        {activeVariant === 'card-stack' && <VariantBSuperseded data={data} />}
-        {activeVariant === 'kanban' && <VariantCSuperseded data={data} />}
         {activeVariant === 'split-panel' && <VariantDSuperseded data={data} />}
       </div>
     </div>
