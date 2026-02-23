@@ -4,11 +4,13 @@ import { useState } from 'react'
 import type { SupersededRecord } from '@/lib/types'
 import { SupersededClient } from './superseded-client'
 import { VariantDSuperseded } from '@/components/design-variants/variant-d-split-panel'
-import { LayoutList, PanelLeftClose, Check } from 'lucide-react'
+import { VariantEDocCompare } from '@/components/design-variants/variant-e-doc-compare'
+import { LayoutList, PanelLeftClose, Columns2, Check } from 'lucide-react'
 
 const VARIANTS = [
   { id: 'baseline', label: 'Table View', description: 'Category swimlanes with expandable rows', icon: LayoutList },
   { id: 'split-panel', label: 'Split Panel', description: 'Master-detail side by side', icon: PanelLeftClose },
+  { id: 'doc-compare', label: 'Document Compare', description: 'Side-by-side PDF comparison', icon: Columns2 },
 ] as const
 
 type VariantId = typeof VARIANTS[number]['id']
@@ -133,6 +135,7 @@ export function SupersededWithVariants({ data }: { data: SupersededRecord[] }) {
       <div role="tabpanel" aria-label={`${VARIANTS.find(v => v.id === activeVariant)?.label} layout`}>
         {activeVariant === 'baseline' && <SupersededClient data={data} />}
         {activeVariant === 'split-panel' && <VariantDSuperseded data={data} />}
+        {activeVariant === 'doc-compare' && <VariantEDocCompare data={data} />}
       </div>
     </div>
   )
