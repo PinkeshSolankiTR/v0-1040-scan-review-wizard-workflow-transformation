@@ -6,8 +6,6 @@ import { DecisionProvider } from '@/contexts/decision-context'
 import { DocumentProvider } from '@/contexts/document-context'
 import { LeftRail } from '@/components/left-rail'
 import { TopBar } from '@/components/top-bar'
-import { DocumentViewer } from '@/components/document-viewer'
-
 export function BinderShell({ binder, children }: { binder: Binder; children: ReactNode }) {
   return (
     <DecisionProvider>
@@ -20,7 +18,6 @@ export function BinderShell({ binder, children }: { binder: Binder; children: Re
               <main className="flex-1 overflow-y-auto p-6">
                 {children}
               </main>
-              <DocumentViewer />
             </div>
           </div>
         </div>

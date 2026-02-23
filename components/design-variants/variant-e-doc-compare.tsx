@@ -24,7 +24,9 @@ import {
   ZoomOut,
   RotateCw,
   FlipHorizontal,
+  FlipVertical,
   Maximize,
+  MoveHorizontal,
 } from 'lucide-react'
 import type { SupersededRecord } from '@/lib/types'
 
@@ -122,6 +124,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
 
   /* ── Determine left/right docs ── */
   const leftDoc = activeGroup?.supersededRecords[0] ?? null
+  const rightDoc = activeGroup?.originalRecord ?? null
 
   return (
     <div style={{
@@ -483,17 +486,21 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
           </div>
         </aside>
 
-        {/* ── RIGHT: Single document viewer ── */}
+        {/* ── RIGHT: Dual document comparison area ── */}
         <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
-          {/* Document header */}
+          {/* Status headers for left and right docs */}
           <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '0.5rem 0.75rem',
-            borderBlockEnd: '0.0625rem solid oklch(0.91 0.005 260)',
-            backgroundColor: 'oklch(0.97 0.01 25 / 0.3)',
+            display: 'grid',
+            gridTemplateColumns: '1fr auto 1fr',
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minInlineSize: 0 }}>
+            {/* Left doc header (Superseded) */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '0.5rem',
+              padding: '0.5rem 0.75rem',
+              borderBlockEnd: '0.0625rem solid oklch(0.91 0.005 260)',
+              backgroundColor: 'oklch(0.97 0.01 25 / 0.3)',
+            }}>
               <span style={{
                 fontSize: '0.6875rem', fontWeight: 700,
                 padding: '0.0625rem 0.375rem', borderRadius: '0.1875rem',
@@ -514,14 +521,86 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
               </span>
             </div>
 
-            {/* Toolbar inline */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', flexShrink: 0 }}>
+            {/* Center divider header */}
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              borderBlockEnd: '0.0625rem solid oklch(0.91 0.005 260)',
+              borderInlineStart: '0.0625rem solid oklch(0.91 0.005 260)',
+              borderInlineEnd: '0.0625rem solid oklch(0.91 0.005 260)',
+              backgroundColor: 'oklch(0.97 0.003 260)',
+              padding: '0 0.25rem',
+            }}>
+              <MoveHorizontal style={{ inlineSize: '0.875rem', blockSize: '0.875rem', color: 'oklch(0.55 0.01 260)' }} />
+            </div>
+
+            {/* Right doc header (Original) */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '0.5rem',
+              padding: '0.5rem 0.75rem',
+              borderBlockEnd: '0.0625rem solid oklch(0.91 0.005 260)',
+              backgroundColor: 'oklch(0.97 0.01 145 / 0.3)',
+            }}>
+              <span style={{
+                fontSize: '0.6875rem', fontWeight: 700,
+                padding: '0.0625rem 0.375rem', borderRadius: '0.1875rem',
+                backgroundColor: 'oklch(0.94 0.04 145)', color: 'oklch(0.35 0.14 145)',
+                textTransform: 'uppercase', letterSpacing: '0.04em', flexShrink: 0,
+              }}>
+                Original
+              </span>
+              <FileText style={{ inlineSize: '0.875rem', blockSize: '0.875rem', color: 'oklch(0.45 0.01 260)', flexShrink: 0 }} />
+              <span style={{
+                fontSize: '0.75rem', fontWeight: 600, color: 'oklch(0.2 0.01 260)',
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>
+                {rightDoc
+                  ? `${rightDoc.engagementPageId} (${rightDoc.documentRef?.pageNumber})_${rightDoc.documentRef?.formType}:${rightDoc.documentRef?.formLabel?.split('(')[1]?.replace(')', '') ?? ''}`
+                  : 'No document'
+                }
+              </span>
+            </div>
+          </div>
+
+          {/* Dual PDF viewers with center toolbar */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr auto 1fr',
+            flex: '1 1 auto',
+            minBlockSize: 0,
+          }}>
+            {/* Left PDF viewer (Superseded) */}
+            <div style={{ overflow: 'auto', padding: '0.5rem' }}>
+              {leftDoc?.documentRef ? (
+                <PdfPageViewer
+                  documentRef={leftDoc.documentRef}
+                  stamp="SUPERSEDED"
+                  height="30rem"
+                />
+              ) : (
+                <div style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  blockSize: '100%', color: 'oklch(0.55 0.01 260)', fontSize: '0.8125rem',
+                }}>
+                  No superseded document
+                </div>
+              )}
+            </div>
+
+            {/* Center vertical toolbar */}
+            <div style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center',
+              gap: '0.25rem', padding: '0.5rem 0.25rem',
+              borderInlineStart: '0.0625rem solid oklch(0.91 0.005 260)',
+              borderInlineEnd: '0.0625rem solid oklch(0.91 0.005 260)',
+              backgroundColor: 'oklch(0.97 0.003 260)',
+            }}>
               {[
                 { icon: ZoomIn, label: 'Zoom in' },
                 { icon: ZoomOut, label: 'Zoom out' },
                 { icon: Maximize, label: 'Fit to view' },
                 { icon: RotateCw, label: 'Rotate' },
                 { icon: FlipHorizontal, label: 'Flip horizontal' },
+                { icon: FlipVertical, label: 'Flip vertical' },
               ].map(({ icon: Icon, label }) => (
                 <button
                   key={label}
@@ -530,35 +609,35 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                   title={label}
                   style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    inlineSize: '1.75rem', blockSize: '1.75rem',
+                    inlineSize: '2rem', blockSize: '2rem',
                     border: '0.0625rem solid oklch(0.88 0.01 260)',
                     borderRadius: '0.25rem',
                     backgroundColor: 'oklch(1 0 0)', color: 'oklch(0.35 0.01 260)',
                     cursor: 'pointer',
                   }}
                 >
-                  <Icon style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem' }} />
+                  <Icon style={{ inlineSize: '0.875rem', blockSize: '0.875rem' }} />
                 </button>
               ))}
             </div>
-          </div>
 
-          {/* Single PDF viewer */}
-          <div style={{ flex: '1 1 auto', overflow: 'auto', padding: '0.5rem' }}>
-            {leftDoc?.documentRef ? (
-              <PdfPageViewer
-                documentRef={leftDoc.documentRef}
-                stamp="SUPERSEDED"
-                height="30rem"
-              />
-            ) : (
-              <div style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                blockSize: '100%', color: 'oklch(0.55 0.01 260)', fontSize: '0.8125rem',
-              }}>
-                No document selected
-              </div>
-            )}
+            {/* Right PDF viewer (Original / Corrected) */}
+            <div style={{ overflow: 'auto', padding: '0.5rem' }}>
+              {rightDoc?.documentRef ? (
+                <PdfPageViewer
+                  documentRef={rightDoc.documentRef}
+                  stamp="ORIGINAL"
+                  height="30rem"
+                />
+              ) : (
+                <div style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  blockSize: '100%', color: 'oklch(0.55 0.01 260)', fontSize: '0.8125rem',
+                }}>
+                  No original document
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
