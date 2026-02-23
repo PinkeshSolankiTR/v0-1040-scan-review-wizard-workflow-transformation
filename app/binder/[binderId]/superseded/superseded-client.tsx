@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { ConfidenceBadge } from '@/components/confidence-badge'
 import { AiIndicator } from '@/components/ai-indicator'
 import { FieldComparison } from '@/components/field-comparison'
-import { FormRenderer } from '@/components/form-renderers/form-renderer'
+import { PdfPageViewer } from '@/components/pdf-page-viewer'
 import { useDecisions } from '@/contexts/decision-context'
 import { getConfidenceLevel, type SupersededRecord } from '@/lib/types'
 import { Sparkles, Check, Undo2, FileText, AlertTriangle, Eye, EyeOff } from 'lucide-react'
@@ -186,15 +186,15 @@ export function SupersededClient({ data }: { data: SupersededRecord[] }) {
               )}
             </div>
 
-            {/* Document preview: structured form renderer with stamp overlay */}
+            {/* Document preview: actual PDF page in iframe with stamp overlay */}
             {isDocOpen && r.documentRef && (
               <div style={{
                 borderBlockStart: '0.0625rem solid oklch(0.91 0.005 260)',
                 padding: '1rem',
                 backgroundColor: 'oklch(0.975 0.003 260)',
               }}>
-                {r.decisionType === 'Superseded' ? (
-                  /* Side-by-side: the original (stamped SUPERSEDED) vs the superseding version (stamped ORIGINAL) */
+                {r.decisionType === 'Superseded' && r.retainedPageId ? (
+                  /* Side-by-side: this page (stamped SUPERSEDED) vs the retained page (stamped ORIGINAL) */
                   <div>
                     <p style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'oklch(0.25 0 0)', marginBlockEnd: '0.75rem' }}>
                       Side-by-Side Document Comparison
@@ -208,11 +208,10 @@ export function SupersededClient({ data }: { data: SupersededRecord[] }) {
                         }}>
                           This Document (Superseded)
                         </p>
-                        <FormRenderer
+                        <PdfPageViewer
                           documentRef={r.documentRef}
                           stamp="SUPERSEDED"
-                          comparedValues={r.comparedValues}
-                          variant="original"
+                          height="28rem"
                         />
                       </div>
                       <div>
@@ -223,14 +222,15 @@ export function SupersededClient({ data }: { data: SupersededRecord[] }) {
                         }}>
                           Superseding Document (Retained)
                         </p>
-                        <FormRenderer
+                        <PdfPageViewer
                           documentRef={{
-                            ...r.documentRef,
-                            formType: r.documentRef.formType === 'W-2' ? 'W-2c' : r.documentRef.formType,
+                            pdfPath: r.documentRef.pdfPath,
+                            pageNumber: r.retainedPageId,
+                            formType: r.documentRef.formType,
+                            formLabel: `${r.documentRef.formType} (Corrected) - Page ${r.retainedPageId}`,
                           }}
                           stamp="ORIGINAL"
-                          comparedValues={r.comparedValues}
-                          variant="amended"
+                          height="28rem"
                         />
                       </div>
                     </div>
@@ -240,11 +240,10 @@ export function SupersededClient({ data }: { data: SupersededRecord[] }) {
                     <p style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'oklch(0.25 0 0)', marginBlockEnd: '0.75rem' }}>
                       Both Documents Retained
                     </p>
-                    <FormRenderer
+                    <PdfPageViewer
                       documentRef={r.documentRef}
-                      stamp="RETAIN"
-                      comparedValues={r.comparedValues}
-                      variant="original"
+                      stamp="RETAIN BOTH"
+                      height="32rem"
                     />
                   </div>
                 ) : (
@@ -253,11 +252,10 @@ export function SupersededClient({ data }: { data: SupersededRecord[] }) {
                     <p style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'oklch(0.25 0 0)', marginBlockEnd: '0.75rem' }}>
                       Original Document (Retained)
                     </p>
-                    <FormRenderer
+                    <PdfPageViewer
                       documentRef={r.documentRef}
                       stamp="ORIGINAL"
-                      comparedValues={r.comparedValues}
-                      variant="original"
+                      height="32rem"
                     />
                   </div>
                 )}
