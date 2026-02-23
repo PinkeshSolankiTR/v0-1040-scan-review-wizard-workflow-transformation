@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
+import { ArrowLeft } from 'lucide-react'
 import type { SupersededRecord, DuplicateRecord, CfaRecord, NfrRecord } from '@/lib/types'
 
 import {
@@ -101,6 +103,14 @@ export function DesignShowcase({
     <main className="min-h-screen" style={{ backgroundColor: 'oklch(0.97 0.003 260)' }}>
       {/* Page header */}
       <header className="border-b px-6 py-5" style={{ borderColor: 'oklch(0.9 0.005 260)', backgroundColor: 'oklch(1 0 0)' }}>
+        <Link
+          href="/"
+          className="mb-3 inline-flex items-center gap-1.5 text-sm font-medium transition-colors hover:opacity-80"
+          style={{ color: 'var(--ai-accent, oklch(0.55 0.15 250))' }}
+        >
+          <ArrowLeft className="size-4" />
+          Back to Home
+        </Link>
         <h1 className="text-2xl font-bold" style={{ color: 'oklch(0.15 0.01 260)' }}>
           UI Design Samples
         </h1>

@@ -11,6 +11,7 @@ import {
   FileSearch,
   ClipboardList,
   Sparkles,
+  Home,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Binder } from '@/lib/types'
@@ -44,6 +45,13 @@ export function LeftRail({ binder }: { binder: Binder }) {
       </div>
 
       <nav aria-label="Main navigation" className="flex flex-1 flex-col gap-1 px-3">
+        <Link
+          href="/"
+          className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-colors mb-2 border-b border-sidebar-border pb-3"
+        >
+          <Home className="size-4 shrink-0" />
+          <span className="flex-1">Home</span>
+        </Link>
         {NAV_ITEMS.map((item) => {
           const href = `${basePath}${item.path}`
           const isActive = item.path === ''
