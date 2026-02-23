@@ -1,8 +1,32 @@
 const { readFileSync } = require('fs')
 const { execSync } = require('child_process')
 
-const pdfPath = '/vercel/share/v0-project/public/documents/1TDI-CCH-2024-binder.pdf'
-const buf = readFileSync(pdfPath)
+const path1 = '/vercel/share/v0-project/public/documents/1TDI-CCH-2024-binder.pdf'
+const path2 = '/vercel/share/v0-project/user_read_only_context/text_attachments/1TDI-CCH-2024-1-5v1G9.pdf'
+let pdfPath, buf
+const { existsSync } = require('fs')
+for (const p of [path1, path2]) {
+  try {
+    if (existsSync(p)) {
+      buf = readFileSync(p)
+      pdfPath = p
+      console.log(`Found PDF at: ${p}`)
+      break
+    }
+  } catch(e) { console.log(`Cannot read ${p}: ${e.message}`) }
+}
+if (!buf) {
+  // Try listing what's actually in the directories
+  const { readdirSync } = require('fs')
+  try {
+    console.log('Contents of public/documents:', readdirSync('/vercel/share/v0-project/public/documents'))
+  } catch(e) { console.log('Cannot list public/documents:', e.message) }
+  try {
+    console.log('Contents of user_read_only_context/text_attachments:', readdirSync('/vercel/share/v0-project/user_read_only_context/text_attachments').filter(f => f.includes('.pdf')))
+  } catch(e) { console.log('Cannot list user_read_only_context:', e.message) }
+  console.log('ERROR: Could not find PDF file at either path')
+  process.exit(1)
+}
 const raw = buf.toString('latin1')
 
 console.log(`PDF file size: ${buf.length} bytes`)
