@@ -87,6 +87,12 @@ export function VariantFCompareTable({ data }: { data: SupersededRecord[] }) {
   const leftDoc = activeGroup?.supersededRecords[0] ?? null
   const rightDoc = activeGroup?.originalRecord ?? null
 
+  const comparedValues = useMemo(() => {
+    if (!activeGroup) return []
+    const all = activeGroup.records.flatMap(r => r.comparedValues ?? [])
+    return all.filter((v, i, arr) => arr.findIndex(x => x.field === v.field) === i)
+  }, [activeGroup])
+
   const highCount = data.filter(r => getConfidenceLevel(r.confidenceLevel) === 'high').length
   const totalOriginal = data.filter(r => r.decisionType === 'Original').length
   const totalSuperseded = data.filter(r => r.decisionType === 'Superseded').length
@@ -405,40 +411,7 @@ export function VariantFCompareTable({ data }: { data: SupersededRecord[] }) {
                             </div>
                           </details>
 
-                          {/* Inline: Field Comparison accordion */}
-                          {groupCompared.length > 0 && (
-                            <details style={{
-                              marginInlineStart: '1.75rem', marginBlockStart: '0.25rem', marginBlockEnd: '0.5rem',
-                              borderRadius: '0.25rem', overflow: 'hidden',
-                              border: '0.0625rem solid oklch(0.92 0.005 260)',
-                            }}>
-                              <summary style={{
-                                display: 'flex', alignItems: 'center', gap: '0.375rem',
-                                padding: '0.3125rem 0.5rem',
-                                fontSize: '0.625rem', fontWeight: 700,
-                                color: 'oklch(0.35 0.01 260)',
-                                backgroundColor: 'oklch(0.97 0.003 260)',
-                                cursor: 'pointer', listStyle: 'none',
-                                textTransform: 'uppercase', letterSpacing: '0.04em',
-                              }}>
-                                <TableProperties style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
-                                Field Comparison
-                                <span style={{
-                                  fontSize: '0.5rem', fontWeight: 600, color: 'oklch(0.5 0.01 260)',
-                                  marginInlineStart: 'auto',
-                                }}>
-                                  {groupCompared.filter(v => !v.match).length}/{groupCompared.length} differ
-                                </span>
-                              </summary>
-                              <div style={{ padding: '0.375rem', backgroundColor: 'oklch(0.99 0.002 260)' }}>
-                                <FieldComparison
-                                  values={groupCompared}
-                                  labelA={groupSuperseded?.documentRef?.formLabel ?? 'Superseded'}
-                                  labelB={groupOriginal?.documentRef?.formLabel ?? 'Original'}
-                                />
-                              </div>
-                            </details>
-                          )}
+
                         </div>
                       )}
                     </div>
@@ -528,6 +501,38 @@ export function VariantFCompareTable({ data }: { data: SupersededRecord[] }) {
                   </span>
                 </div>
               </div>
+
+              {/* ── Field Comparison strip (collapsible) ── */}
+              {comparedValues.length > 0 && (
+                <details style={{
+                  borderBlockEnd: '0.0625rem solid oklch(0.91 0.005 260)',
+                }}>
+                  <summary style={{
+                    display: 'flex', alignItems: 'center', gap: '0.5rem',
+                    padding: '0.3125rem 0.625rem',
+                    fontSize: '0.625rem', fontWeight: 700,
+                    color: 'oklch(0.35 0.01 260)',
+                    backgroundColor: 'oklch(0.97 0.003 260)',
+                    cursor: 'pointer', listStyle: 'none',
+                    textTransform: 'uppercase', letterSpacing: '0.04em',
+                  }}>
+                    <ChevronRight style={{ inlineSize: '0.6875rem', blockSize: '0.6875rem', color: 'oklch(0.5 0.01 260)' }} />
+                    Field Comparison
+                    <span style={{
+                      fontSize: '0.5625rem', fontWeight: 600, color: 'oklch(0.5 0.01 260)',
+                    }}>
+                      {comparedValues.filter(v => !v.match).length} of {comparedValues.length} differ
+                    </span>
+                  </summary>
+                  <div style={{ padding: '0.375rem 0.625rem', backgroundColor: 'oklch(0.99 0.002 260)' }}>
+                    <FieldComparison
+                      values={comparedValues}
+                      labelA={leftDoc?.documentRef?.formLabel ?? 'Superseded'}
+                      labelB={rightDoc?.documentRef?.formLabel ?? 'Original'}
+                    />
+                  </div>
+                </details>
+              )}
 
               {/* Dual PDF viewers with center toolbar */}
               <div style={{
