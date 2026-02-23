@@ -1,0 +1,102 @@
+'use client'
+
+import { useState } from 'react'
+import type { SupersededRecord } from '@/lib/types'
+import { SupersededClient } from './superseded-client'
+import { VariantBSuperseded } from '@/components/design-variants/variant-b-card-stack'
+import { VariantCSuperseded } from '@/components/design-variants/variant-c-kanban'
+import { VariantDSuperseded } from '@/components/design-variants/variant-d-split-panel'
+import { LayoutList, Layers, Columns3, PanelLeftClose } from 'lucide-react'
+
+const VARIANTS = [
+  { id: 'baseline', label: 'Table View', description: 'Category swimlanes with expandable rows', icon: LayoutList },
+  { id: 'card-stack', label: 'Card Stack', description: 'Vertical cards with teal accent', icon: Layers },
+  { id: 'kanban', label: 'Kanban Board', description: 'Columns by confidence tier', icon: Columns3 },
+  { id: 'split-panel', label: 'Split Panel', description: 'Master-detail side by side', icon: PanelLeftClose },
+] as const
+
+type VariantId = typeof VARIANTS[number]['id']
+
+export function SupersededWithVariants({ data }: { data: SupersededRecord[] }) {
+  const [activeVariant, setActiveVariant] = useState<VariantId>('baseline')
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      {/* ── Variant switcher toolbar ── */}
+      <div
+        role="tablist"
+        aria-label="Layout variant selector"
+        style={{
+          display: 'flex',
+          alignItems: 'stretch',
+          gap: '0',
+          borderRadius: 'var(--radius)',
+          border: '0.0625rem solid oklch(0.88 0.01 260)',
+          overflow: 'hidden',
+          backgroundColor: 'oklch(0.97 0.005 260)',
+        }}
+      >
+        {VARIANTS.map((v, idx) => {
+          const isActive = v.id === activeVariant
+          const Icon = v.icon
+          return (
+            <button
+              key={v.id}
+              role="tab"
+              type="button"
+              aria-selected={isActive}
+              onClick={() => setActiveVariant(v.id)}
+              style={{
+                flex: '1 1 0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.5rem',
+                padding: '0.625rem 0.75rem',
+                border: 'none',
+                borderInlineEnd: idx < VARIANTS.length - 1 ? '0.0625rem solid oklch(0.88 0.01 260)' : 'none',
+                cursor: 'pointer',
+                transition: 'background-color 0.15s, color 0.15s',
+                backgroundColor: isActive ? 'var(--primary)' : 'transparent',
+                color: isActive ? 'var(--primary-foreground)' : 'oklch(0.45 0.01 260)',
+              }}
+            >
+              <Icon
+                style={{
+                  inlineSize: '1rem',
+                  blockSize: '1rem',
+                  flexShrink: 0,
+                }}
+              />
+              <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0' }}>
+                <span style={{
+                  fontSize: '0.8125rem',
+                  fontWeight: 700,
+                  lineHeight: '1.2',
+                }}>
+                  {v.label}
+                </span>
+                <span style={{
+                  fontSize: '0.625rem',
+                  fontWeight: 400,
+                  opacity: isActive ? 0.8 : 0.6,
+                  lineHeight: '1.2',
+                }}>
+                  {v.description}
+                </span>
+              </span>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* ── Active variant ── */}
+      <div role="tabpanel" aria-label={`${VARIANTS.find(v => v.id === activeVariant)?.label} layout`}>
+        {activeVariant === 'baseline' && <SupersededClient data={data} />}
+        {activeVariant === 'card-stack' && <VariantBSuperseded data={data} />}
+        {activeVariant === 'kanban' && <VariantCSuperseded data={data} />}
+        {activeVariant === 'split-panel' && <VariantDSuperseded data={data} />}
+      </div>
+    </div>
+  )
+}

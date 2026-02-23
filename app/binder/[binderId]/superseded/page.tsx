@@ -1,5 +1,5 @@
 import type { SupersededRecord } from '@/lib/types'
-import { SupersededClient } from './superseded-client'
+import { SupersededWithVariants } from './superseded-with-variants'
 
 async function getData(binderId: string): Promise<SupersededRecord[]> {
   const { supersededA } = await import('@/lib/mock-data/demo-a')
@@ -14,5 +14,5 @@ export default async function SupersededPage({
 }) {
   const { binderId } = await params
   const data = await getData(binderId)
-  return <SupersededClient data={data} />
+  return <SupersededWithVariants data={data} />
 }
