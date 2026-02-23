@@ -215,6 +215,10 @@ export function VariantFCompareTable({ data }: { data: SupersededRecord[] }) {
                 const isExpanded = expandedGroups.has(group.formType)
                 const isActive = gIdx === selectedGroupIdx
                 const groupAccepted = group.records.every(r => decisions[`sup-pg${r.engagementPageId}`] === 'accepted')
+                const avgConf = Math.round(group.averageConfidence * 100)
+                const confColor = avgConf >= 90
+                  ? 'oklch(0.55 0.17 145)'
+                  : avgConf >= 70 ? 'oklch(0.65 0.14 80)' : 'oklch(0.6 0.18 15)'
 
                 return (
                   <div key={group.formType} style={{ borderBlockEnd: '0.0625rem solid oklch(0.93 0.003 260)' }}>
@@ -222,7 +226,7 @@ export function VariantFCompareTable({ data }: { data: SupersededRecord[] }) {
                       type="button"
                       onClick={() => { toggleGroup(group.formType); selectGroup(gIdx) }}
                       style={{
-                        display: 'flex', alignItems: 'center', gap: '0.375rem',
+                        display: 'flex', alignItems: 'flex-start', gap: '0.375rem',
                         inlineSize: '100%', padding: '0.5rem 0.75rem',
                         border: 'none', cursor: 'pointer', textAlign: 'start',
                         backgroundColor: isActive ? 'oklch(0.94 0.02 240)' : 'transparent',
@@ -234,22 +238,40 @@ export function VariantFCompareTable({ data }: { data: SupersededRecord[] }) {
                         checked={groupAccepted}
                         readOnly
                         aria-label={`${group.formType} group accepted`}
-                        style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem', accentColor: 'oklch(0.45 0.18 145)', flexShrink: 0 }}
+                        style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem', accentColor: 'oklch(0.45 0.18 145)', flexShrink: 0, marginBlockStart: '0.0625rem' }}
                       />
-                      {isExpanded
-                        ? <ChevronDown style={{ inlineSize: '0.6875rem', blockSize: '0.6875rem', color: 'oklch(0.5 0 0)', flexShrink: 0 }} />
-                        : <ChevronRight style={{ inlineSize: '0.6875rem', blockSize: '0.6875rem', color: 'oklch(0.5 0 0)', flexShrink: 0 }} />
-                      }
-                      <span style={{
-                        fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.2 0.01 260)',
-                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minInlineSize: 0,
-                      }}>
-                        {group.formType}: {group.formEntity.toUpperCase().substring(0, 20)}...
-                      </span>
+                      <div style={{ flex: '1 1 0', minInlineSize: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          {isExpanded
+                            ? <ChevronDown style={{ inlineSize: '0.6875rem', blockSize: '0.6875rem', color: 'oklch(0.5 0 0)', flexShrink: 0 }} />
+                            : <ChevronRight style={{ inlineSize: '0.6875rem', blockSize: '0.6875rem', color: 'oklch(0.5 0 0)', flexShrink: 0 }} />
+                          }
+                          <span style={{
+                            fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.2 0.01 260)',
+                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minInlineSize: 0,
+                          }}>
+                            {group.formType}: {group.formEntity.toUpperCase().substring(0, 20)}...
+                          </span>
+                        </div>
+                        {/* Confidence + page count */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginBlockStart: '0.1875rem', paddingInlineStart: '0.9375rem' }}>
+                          <span style={{
+                            fontSize: '0.5625rem', fontWeight: 700, fontFamily: 'var(--font-mono)',
+                            padding: '0.0625rem 0.25rem', borderRadius: '0.125rem',
+                            backgroundColor: `${confColor} / 0.12`, color: confColor,
+                          }}>
+                            {avgConf}%
+                          </span>
+                          <span style={{ fontSize: '0.5625rem', fontWeight: 600, color: 'oklch(0.5 0.01 260)' }}>
+                            {group.records.length} {group.records.length === 1 ? 'page' : 'pages'}
+                          </span>
+                        </div>
+                      </div>
                     </button>
 
                     {isExpanded && group.records.map(r => {
                       const isAccepted = decisions[`sup-pg${r.engagementPageId}`] === 'accepted'
+                      const isSup = r.decisionType === 'Superseded'
                       return (
                         <button
                           key={r.engagementPageId}
@@ -270,6 +292,16 @@ export function VariantFCompareTable({ data }: { data: SupersededRecord[] }) {
                           <FileText style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.5 0.01 260)', flexShrink: 0 }} />
                           <span style={{ fontSize: '0.6875rem', fontWeight: 500, color: 'oklch(0.25 0.01 260)' }}>
                             {r.engagementPageId} ({r.documentRef?.pageNumber})
+                          </span>
+                          {/* Superseded / Original label */}
+                          <span style={{
+                            marginInlineStart: 'auto', flexShrink: 0,
+                            fontSize: '0.5rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em',
+                            padding: '0.0625rem 0.25rem', borderRadius: '0.125rem',
+                            backgroundColor: isSup ? 'oklch(0.94 0.04 25)' : 'oklch(0.94 0.04 145)',
+                            color: isSup ? 'oklch(0.45 0.18 25)' : 'oklch(0.35 0.14 145)',
+                          }}>
+                            {isSup ? 'Superseded' : 'Original'}
                           </span>
                         </button>
                       )
