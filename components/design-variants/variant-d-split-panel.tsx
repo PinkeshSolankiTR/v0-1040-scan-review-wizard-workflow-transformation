@@ -202,14 +202,6 @@ export function VariantDSuperseded({ data }: { data: SupersededRecord[] }) {
             } />
             <DetailField label="Rule Set" value={record.appliedRuleSet} />
           </dl>
-          {record.decisionType === 'Superseded' && record.retainedPageId && (
-            <div className="flex items-center gap-2 rounded-md px-3 py-2" style={{ backgroundColor: 'oklch(0.97 0.005 240)' }}>
-              <ArrowRight className="size-3.5" style={{ color: 'oklch(0.5 0.15 240)' }} />
-              <span className="text-sm" style={{ color: 'oklch(0.3 0.01 240)' }}>
-                This page is superseded by <strong>Page {record.retainedPageId}</strong>
-              </span>
-            </div>
-          )}
           <div className="flex flex-col gap-1.5 rounded-md p-3" style={{ backgroundColor: 'oklch(0.97 0.005 240)' }}>
             <div className="flex items-center gap-1.5">
               <Sparkles className="size-3.5" style={{ color: 'oklch(0.5 0.15 240)' }} />
@@ -261,20 +253,7 @@ export function VariantDSuperseded({ data }: { data: SupersededRecord[] }) {
           })()}
           {/* PDF page viewer */}
           {record.documentRef && (
-            record.decisionType === 'Superseded' && record.retainedPageId ? (
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: 'oklch(0.50 0.20 25)' }}>Superseded</p>
-                  <PdfPageViewer documentRef={record.documentRef} stamp="SUPERSEDED" height="20rem" />
-                </div>
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: 'oklch(0.45 0.17 145)' }}>Retained</p>
-                  <PdfPageViewer documentRef={{ pdfPath: record.documentRef.pdfPath, pageNumber: record.retainedPageId, formType: record.documentRef.formType, formLabel: `${record.documentRef.formType} (Corrected)` }} stamp="ORIGINAL" height="20rem" />
-                </div>
-              </div>
-            ) : (
-              <PdfPageViewer documentRef={record.documentRef} stamp={record.decisionType === 'Original' ? 'ORIGINAL' : 'RETAIN BOTH'} height="24rem" />
-            )
+              <PdfPageViewer documentRef={record.documentRef} stamp={record.decisionType === 'Superseded' ? 'SUPERSEDED' : record.decisionType === 'Original' ? 'ORIGINAL' : 'RETAIN BOTH'} height="24rem" />
           )}
         </div>
       ) : (

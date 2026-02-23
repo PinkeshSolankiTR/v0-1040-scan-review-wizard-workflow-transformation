@@ -277,11 +277,6 @@ export function VariantBSuperseded({ data }: { data: SupersededRecord[] }) {
                               <span className="font-mono text-sm font-medium" style={{ color: 'oklch(0.2 0.01 80)' }}>
                                 Page {r.engagementPageId}
                               </span>
-                              {r.decisionType === 'Superseded' && r.retainedPageId && (
-                                <span className="flex items-center gap-1 text-xs" style={{ color: 'oklch(0.5 0 0)' }}>
-                                  <ArrowRight className="size-3" /> Retained Pg {r.retainedPageId}
-                                </span>
-                              )}
                               <span style={{
                                 padding: '0.125rem 0.4375rem', borderRadius: '1rem', fontSize: '0.625rem', fontWeight: 700,
                                 backgroundColor: stampBg, color: stampFg, textTransform: 'uppercase', letterSpacing: '0.04em',
@@ -324,20 +319,7 @@ export function VariantBSuperseded({ data }: { data: SupersededRecord[] }) {
                           {/* PDF page viewer */}
                           {isDocOpen && r.documentRef && (
                             <div className="flex flex-col gap-3 pt-2 border-t" style={{ borderColor: 'oklch(0.93 0.005 80)' }}>
-                              {r.decisionType === 'Superseded' && r.retainedPageId ? (
-                                <div className="grid grid-cols-2 gap-3">
-                                  <div>
-                                    <p className="text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: 'oklch(0.50 0.20 25)' }}>This Document (Superseded)</p>
-                                    <PdfPageViewer documentRef={r.documentRef} stamp="SUPERSEDED" height="22rem" />
-                                  </div>
-                                  <div>
-                                    <p className="text-xs font-bold uppercase tracking-wider mb-1.5" style={{ color: 'oklch(0.45 0.17 145)' }}>Superseding Document (Retained)</p>
-                                    <PdfPageViewer documentRef={{ pdfPath: r.documentRef.pdfPath, pageNumber: r.retainedPageId, formType: r.documentRef.formType, formLabel: `${r.documentRef.formType} (Corrected) - Page ${r.retainedPageId}` }} stamp="ORIGINAL" height="22rem" />
-                                  </div>
-                                </div>
-                              ) : (
-                                <PdfPageViewer documentRef={r.documentRef} stamp={r.decisionType === 'Original' ? 'ORIGINAL' : 'RETAIN BOTH'} height="26rem" />
-                              )}
+                              <PdfPageViewer documentRef={r.documentRef} stamp={stampLabel} height="26rem" />
                             </div>
                           )}
                         </div>
@@ -346,7 +328,7 @@ export function VariantBSuperseded({ data }: { data: SupersededRecord[] }) {
                   )
                 })}
 
-                {/* ── Group-level field comparison ── */}
+                {/* ─�� Group-level field comparison ── */}
                 {(() => {
                   const allCompared = group.records.flatMap(r => r.comparedValues ?? [])
                   const unique = allCompared.filter((v, i, arr) => arr.findIndex(x => x.field === v.field) === i)

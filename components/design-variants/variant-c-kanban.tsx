@@ -240,14 +240,7 @@ export function VariantCSuperseded({ data }: { data: SupersededRecord[] }) {
                         </div>
                       )}
                       {r.documentRef && (
-                        r.decisionType === 'Superseded' && r.retainedPageId ? (
-                          <div className="flex flex-col gap-2">
-                            <PdfPageViewer documentRef={r.documentRef} stamp="SUPERSEDED" height="16rem" />
-                            <PdfPageViewer documentRef={{ pdfPath: r.documentRef.pdfPath, pageNumber: r.retainedPageId, formType: r.documentRef.formType, formLabel: `${r.documentRef.formType} (Corrected)` }} stamp="ORIGINAL" height="16rem" />
-                          </div>
-                        ) : (
-                          <PdfPageViewer documentRef={r.documentRef} stamp={r.decisionType === 'Original' ? 'ORIGINAL' : 'RETAIN BOTH'} height="18rem" />
-                        )
+                        <PdfPageViewer documentRef={r.documentRef} stamp={stampLabel} height="18rem" />
                       )}
                     </>
                   }
@@ -259,9 +252,6 @@ export function VariantCSuperseded({ data }: { data: SupersededRecord[] }) {
                     </div>
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="rounded px-1.5 py-0.5 text-xs font-semibold" style={{ backgroundColor: stampBg, color: stampFg }}>{stampLabel}</span>
-                      {r.decisionType === 'Superseded' && r.retainedPageId && (
-                        <span className="flex items-center gap-0.5 text-xs" style={{ color: 'oklch(0.5 0 0)' }}><ArrowRight className="size-2.5" />Pg {r.retainedPageId}</span>
-                      )}
                       <Sparkles className="size-3" style={{ color: 'oklch(0.5 0.15 260)' }} />
                     </div>
                   </div>

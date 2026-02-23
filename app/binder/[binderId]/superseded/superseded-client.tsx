@@ -291,12 +291,6 @@ export function SupersededClient({ data }: { data: SupersededRecord[] }) {
                           <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--foreground)' }}>
                             Page {r.engagementPageId}
                           </span>
-                          {r.decisionType === 'Superseded' && r.retainedPageId && (
-                            <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', color: 'oklch(0.5 0 0)' }}>
-                              <ArrowRight style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} />
-                              Retained Page {r.retainedPageId}
-                            </span>
-                          )}
                           <span style={{
                             padding: '0.125rem 0.5rem', borderRadius: '1rem', fontSize: '0.625rem', fontWeight: 700,
                             backgroundColor: stampBg, color: stampFg,
@@ -390,58 +384,18 @@ export function SupersededClient({ data }: { data: SupersededRecord[] }) {
 
                       </div>
 
-                      {/* ── Document preview: PDF page with stamp ── */}
+                      {/* ── Document preview: single PDF page with stamp ── */}
                       {isDocOpen && r.documentRef && (
                         <div style={{
                           borderBlockStart: '0.0625rem solid oklch(0.91 0.005 260)',
                           padding: '1rem',
                           backgroundColor: 'oklch(0.975 0.003 260)',
                         }}>
-                          {r.decisionType === 'Superseded' && r.retainedPageId ? (
-                            <div>
-                              <p style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'oklch(0.25 0 0)', marginBlockEnd: '0.75rem' }}>
-                                Side-by-Side Document Comparison
-                              </p>
-                              <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: '0.5rem', alignItems: 'center' }}>
-                                <div>
-                                  <p style={{ fontSize: '0.6875rem', fontWeight: 700, marginBlockEnd: '0.375rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'oklch(0.50 0.20 25)' }}>
-                                    This Document (Superseded)
-                                  </p>
-                                  <PdfPageViewer documentRef={r.documentRef} stamp="SUPERSEDED" height="26rem" />
-                                </div>
-                                <ArrowRight style={{ inlineSize: '1.5rem', blockSize: '1.5rem', color: 'oklch(0.5 0 0)' }} aria-hidden="true" />
-                                <div>
-                                  <p style={{ fontSize: '0.6875rem', fontWeight: 700, marginBlockEnd: '0.375rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'oklch(0.45 0.17 145)' }}>
-                                    Superseding (Retained)
-                                  </p>
-                                  <PdfPageViewer
-                                    documentRef={{
-                                      pdfPath: r.documentRef.pdfPath,
-                                      pageNumber: r.retainedPageId,
-                                      formType: r.documentRef.formType,
-                                      formLabel: `${r.documentRef.formType} (Corrected) - Page ${r.retainedPageId}`,
-                                    }}
-                                    stamp="ORIGINAL"
-                                    height="26rem"
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          ) : r.decisionType === 'RetainBoth' ? (
-                            <div>
-                              <p style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'oklch(0.25 0 0)', marginBlockEnd: '0.75rem' }}>
-                                Both Documents Retained
-                              </p>
-                              <PdfPageViewer documentRef={r.documentRef} stamp="RETAIN BOTH" height="30rem" />
-                            </div>
-                          ) : (
-                            <div>
-                              <p style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'oklch(0.25 0 0)', marginBlockEnd: '0.75rem' }}>
-                                Original Document (Retained)
-                              </p>
-                              <PdfPageViewer documentRef={r.documentRef} stamp="ORIGINAL" height="30rem" />
-                            </div>
-                          )}
+                          <PdfPageViewer
+                            documentRef={r.documentRef}
+                            stamp={stampLabel}
+                            height="30rem"
+                          />
                         </div>
                       )}
                     </article>
