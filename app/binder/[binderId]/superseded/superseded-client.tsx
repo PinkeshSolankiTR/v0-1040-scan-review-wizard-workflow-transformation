@@ -93,6 +93,49 @@ export function SupersededClient({ data }: { data: SupersededRecord[] }) {
     )
   }
 
+  /* ── Empty state ── */
+  if (data.length === 0) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        <header>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--foreground)' }}>
+            Superseded Documents
+          </h1>
+        </header>
+        <div style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          padding: '4rem 2rem', borderRadius: 'var(--radius)',
+          border: '0.125rem dashed oklch(0.88 0.01 260)', backgroundColor: 'oklch(0.98 0.003 260)',
+          textAlign: 'center', gap: '1rem',
+        }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            inlineSize: '3.5rem', blockSize: '3.5rem', borderRadius: '50%',
+            backgroundColor: 'oklch(0.94 0.04 145)', color: 'oklch(0.40 0.15 145)',
+          }}>
+            <Check style={{ inlineSize: '1.75rem', blockSize: '1.75rem' }} />
+          </div>
+          <div>
+            <p style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--foreground)', marginBlockEnd: '0.375rem' }}>
+              No Superseded Documents Found
+            </p>
+            <p style={{ fontSize: '0.875rem', color: 'oklch(0.5 0.01 260)', maxInlineSize: '28rem' }}>
+              The AI scanned all documents in this binder and found only one version of each form.
+              All documents are retained. There are no superseded or amended versions to review.
+            </p>
+          </div>
+          <div style={{
+            display: 'flex', flexDirection: 'column', gap: '0.375rem',
+            marginBlockStart: '0.5rem', fontSize: '0.8125rem', color: 'oklch(0.45 0.01 260)',
+          }}>
+            <p><strong>Documents scanned:</strong> W-2, Schedule C, 1099-MISC, Schedule K-1</p>
+            <p><strong>Result:</strong> All retained &mdash; no corrected or amended versions detected</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
       {/* ── Page header ── */}

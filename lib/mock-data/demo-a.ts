@@ -7,148 +7,24 @@ export const binderA: Binder = {
   label: 'Demo Binder A',
   taxpayerName: 'Jill Anderson',
   taxYear: 2024,
-  totalDocuments: 7,
+  totalDocuments: 5,
   summary: [
-    { wizardType: 'superseded', totalItems: 6, highConfidence: 2, mediumConfidence: 2, lowConfidence: 2 },
+    { wizardType: 'superseded', totalItems: 0, highConfidence: 0, mediumConfidence: 0, lowConfidence: 0 },
     { wizardType: 'duplicate', totalItems: 6, highConfidence: 3, mediumConfidence: 2, lowConfidence: 1 },
     { wizardType: 'cfa', totalItems: 4, highConfidence: 3, mediumConfidence: 1, lowConfidence: 0 },
     { wizardType: 'nfr', totalItems: 5, highConfidence: 3, mediumConfidence: 1, lowConfidence: 1 },
   ],
 }
 
-export const supersededA: SupersededRecord[] = [
-  // ── W-2 (WHYNOT STOP INC) ── 1 Original + 1 Superseded
-  {
-    engagementPageId: 1,
-    isSuperseded: true,
-    retainedPageId: 2,
-    confidenceLevel: 0.96,
-    decisionType: 'Superseded',
-    appliedRuleSet: 'SourceDocs',
-    decisionRule: 'SUPERSEDED_BY_AMENDED',
-    decisionReason: 'W-2 from WHYNOT STOP INC (page 1) is superseded by a corrected W-2 (page 2). Employee SSN, employer EIN, and tax year all match. Corrected version has updated wage amounts: $45,000 vs $48,500.',
-    reviewRequired: false,
-    escalationReason: null,
-    documentRef: { pdfPath: PDF_PATH, pageNumber: 1, formType: 'W-2', formLabel: 'W-2 (WHYNOT STOP INC)' },
-    comparedValues: [
-      { field: 'Employee Name', valueA: 'JILL ANDERSON', valueB: 'JILL ANDERSON', match: true },
-      { field: 'Employee SSN', valueA: '***-**-1234', valueB: '***-**-1234', match: true },
-      { field: 'Employer Name', valueA: 'WHYNOT STOP INC', valueB: 'WHYNOT STOP INC', match: true },
-      { field: 'Employer EIN', valueA: '53-XXXXXXX', valueB: '53-XXXXXXX', match: true },
-      { field: 'Wages (Box 1)', valueA: '$45,000.00', valueB: '$48,500.00', match: false },
-      { field: 'Federal Tax Withheld', valueA: '$6,750.00', valueB: '$7,275.00', match: false },
-      { field: 'Received Date', valueA: '01/15/2024', valueB: '03/01/2024', match: false },
-    ],
-  },
-  {
-    engagementPageId: 2,
-    isSuperseded: false,
-    retainedPageId: null,
-    confidenceLevel: 0.96,
-    decisionType: 'Original',
-    appliedRuleSet: 'SourceDocs',
-    decisionRule: 'ORIGINAL_CORRECTED',
-    decisionReason: 'Corrected W-2 from WHYNOT STOP INC (page 2) is the most recent version. Received 03/01/2024, after the original W-2 received 01/15/2024. Updated wage amounts: $48,500.',
-    reviewRequired: false,
-    escalationReason: null,
-    documentRef: { pdfPath: PDF_PATH, pageNumber: 2, formType: 'W-2', formLabel: 'W-2 (WHYNOT STOP INC) - Corrected' },
-    comparedValues: [
-      { field: 'Employee Name', valueA: 'JILL ANDERSON', valueB: 'JILL ANDERSON', match: true },
-      { field: 'Employee SSN', valueA: '***-**-1234', valueB: '***-**-1234', match: true },
-      { field: 'Employer Name', valueA: 'WHYNOT STOP INC', valueB: 'WHYNOT STOP INC', match: true },
-      { field: 'Employer EIN', valueA: '53-XXXXXXX', valueB: '53-XXXXXXX', match: true },
-      { field: 'Wages (Box 1)', valueA: '$45,000.00', valueB: '$48,500.00', match: false },
-      { field: 'Federal Tax Withheld', valueA: '$6,750.00', valueB: '$7,275.00', match: false },
-      { field: 'Received Date', valueA: '01/15/2024', valueB: '03/01/2024', match: false },
-    ],
-  },
-
-  // ── Schedule C (Jill's Craft Shop) ── 1 Original + 1 Superseded
-  {
-    engagementPageId: 3,
-    isSuperseded: false,
-    retainedPageId: null,
-    confidenceLevel: 0.93,
-    decisionType: 'Original',
-    appliedRuleSet: 'SourceDocs',
-    decisionRule: 'ORIGINAL_LATER_FILING',
-    decisionReason: 'Schedule C for Jill\'s Craft Shop (page 3) received on 02/12/2024 is the later filing. Income and expense figures differ from the earlier version (page 6). This version is treated as the corrected filing.',
-    reviewRequired: false,
-    escalationReason: null,
-    documentRef: { pdfPath: PDF_PATH, pageNumber: 3, formType: 'Schedule C', formLabel: 'Schedule C (Jill\'s Craft Shop)' },
-    comparedValues: [
-      { field: 'Business Name', valueA: 'Jill\'s Craft Shop', valueB: 'Jill\'s Craft Shop', match: true },
-      { field: 'Total Income', valueA: '$48,200.00', valueB: '$48,650.00', match: false },
-      { field: 'Total Expenses', valueA: '$14,500.00', valueB: '$13,080.15', match: false },
-      { field: 'Net Income', valueA: '$33,700.00', valueB: '$28,119.85', match: false },
-      { field: 'Received Date', valueA: '02/12/2024', valueB: '02/10/2024', match: false },
-    ],
-  },
-  {
-    engagementPageId: 6,
-    isSuperseded: true,
-    retainedPageId: 3,
-    confidenceLevel: 0.58,
-    decisionType: 'Superseded',
-    appliedRuleSet: 'ConsolidatedStatements',
-    decisionRule: 'SUPERSEDED_UNCERTAIN',
-    decisionReason: 'Earlier version of Schedule C for Jill\'s Craft Shop (page 6). Income ($48,650 vs $48,200) and expenses ($13,080.15 vs $14,500.00) both differ from the later version. Received 2 days earlier. Low confidence because amounts are close but not identical.',
-    reviewRequired: true,
-    escalationReason: 'Confidence below threshold. Income amounts are close but not identical. Expense totals differ by $1,419.85. Could be corrected filing or data entry error.',
-    documentRef: { pdfPath: PDF_PATH, pageNumber: 6, formType: 'Schedule C', formLabel: 'Schedule C (Jill\'s Craft Shop) - Earlier' },
-    comparedValues: [
-      { field: 'Business Name', valueA: 'Jill\'s Craft Shop', valueB: 'Jill\'s Craft Shop', match: true },
-      { field: 'Total Income', valueA: '$48,650.00', valueB: '$48,200.00', match: false },
-      { field: 'Total Expenses', valueA: '$13,080.15', valueB: '$14,500.00', match: false },
-      { field: 'Net Income', valueA: '$28,119.85', valueB: '$33,700.00', match: false },
-      { field: 'Received Date', valueA: '02/10/2024', valueB: '02/12/2024', match: false },
-    ],
-  },
-
-  // ── Schedule K-1 (CHAPMAN IRREVOCABLE TRUST) ── 1 Original + 1 Superseded
-  {
-    engagementPageId: 5,
-    isSuperseded: true,
-    retainedPageId: 7,
-    confidenceLevel: 0.74,
-    decisionType: 'Superseded',
-    appliedRuleSet: 'SourceDocs',
-    decisionRule: 'SUPERSEDED_BY_AMENDED',
-    decisionReason: 'Original K-1 (Form 1041) for CHAPMAN IRREVOCABLE TRUST (page 5) is superseded by amended K-1 (page 7). The amended version has the "Amended K-1" checkbox marked. Trust EIN matches. Ordinary Dividends differ: $62,565 vs $62,890.',
-    reviewRequired: true,
-    escalationReason: null,
-    documentRef: { pdfPath: PDF_PATH, pageNumber: 5, formType: 'Schedule K-1', formLabel: 'K-1 (CHAPMAN IRREVOCABLE TRUST)' },
-    comparedValues: [
-      { field: 'Trust Name', valueA: 'CHAPMAN IRREVOCABLE TRUST', valueB: 'CHAPMAN IRREVOCABLE TRUST', match: true },
-      { field: 'Trust EIN', valueA: '34-3353535', valueB: '34-3353535', match: true },
-      { field: 'Beneficiary Name', valueA: 'JILL BAKER FAMILY TRUST', valueB: 'JILL BAKER FAMILY TRUST', match: true },
-      { field: 'Beneficiary ID', valueA: '12-3674289', valueB: '12-3674289', match: true },
-      { field: 'Interest Income', valueA: '$2,575.00', valueB: '$2,575.00', match: true },
-      { field: 'Ordinary Dividends', valueA: '$62,565.00', valueB: '$62,890.00', match: false },
-    ],
-  },
-  {
-    engagementPageId: 7,
-    isSuperseded: false,
-    retainedPageId: null,
-    confidenceLevel: 0.74,
-    decisionType: 'Original',
-    appliedRuleSet: 'SourceDocs',
-    decisionRule: 'ORIGINAL_AMENDED',
-    decisionReason: 'Amended K-1 (page 7) for CHAPMAN IRREVOCABLE TRUST has the "Amended K-1" checkbox marked. This is the corrected version with updated Ordinary Dividends of $62,890. Supersedes the earlier K-1 on page 5.',
-    reviewRequired: true,
-    escalationReason: null,
-    documentRef: { pdfPath: PDF_PATH, pageNumber: 7, formType: 'Schedule K-1', formLabel: 'K-1 (CHAPMAN IRREVOCABLE TRUST) - Amended' },
-    comparedValues: [
-      { field: 'Trust Name', valueA: 'CHAPMAN IRREVOCABLE TRUST', valueB: 'CHAPMAN IRREVOCABLE TRUST', match: true },
-      { field: 'Trust EIN', valueA: '34-3353535', valueB: '34-3353535', match: true },
-      { field: 'Beneficiary Name', valueA: 'JILL BAKER FAMILY TRUST', valueB: 'JILL BAKER FAMILY TRUST', match: true },
-      { field: 'Beneficiary ID', valueA: '12-3674289', valueB: '12-3674289', match: true },
-      { field: 'Interest Income', valueA: '$2,575.00', valueB: '$2,575.00', match: true },
-      { field: 'Ordinary Dividends', valueA: '$62,565.00', valueB: '$62,890.00', match: false },
-    ],
-  },
-]
+// The real PDF has 5 pages with one version of each form:
+// Page 1-2: W-2 (WHYNOT STOP INC / JILL ANDERSON)
+// Page 3: Schedule C (Jill's Craft Shop)
+// Page 4: 1099-MISC (RICHMONT NORTH AMERICA / JACK ANDERSON)
+// Page 5: Schedule K-1 (CHAPMAN IRREVOCABLE TRUST / JILL BAKER FAMILY TRUST)
+//
+// No corrected, amended, or duplicate versions exist in this binder.
+// All documents are retained. The Superseded wizard has nothing to show.
+export const supersededA: SupersededRecord[] = []
 
 export const duplicateA: DuplicateRecord[] = [
   {
