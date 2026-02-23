@@ -2,12 +2,7 @@
 
 /**
  * DESIGN VARIANT B: "Card Stack"
- * ───────────────────────────────
- * Style:  Each AI decision is a stacked Card with a left-edge confidence strip.
- *         Inline reasoning accordion. Warm neutral palette with teal accents.
- * Layout: Vertical card list, each card self-contained with all info visible.
- * Interaction: Click card to expand full reasoning; inline accept/reject buttons.
- * Color: Warm stone neutrals + teal primary + amber warnings + rose escalations.
+ * Vertical cards with confidence strip, inline reasoning, field comparison, and document preview.
  */
 
 import { useState } from 'react'
@@ -29,6 +24,8 @@ import {
   XCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { FieldComparison } from '@/components/field-comparison'
+import { DocumentPreviewButton, DualDocumentPreview } from '@/components/document-preview'
 import type {
   SupersededRecord,
   DuplicateRecord,
@@ -51,10 +48,10 @@ function StripCard({
 }) {
   const stripColor =
     confidence >= 0.9
-      ? 'bg-[oklch(0.55_0.17_175)]' /* teal */
+      ? 'bg-[oklch(0.55_0.17_175)]'
       : confidence >= 0.7
-        ? 'bg-[oklch(0.72_0.14_80)]' /* amber */
-        : 'bg-[oklch(0.6_0.2_15)]' /* rose */
+        ? 'bg-[oklch(0.72_0.14_80)]'
+        : 'bg-[oklch(0.6_0.2_15)]'
 
   return (
     <Card
@@ -100,6 +97,7 @@ function InlineReason({ reason, escalation }: { reason: string; escalation?: str
         className="flex items-center gap-1 text-xs font-medium hover:underline"
         style={{ color: 'oklch(0.55 0.17 175)' }}
         aria-expanded={open}
+        type="button"
       >
         <Sparkles className="size-3" />
         AI Reasoning
@@ -177,30 +175,15 @@ export function VariantBSuperseded({ data }: { data: SupersededRecord[] }) {
       {data.map((r) => (
         <StripCard key={r.engagementPageId} confidence={r.confidenceLevel}>
           <div className="flex flex-col gap-2.5">
-            {/* Top row */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="font-mono text-sm font-medium" style={{ color: 'oklch(0.2 0.01 80)' }}>
                   Page {r.engagementPageId}
                 </span>
-                <Badge
-                  variant="outline"
-                  className="text-xs"
-                  style={{
-                    borderColor:
-                      r.decisionType === 'Superseded'
-                        ? 'oklch(0.6 0.2 15)'
-                        : r.decisionType === 'RetainBoth'
-                          ? 'oklch(0.72 0.14 80)'
-                          : 'oklch(0.55 0.17 175)',
-                    color:
-                      r.decisionType === 'Superseded'
-                        ? 'oklch(0.5 0.18 15)'
-                        : r.decisionType === 'RetainBoth'
-                          ? 'oklch(0.45 0.12 80)'
-                          : 'oklch(0.4 0.12 175)',
-                  }}
-                >
+                <Badge variant="outline" className="text-xs" style={{
+                  borderColor: r.decisionType === 'Superseded' ? 'oklch(0.6 0.2 15)' : r.decisionType === 'RetainBoth' ? 'oklch(0.72 0.14 80)' : 'oklch(0.55 0.17 175)',
+                  color: r.decisionType === 'Superseded' ? 'oklch(0.5 0.18 15)' : r.decisionType === 'RetainBoth' ? 'oklch(0.45 0.12 80)' : 'oklch(0.4 0.12 175)',
+                }}>
                   {r.decisionType}
                 </Badge>
                 <ConfChip score={r.confidenceLevel} />
@@ -211,15 +194,17 @@ export function VariantBSuperseded({ data }: { data: SupersededRecord[] }) {
                 onUndo={() => setAccepted((p) => ({ ...p, [r.engagementPageId]: false }))}
               />
             </div>
-            {/* Rule tag */}
             <div className="flex items-center gap-2">
               <span className="rounded-md px-2 py-0.5 text-xs font-mono" style={{ backgroundColor: 'oklch(0.94 0.005 80)', color: 'oklch(0.4 0.01 80)' }}>
                 {r.appliedRuleSet}
               </span>
               <span className="text-xs" style={{ color: 'oklch(0.5 0.01 80)' }}>{r.decisionRule}</span>
             </div>
-            {/* Inline reason */}
             <InlineReason reason={r.decisionReason} escalation={r.escalationReason} />
+            {r.comparedValues && r.comparedValues.length > 0 && (
+              <FieldComparison values={r.comparedValues} labelA="Document A" labelB="Document B" />
+            )}
+            {r.documentRef && <DocumentPreviewButton docRef={r.documentRef} />}
           </div>
         </StripCard>
       ))}
@@ -251,13 +236,15 @@ export function VariantBDuplicate({ data }: { data: DuplicateRecord[] }) {
       {data.map((r) => {
         const key = getKey(r)
         const isData = r.itemType === 'DUPLICATE_DATA'
+        const dr = r as DuplicateDataRecord
+        const ddoc = r as DuplicateDocRecord
         return (
           <StripCard key={key} confidence={r.confidenceLevel}>
             <div className="flex flex-col gap-2.5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="font-mono text-sm font-medium" style={{ color: 'oklch(0.2 0.01 80)' }}>
-                    {isData ? (r as DuplicateDataRecord).organizerItemId : `Doc ${(r as DuplicateDocRecord).docIdA} / ${(r as DuplicateDocRecord).docIdB}`}
+                    {isData ? dr.organizerItemId : `Doc ${ddoc.docIdA} / ${ddoc.docIdB}`}
                   </span>
                   <Badge variant="outline" className="text-xs" style={{
                     borderColor: isData ? 'oklch(0.55 0.17 175)' : 'oklch(0.6 0.15 250)',
@@ -273,17 +260,17 @@ export function VariantBDuplicate({ data }: { data: DuplicateRecord[] }) {
                   onUndo={() => setAccepted((p) => ({ ...p, [key]: false }))}
                 />
               </div>
-              {/* Fields compared */}
-              {'fieldsCompared' in r && (r as DuplicateDataRecord).fieldsCompared && (
-                <div className="flex flex-wrap gap-1">
-                  {(r as DuplicateDataRecord | DuplicateDocRecord).fieldsCompared.map((f) => (
-                    <span key={f} className="rounded px-1.5 py-0.5 text-xs" style={{ backgroundColor: 'oklch(0.94 0.005 175)', color: 'oklch(0.4 0.12 175)' }}>
-                      {f}
-                    </span>
-                  ))}
-                </div>
-              )}
               <InlineReason reason={r.decisionReason} escalation={r.escalationReason} />
+              {r.comparedValues && r.comparedValues.length > 0 && (
+                <FieldComparison
+                  values={r.comparedValues}
+                  labelA={r.documentRefA?.formLabel ?? 'Source A'}
+                  labelB={r.documentRefB?.formLabel ?? 'Source B'}
+                />
+              )}
+              {r.documentRefA && r.documentRefB && (
+                <DualDocumentPreview docRefA={r.documentRefA} docRefB={r.documentRefB} />
+              )}
             </div>
           </StripCard>
         )
@@ -313,12 +300,12 @@ export function VariantBCfa({ data }: { data: CfaRecord[] }) {
           <div className="flex flex-col gap-2.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <span className="font-mono text-sm font-medium" style={{ color: 'oklch(0.2 0.01 80)' }}>
-                  {r.EngagementFaxFormId}
+                <span className="text-sm font-medium" style={{ color: 'oklch(0.2 0.01 80)' }}>
+                  {r.childFormLabel || `Form ${r.EngagementFaxFormId}`}
                 </span>
                 <ArrowRight className="size-3.5" style={{ color: 'oklch(0.5 0.01 80)' }} />
-                <span className="font-mono text-sm" style={{ color: 'oklch(0.4 0.01 80)' }}>
-                  {r.ParentEngagementFaxFormId}
+                <span className="text-sm" style={{ color: 'oklch(0.4 0.01 80)' }}>
+                  {r.parentFormLabel || `Parent ${r.ParentEngagementFaxFormId}`}
                 </span>
                 <ConfChip score={r.ConfidenceLevel} />
                 {r.IsAddForm && (
@@ -336,6 +323,10 @@ export function VariantBCfa({ data }: { data: CfaRecord[] }) {
             <span className="rounded-md px-2 py-0.5 text-xs font-mono w-fit" style={{ backgroundColor: 'oklch(0.94 0.005 80)', color: 'oklch(0.4 0.01 80)' }}>
               DWP: {r.ParentFaxFormDwpCode}
             </span>
+            {r.comparedValues && r.comparedValues.length > 0 && (
+              <FieldComparison values={r.comparedValues} labelA="Child Form" labelB="Parent Return" />
+            )}
+            {r.documentRef && <DocumentPreviewButton docRef={r.documentRef} />}
           </div>
         </StripCard>
       ))}
@@ -344,10 +335,6 @@ export function VariantBCfa({ data }: { data: CfaRecord[] }) {
 }
 
 /* ── NFR ── */
-const FIELD_GROUPS_B: Record<number, string> = {
-  100: 'Income', 200: 'Deductions', 300: 'Wages', 400: 'Interest', 500: 'Business Income',
-}
-
 export function VariantBNfr({ data }: { data: NfrRecord[] }) {
   const [accepted, setAccepted] = useState<Record<string, boolean>>({})
 
@@ -367,33 +354,39 @@ export function VariantBNfr({ data }: { data: NfrRecord[] }) {
         const key = `${r.EngagementPageId}-${r.FaxRowNumber}`
         return (
           <StripCard key={key} confidence={r.ConfidenceLevel}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="font-mono text-sm font-medium" style={{ color: 'oklch(0.2 0.01 80)' }}>
-                  Form {r.EngagementFormId}
-                </span>
-                <span className="rounded px-1.5 py-0.5 text-xs" style={{ backgroundColor: 'oklch(0.94 0.005 80)', color: 'oklch(0.4 0.01 80)' }}>
-                  {FIELD_GROUPS_B[r.FieldGroupId] ?? `Group ${r.FieldGroupId}`}
-                </span>
-                <span className="text-xs" style={{ color: 'oklch(0.5 0.01 80)' }}>
-                  Row {r.FaxRowNumber}
-                </span>
-                {r.MatchStatus ? (
-                  <span className="flex items-center gap-1 text-xs font-medium" style={{ color: 'oklch(0.55 0.17 175)' }}>
-                    <CheckCircle className="size-3.5" /> Matched
+            <div className="flex flex-col gap-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium" style={{ color: 'oklch(0.2 0.01 80)' }}>
+                    {r.fieldLabel || `Form ${r.EngagementFormId}`}
                   </span>
-                ) : (
-                  <span className="flex items-center gap-1 text-xs font-medium" style={{ color: 'oklch(0.6 0.2 15)' }}>
-                    <XCircle className="size-3.5" /> Unmatched
-                  </span>
-                )}
-                <ConfChip score={r.ConfidenceLevel} />
+                  {r.MatchStatus ? (
+                    <span className="flex items-center gap-1 text-xs font-medium" style={{ color: 'oklch(0.55 0.17 175)' }}>
+                      <CheckCircle className="size-3.5" /> Matched
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-xs font-medium" style={{ color: 'oklch(0.6 0.2 15)' }}>
+                      <XCircle className="size-3.5" /> Unmatched
+                    </span>
+                  )}
+                  <ConfChip score={r.ConfidenceLevel} />
+                </div>
+                <ActionPair
+                  accepted={!!accepted[key]}
+                  onAccept={() => setAccepted((p) => ({ ...p, [key]: true }))}
+                  onUndo={() => setAccepted((p) => ({ ...p, [key]: false }))}
+                />
               </div>
-              <ActionPair
-                accepted={!!accepted[key]}
-                onAccept={() => setAccepted((p) => ({ ...p, [key]: true }))}
-                onUndo={() => setAccepted((p) => ({ ...p, [key]: false }))}
-              />
+              {(r.sourceValue || r.returnValue) && (
+                <div className="flex items-center gap-4 text-xs" style={{ color: 'oklch(0.45 0.01 80)' }}>
+                  {r.sourceValue && <span><strong>Source:</strong> {r.sourceValue}</span>}
+                  {r.returnValue && <span><strong>Return:</strong> {r.returnValue}</span>}
+                </div>
+              )}
+              {r.comparedValues && r.comparedValues.length > 0 && (
+                <FieldComparison values={r.comparedValues} labelA="Source Document" labelB="Tax Return" />
+              )}
+              {r.documentRef && <DocumentPreviewButton docRef={r.documentRef} />}
             </div>
           </StripCard>
         )

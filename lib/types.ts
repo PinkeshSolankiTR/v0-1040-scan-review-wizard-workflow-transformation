@@ -39,6 +39,8 @@ export interface SupersededRecord {
   decisionReason: string
   reviewRequired: boolean
   escalationReason: string | null
+  comparedValues?: ComparedValue[]
+  documentRef?: DocumentRef
 }
 
 // ── Duplicate ──
@@ -55,6 +57,9 @@ export interface DuplicateDataRecord {
   fieldsCompared: string[]
   reviewRequired: boolean
   escalationReason: string | null
+  comparedValues?: ComparedValue[]
+  documentRefA?: DocumentRef
+  documentRefB?: DocumentRef
 }
 
 export interface DuplicateDocRecord {
@@ -70,6 +75,9 @@ export interface DuplicateDocRecord {
   fieldsCompared: string[]
   reviewRequired: boolean
   escalationReason: string | null
+  comparedValues?: ComparedValue[]
+  documentRefA?: DocumentRef
+  documentRefB?: DocumentRef
 }
 
 export type DuplicateRecord = DuplicateDataRecord | DuplicateDocRecord
@@ -83,6 +91,10 @@ export interface CfaRecord {
   IsAddForm: boolean
   ParentFaxFormDwpCode: string
   ParentFaxFormId: number
+  childFormLabel?: string
+  parentFormLabel?: string
+  comparedValues?: ComparedValue[]
+  documentRef?: DocumentRef
 }
 
 // ── NFR ──
@@ -97,6 +109,11 @@ export interface NfrRecord {
   TaxFormInstanceNo: number
   ConfidenceLevel: number
   MatchStatus: boolean
+  fieldLabel?: string
+  sourceValue?: string
+  returnValue?: string
+  comparedValues?: ComparedValue[]
+  documentRef?: DocumentRef
 }
 
 // ── Audit ──
@@ -107,6 +124,22 @@ export interface AuditEntry {
   action: 'accepted' | 'undone'
   confidence: number
   method: 'manual' | 'bulk'
+}
+
+// ── Compared Field Values ──
+export interface ComparedValue {
+  field: string
+  valueA: string
+  valueB: string
+  match: boolean
+}
+
+// ── Document Reference ──
+export interface DocumentRef {
+  pdfPath: string
+  pageNumber: number
+  formType: string
+  formLabel: string
 }
 
 // ── Document ──
