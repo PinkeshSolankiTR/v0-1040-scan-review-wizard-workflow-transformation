@@ -1,35 +1,52 @@
 import subprocess
 import sys
 import os
+import urllib.request
+import io
 
 # Install pypdf
 subprocess.check_call([sys.executable, "-m", "pip", "install", "pypdf", "-q"])
 
 from pypdf import PdfReader
 
-# Try multiple paths
-paths = [
-    "/vercel/share/v0-project/public/documents/1TDI-CCH-2024-binder.pdf",
-    "/vercel/share/v0-project/user_read_only_context/text_attachments/1TDI-CCH-2024-1-5v1G9.pdf",
-]
+# Download the PDF from the public blob URL where the user uploaded it
+# The user uploaded: 1TDI-CCH-2024-1-5v1G9.pdf
+# Let's read the raw PDF bytes from the project's own binary
 
-reader = None
-for p in paths:
-    if os.path.exists(p):
-        print(f"Found PDF at: {p}")
-        reader = PdfReader(p)
-        break
-    else:
-        print(f"Not found: {p}")
+# Try to find the file in common sandbox locations
+pdf_data = None
+search_paths = []
 
-if not reader:
-    # List directories to find the file
-    for d in ["/vercel/share/v0-project/public/documents", "/vercel/share/v0-project/user_read_only_context/text_attachments"]:
-        if os.path.isdir(d):
-            files = [f for f in os.listdir(d) if f.endswith('.pdf')]
-            print(f"PDFs in {d}: {files}")
-    print("ERROR: PDF not found")
+# Construct paths relative to CWD
+cwd = os.getcwd()
+for root, dirs, files in os.walk(cwd):
+    for f in files:
+        fp = os.path.join(root, f)
+        search_paths.append(fp)
+        if f.endswith('.pdf'):
+            with open(fp, 'rb') as fh:
+                pdf_data = fh.read()
+            print(f"Found: {fp} ({len(pdf_data)} bytes)")
+
+if not pdf_data:
+    print(f"No PDF in CWD tree ({cwd}). Files found: {search_paths[:20]}")
+    # Try /tmp
+    for root, dirs, files in os.walk('/tmp'):
+        for f in files:
+            if f.endswith('.pdf'):
+                fp = os.path.join(root, f)
+                with open(fp, 'rb') as fh:
+                    pdf_data = fh.read()
+                print(f"Found in /tmp: {fp} ({len(pdf_data)} bytes)")
+                break
+        if pdf_data:
+            break
+
+if not pdf_data:
+    print("No PDF found. Cannot proceed.")
     sys.exit(1)
+
+reader = PdfReader(io.BytesIO(pdf_data))
 
 total_pages = len(reader.pages)
 print(f"\n=== TOTAL PAGES: {total_pages} ===\n")
