@@ -6,13 +6,19 @@ import { DuplicateClient } from './duplicate-client'
 import { DuplicateSplitPanel } from '@/components/design-variants/duplicate-split-panel'
 import { DuplicateDocCompare } from '@/components/design-variants/duplicate-doc-compare'
 import { DuplicateCompareTable } from '@/components/design-variants/duplicate-compare-table'
-import { LayoutList, PanelLeftClose, Columns2, LayoutDashboard, Check } from 'lucide-react'
+import { DuplicateSideBySide } from '@/components/design-variants/duplicate-side-by-side'
+import { DuplicateMatrixGrid } from '@/components/design-variants/duplicate-matrix-grid'
+import { DuplicateStackedCards } from '@/components/design-variants/duplicate-stacked-cards'
+import { LayoutList, PanelLeftClose, Columns2, LayoutDashboard, Check, SplitSquareHorizontal, Grid3X3, Layers } from 'lucide-react'
 
 const VARIANTS = [
   { id: 'baseline', label: 'Table View', description: 'Category tabs with matched/unmatched sections', icon: LayoutList },
   { id: 'split-panel', label: 'Split Panel', description: 'Master-detail side by side', icon: PanelLeftClose },
   { id: 'doc-compare', label: 'Document Compare', description: 'Side-by-side PDF comparison', icon: Columns2 },
   { id: 'compare-table', label: 'Compare + Table', description: 'PDF comparison with review table', icon: LayoutDashboard },
+  { id: 'side-by-side', label: 'Side-by-Side', description: 'Two-column matching workflow', icon: SplitSquareHorizontal },
+  { id: 'matrix-grid', label: 'Matrix Grid', description: 'Cross-reference confidence grid', icon: Grid3X3 },
+  { id: 'stacked-cards', label: 'Pair Cards', description: 'Stacked pair cards for rapid triage', icon: Layers },
 ] as const
 
 type VariantId = typeof VARIANTS[number]['id']
@@ -111,6 +117,9 @@ export function DuplicateWithVariants({ data }: { data: DuplicateRecord[] }) {
         {activeVariant === 'split-panel' && <DuplicateSplitPanel data={data} />}
         {activeVariant === 'doc-compare' && <DuplicateDocCompare data={data} />}
         {activeVariant === 'compare-table' && <DuplicateCompareTable data={data} />}
+        {activeVariant === 'side-by-side' && <DuplicateSideBySide data={data} />}
+        {activeVariant === 'matrix-grid' && <DuplicateMatrixGrid data={data} />}
+        {activeVariant === 'stacked-cards' && <DuplicateStackedCards data={data} />}
       </div>
     </div>
   )
