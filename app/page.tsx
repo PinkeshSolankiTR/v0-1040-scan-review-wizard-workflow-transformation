@@ -92,20 +92,7 @@ export default function LandingPage() {
         <BinderCard binder={binderB} />
       </div>
 
-      <div className="mt-10 flex flex-col items-center gap-3">
-        <Button asChild variant="outline" size="lg" className="gap-2">
-          <Link href="/design-samples">
-            <Sparkles className="size-4 text-[var(--ai-accent)]" />
-            View Design Variant Samples
-            <ArrowRight className="size-4" />
-          </Link>
-        </Button>
-        <p className="text-xs text-muted-foreground/60">
-          Compare 3 alternative UI layouts: Card Stack, Kanban, and Split Panel
-        </p>
-      </div>
-
-      <p className="mt-6 text-xs text-muted-foreground/60">
+      <p className="mt-10 text-xs text-muted-foreground/60">
         Prototype — All data is mocked. No external services required.
       </p>
     </div>
