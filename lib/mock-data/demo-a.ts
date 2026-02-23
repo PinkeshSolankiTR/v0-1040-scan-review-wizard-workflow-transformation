@@ -7,24 +7,68 @@ export const binderA: Binder = {
   label: 'Demo Binder A',
   taxpayerName: 'Jill Anderson',
   taxYear: 2024,
-  totalDocuments: 5,
+  totalDocuments: 48,
   summary: [
-    { wizardType: 'superseded', totalItems: 0, highConfidence: 0, mediumConfidence: 0, lowConfidence: 0 },
+    { wizardType: 'superseded', totalItems: 2, highConfidence: 1, mediumConfidence: 1, lowConfidence: 0 },
     { wizardType: 'duplicate', totalItems: 6, highConfidence: 3, mediumConfidence: 2, lowConfidence: 1 },
     { wizardType: 'cfa', totalItems: 4, highConfidence: 3, mediumConfidence: 1, lowConfidence: 0 },
     { wizardType: 'nfr', totalItems: 5, highConfidence: 3, mediumConfidence: 1, lowConfidence: 1 },
   ],
 }
 
-// The real PDF has 5 pages with one version of each form:
-// Page 1-2: W-2 (WHYNOT STOP INC / JILL ANDERSON)
-// Page 3: Schedule C (Jill's Craft Shop)
-// Page 4: 1099-MISC (RICHMONT NORTH AMERICA / JACK ANDERSON)
-// Page 5: Schedule K-1 (CHAPMAN IRREVOCABLE TRUST / JILL BAKER FAMILY TRUST)
+// The real PDF has 48 pages. The AI found 2 ExxonMobil 1099-DIV documents
+// (pages 21 and 32) which are the same form type from the same payer.
+// One is the original and one is superseded.
 //
-// No corrected, amended, or duplicate versions exist in this binder.
-// All documents are retained. The Superseded wizard has nothing to show.
-export const supersededA: SupersededRecord[] = []
+// ── 1099-DIV (ExxonMobil / Computershare) ── 1 Original + 1 Superseded
+export const supersededA: SupersededRecord[] = [
+  {
+    engagementPageId: 21,
+    isSuperseded: true,
+    retainedPageId: 32,
+    confidenceLevel: 0.92,
+    decisionType: 'Superseded',
+    appliedRuleSet: 'SourceDocs',
+    decisionRule: 'SUPERSEDED_BY_CORRECTED',
+    decisionReason: '1099-DIV from ExxonMobil (page 21) is superseded by a corrected 1099-DIV (page 32). Payer EIN and recipient SSN match. The corrected version has updated dividend amounts: Total Ordinary Dividends changed from $3,285.60 to $3,412.80, and Qualified Dividends changed from $2,890.40 to $3,012.50.',
+    reviewRequired: false,
+    escalationReason: null,
+    documentRef: { pdfPath: PDF_PATH, pageNumber: 21, formType: '1099-DIV', formLabel: '1099-DIV (ExxonMobil)' },
+    comparedValues: [
+      { field: 'Payer Name', valueA: 'EXXON MOBIL CORPORATION', valueB: 'EXXON MOBIL CORPORATION', match: true },
+      { field: 'Payer (Transfer Agent)', valueA: 'COMPUTERSHARE', valueB: 'COMPUTERSHARE', match: true },
+      { field: 'Recipient Name', valueA: 'JILL ANDERSON', valueB: 'JILL ANDERSON', match: true },
+      { field: 'Recipient SSN', valueA: '***-**-1234', valueB: '***-**-1234', match: true },
+      { field: 'Total Ordinary Dividends (Box 1a)', valueA: '$3,285.60', valueB: '$3,412.80', match: false },
+      { field: 'Qualified Dividends (Box 1b)', valueA: '$2,890.40', valueB: '$3,012.50', match: false },
+      { field: 'Document Number', valueA: 'D04018', valueB: 'D04018-C', match: false },
+      { field: 'Corrected', valueA: 'No', valueB: 'Yes', match: false },
+    ],
+  },
+  {
+    engagementPageId: 32,
+    isSuperseded: false,
+    retainedPageId: null,
+    confidenceLevel: 0.92,
+    decisionType: 'Original',
+    appliedRuleSet: 'SourceDocs',
+    decisionRule: 'ORIGINAL_CORRECTED',
+    decisionReason: 'Corrected 1099-DIV from ExxonMobil (page 32) is the most recent version. The "CORRECTED" checkbox is marked. Updated Total Ordinary Dividends to $3,412.80 and Qualified Dividends to $3,012.50. Supersedes the earlier 1099-DIV on page 21.',
+    reviewRequired: false,
+    escalationReason: null,
+    documentRef: { pdfPath: PDF_PATH, pageNumber: 32, formType: '1099-DIV', formLabel: '1099-DIV (ExxonMobil) - Corrected' },
+    comparedValues: [
+      { field: 'Payer Name', valueA: 'EXXON MOBIL CORPORATION', valueB: 'EXXON MOBIL CORPORATION', match: true },
+      { field: 'Payer (Transfer Agent)', valueA: 'COMPUTERSHARE', valueB: 'COMPUTERSHARE', match: true },
+      { field: 'Recipient Name', valueA: 'JILL ANDERSON', valueB: 'JILL ANDERSON', match: true },
+      { field: 'Recipient SSN', valueA: '***-**-1234', valueB: '***-**-1234', match: true },
+      { field: 'Total Ordinary Dividends (Box 1a)', valueA: '$3,285.60', valueB: '$3,412.80', match: false },
+      { field: 'Qualified Dividends (Box 1b)', valueA: '$2,890.40', valueB: '$3,012.50', match: false },
+      { field: 'Document Number', valueA: 'D04018', valueB: 'D04018-C', match: false },
+      { field: 'Corrected', valueA: 'No', valueB: 'Yes', match: false },
+    ],
+  },
+]
 
 export const duplicateA: DuplicateRecord[] = [
   {
