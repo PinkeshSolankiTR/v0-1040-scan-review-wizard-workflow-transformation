@@ -412,13 +412,6 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                   {groupSuperseded?.reviewRequired && (
                     <AlertTriangle style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.6 0.18 60)' }} />
                   )}
-                  <span style={{
-                    marginInlineStart: 'auto',
-                    fontSize: '0.625rem', fontWeight: 600, fontFamily: 'var(--font-mono)',
-                    color: 'oklch(0.5 0.01 260)',
-                  }}>
-                    {groupSuperseded?.appliedRuleSet} / {groupSuperseded?.decisionRule}
-                  </span>
                 </summary>
                 <div style={{
                   padding: '0.625rem 0.75rem',
@@ -429,25 +422,17 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                     display: 'flex', flexDirection: 'column', gap: '0.375rem',
                     listStyleType: 'disc',
                   }}>
-                    {/* Decision reasoning as bullet */}
-                    {groupSuperseded?.decisionReason && (
-                      <li style={{ fontSize: '0.75rem', lineHeight: '1.5', color: 'oklch(0.3 0.01 260)' }}>
-                        <strong style={{ color: 'oklch(0.25 0.01 260)' }}>Reasoning:</strong>{' '}
-                        {groupSuperseded.decisionReason}
-                      </li>
-                    )}
-
-                    {/* Rule applied */}
-                    <li style={{ fontSize: '0.75rem', lineHeight: '1.5', color: 'oklch(0.3 0.01 260)' }}>
-                      <strong style={{ color: 'oklch(0.25 0.01 260)' }}>Rule Applied:</strong>{' '}
-                      {groupSuperseded?.decisionRule} ({groupSuperseded?.appliedRuleSet})
-                    </li>
-
-                    {/* Confidence */}
-                    <li style={{ fontSize: '0.75rem', lineHeight: '1.5', color: 'oklch(0.3 0.01 260)' }}>
-                      <strong style={{ color: 'oklch(0.25 0.01 260)' }}>Confidence:</strong>{' '}
-                      <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: confColor }}>{avgConf}%</span>
-                    </li>
+                    {/* Decision reasoning split into individual pointers */}
+                    {groupSuperseded?.decisionReason
+                      ?.split('.')
+                      .map(s => s.trim())
+                      .filter(s => s.length > 0)
+                      .map((sentence, i) => (
+                        <li key={`reason-${i}`} style={{ fontSize: '0.75rem', lineHeight: '1.5', color: 'oklch(0.3 0.01 260)' }}>
+                          {sentence}
+                        </li>
+                      ))
+                    }
 
                     {/* Escalation as bullet */}
                     {groupSuperseded?.escalationReason && (
