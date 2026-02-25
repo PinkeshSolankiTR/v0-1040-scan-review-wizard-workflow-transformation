@@ -26,7 +26,6 @@ import {
   FlipHorizontal,
   FlipVertical,
   Maximize,
-  MoveHorizontal,
 } from 'lucide-react'
 import type { SupersededRecord } from '@/lib/types'
 
@@ -347,92 +346,6 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                         )
                       })}
 
-                      {/* ── Inline: AI Analysis accordion ── */}
-                      <details open={isActiveGroup} style={{
-                        marginInlineStart: '2rem', marginBlockStart: '0.25rem',
-                        borderRadius: '0.25rem', overflow: 'hidden',
-                        border: '0.0625rem solid oklch(0.92 0.01 240)',
-                      }}>
-                        <summary style={{
-                          display: 'flex', alignItems: 'center', gap: '0.375rem',
-                          padding: '0.375rem 0.5rem',
-                          fontSize: '0.6875rem', fontWeight: 700,
-                          color: 'var(--ai-accent)',
-                          backgroundColor: 'oklch(0.97 0.005 240)',
-                          cursor: 'pointer', listStyle: 'none',
-                          textTransform: 'uppercase', letterSpacing: '0.04em',
-                        }}>
-                          <Sparkles style={{ inlineSize: '0.6875rem', blockSize: '0.6875rem' }} />
-                          AI Analysis
-                          {groupSuperseded?.reviewRequired && (
-                            <AlertTriangle style={{ inlineSize: '0.625rem', blockSize: '0.625rem', color: 'oklch(0.6 0.18 60)', marginInlineStart: 'auto' }} />
-                          )}
-                        </summary>
-                        <div style={{
-                          padding: '0.5rem', backgroundColor: 'oklch(0.98 0.003 240)',
-                          display: 'flex', flexDirection: 'column', gap: '0.5rem',
-                        }}>
-                          {/* Rule + confidence row */}
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{
-                              fontSize: '0.625rem', fontWeight: 600, fontFamily: 'var(--font-mono)',
-                              padding: '0.0625rem 0.25rem', borderRadius: '0.125rem',
-                              backgroundColor: 'oklch(0.94 0.005 260)', color: 'oklch(0.4 0.01 260)',
-                            }}>
-                              {groupSuperseded?.appliedRuleSet} / {groupSuperseded?.decisionRule}
-                            </span>
-                            <span style={{
-                              fontSize: '0.8125rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: confColor,
-                            }}>
-                              {avgConfidence}%
-                            </span>
-                          </div>
-
-                          {/* Reasoning */}
-                          <p style={{ fontSize: '0.6875rem', lineHeight: '1.5', color: 'oklch(0.3 0.01 260)' }}>
-                            {groupSuperseded?.decisionReason}
-                          </p>
-
-                          {/* Escalation */}
-                          {groupSuperseded?.escalationReason && (
-                            <div style={{
-                              display: 'flex', alignItems: 'flex-start', gap: '0.375rem',
-                              padding: '0.375rem 0.5rem', borderRadius: '0.25rem',
-                              backgroundColor: 'oklch(0.96 0.04 60)', border: '0.0625rem solid oklch(0.88 0.08 60)',
-                            }}>
-                              <AlertTriangle style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.6 0.18 60)', flexShrink: 0, marginBlockStart: '0.0625rem' }} />
-                              <div>
-                                <p style={{ fontSize: '0.625rem', fontWeight: 700, color: 'oklch(0.5 0.16 60)' }}>Escalation</p>
-                                <p style={{ fontSize: '0.6875rem', color: 'oklch(0.35 0.1 60)', lineHeight: '1.4' }}>{groupSuperseded.escalationReason}</p>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Key differences */}
-                          {groupCompared.some(v => !v.match) && (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                              <span style={{ fontSize: '0.625rem', fontWeight: 700, color: 'oklch(0.45 0.12 25)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                                Key Differences
-                              </span>
-                              {groupCompared.filter(v => !v.match).map(v => (
-                                <div key={v.field} style={{ display: 'flex', flexDirection: 'column', gap: '0.0625rem' }}>
-                                  <span style={{ fontSize: '0.625rem', fontWeight: 600, color: 'oklch(0.35 0.01 260)' }}>{v.field}</span>
-                                  <div style={{ display: 'flex', gap: '0.1875rem', fontSize: '0.5625rem', flexWrap: 'wrap' }}>
-                                    <span style={{ padding: '0.0625rem 0.1875rem', borderRadius: '0.125rem', backgroundColor: 'oklch(0.94 0.04 25)', color: 'oklch(0.45 0.14 25)' }}>
-                                      {v.valueA}
-                                    </span>
-                                    <span style={{ color: 'oklch(0.55 0.01 260)' }}>&rarr;</span>
-                                    <span style={{ padding: '0.0625rem 0.1875rem', borderRadius: '0.125rem', backgroundColor: 'oklch(0.94 0.04 145)', color: 'oklch(0.35 0.12 145)' }}>
-                                      {v.valueB}
-                                    </span>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </details>
-
 
                     </div>
                   )}
@@ -464,77 +377,111 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
         {/* ── RIGHT: Dual document comparison area ── */}
         <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
-          {/* Status headers for left and right docs */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr auto 1fr',
-          }}>
-            {/* Left doc header (Superseded) */}
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: '0.5rem',
-              padding: '0.5rem 0.75rem',
-              borderBlockEnd: '0.0625rem solid oklch(0.91 0.005 260)',
-              backgroundColor: 'oklch(0.97 0.01 25 / 0.3)',
-            }}>
-              <span style={{
-                fontSize: '0.6875rem', fontWeight: 700,
-                padding: '0.0625rem 0.375rem', borderRadius: '0.1875rem',
-                backgroundColor: 'oklch(0.94 0.04 25)', color: 'oklch(0.40 0.18 25)',
-                textTransform: 'uppercase', letterSpacing: '0.04em', flexShrink: 0,
-              }}>
-                Superseded
-              </span>
-              <FileText style={{ inlineSize: '0.875rem', blockSize: '0.875rem', color: 'oklch(0.45 0.01 260)', flexShrink: 0 }} />
-              <span style={{
-                fontSize: '0.75rem', fontWeight: 600, color: 'oklch(0.2 0.01 260)',
-                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              }}>
-                {leftDoc
-                  ? `${leftDoc.engagementPageId} (${leftDoc.documentRef?.pageNumber})_${leftDoc.documentRef?.formType}:${leftDoc.documentRef?.formLabel?.split('(')[1]?.replace(')', '') ?? ''}`
-                  : 'No document'
-                }
-              </span>
-            </div>
+          {/* ── AI Analysis (collapsible, collapsed by default, bullet points) ── */}
+          {(() => {
+            const groupSuperseded = activeGroup?.records.find(r => r.decisionType === 'Superseded')
+            const groupCompared = (activeGroup?.records ?? []).flatMap(r => r.comparedValues ?? [])
+              .filter((v, i, arr) => arr.findIndex(x => x.field === v.field) === i)
+            const avgConf = activeGroup
+              ? Math.round((activeGroup.records.reduce((sum, r) => sum + r.confidenceLevel, 0) / activeGroup.records.length) * 100)
+              : 0
+            const confColor = avgConf >= 90 ? 'oklch(0.55 0.17 145)' : avgConf >= 70 ? 'oklch(0.65 0.14 80)' : 'oklch(0.6 0.18 15)'
+            const mismatches = groupCompared.filter(v => !v.match)
 
-            {/* Center divider header */}
-            <div style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              borderBlockEnd: '0.0625rem solid oklch(0.91 0.005 260)',
-              borderInlineStart: '0.0625rem solid oklch(0.91 0.005 260)',
-              borderInlineEnd: '0.0625rem solid oklch(0.91 0.005 260)',
-              backgroundColor: 'oklch(0.97 0.003 260)',
-              padding: '0 0.25rem',
-            }}>
-              <MoveHorizontal style={{ inlineSize: '0.875rem', blockSize: '0.875rem', color: 'oklch(0.55 0.01 260)' }} />
-            </div>
+            return (
+              <details style={{ borderBlockEnd: '0.0625rem solid oklch(0.91 0.005 260)' }}>
+                <summary style={{
+                  display: 'flex', alignItems: 'center', gap: '0.5rem',
+                  padding: '0.5rem 0.75rem',
+                  fontSize: '0.75rem', fontWeight: 700,
+                  color: 'var(--ai-accent)',
+                  backgroundColor: 'oklch(0.97 0.005 240)',
+                  cursor: 'pointer', listStyle: 'none',
+                  textTransform: 'uppercase', letterSpacing: '0.04em',
+                }}>
+                  <Sparkles style={{ inlineSize: '0.875rem', blockSize: '0.875rem' }} />
+                  AI Analysis
+                  <span style={{
+                    fontSize: '0.625rem', fontWeight: 700, fontFamily: 'var(--font-mono)',
+                    padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem',
+                    backgroundColor: `${confColor} / 0.12`, color: confColor,
+                    marginInlineStart: '0.25rem',
+                  }}>
+                    {avgConf}%
+                  </span>
+                  {groupSuperseded?.reviewRequired && (
+                    <AlertTriangle style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.6 0.18 60)' }} />
+                  )}
+                  <span style={{
+                    marginInlineStart: 'auto',
+                    fontSize: '0.625rem', fontWeight: 600, fontFamily: 'var(--font-mono)',
+                    color: 'oklch(0.5 0.01 260)',
+                  }}>
+                    {groupSuperseded?.appliedRuleSet} / {groupSuperseded?.decisionRule}
+                  </span>
+                </summary>
+                <div style={{
+                  padding: '0.625rem 0.75rem',
+                  backgroundColor: 'oklch(0.98 0.003 240)',
+                }}>
+                  <ul style={{
+                    margin: 0, paddingInlineStart: '1.25rem',
+                    display: 'flex', flexDirection: 'column', gap: '0.375rem',
+                    listStyleType: 'disc',
+                  }}>
+                    {/* Decision reasoning as bullet */}
+                    {groupSuperseded?.decisionReason && (
+                      <li style={{ fontSize: '0.75rem', lineHeight: '1.5', color: 'oklch(0.3 0.01 260)' }}>
+                        <strong style={{ color: 'oklch(0.25 0.01 260)' }}>Reasoning:</strong>{' '}
+                        {groupSuperseded.decisionReason}
+                      </li>
+                    )}
 
-            {/* Right doc header (Original) */}
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: '0.5rem',
-              padding: '0.5rem 0.75rem',
-              borderBlockEnd: '0.0625rem solid oklch(0.91 0.005 260)',
-              backgroundColor: 'oklch(0.97 0.01 145 / 0.3)',
-            }}>
-              <span style={{
-                fontSize: '0.6875rem', fontWeight: 700,
-                padding: '0.0625rem 0.375rem', borderRadius: '0.1875rem',
-                backgroundColor: 'oklch(0.94 0.04 145)', color: 'oklch(0.35 0.14 145)',
-                textTransform: 'uppercase', letterSpacing: '0.04em', flexShrink: 0,
-              }}>
-                Original
-              </span>
-              <FileText style={{ inlineSize: '0.875rem', blockSize: '0.875rem', color: 'oklch(0.45 0.01 260)', flexShrink: 0 }} />
-              <span style={{
-                fontSize: '0.75rem', fontWeight: 600, color: 'oklch(0.2 0.01 260)',
-                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              }}>
-                {rightDoc
-                  ? `${rightDoc.engagementPageId} (${rightDoc.documentRef?.pageNumber})_${rightDoc.documentRef?.formType}:${rightDoc.documentRef?.formLabel?.split('(')[1]?.replace(')', '') ?? ''}`
-                  : 'No document'
-                }
-              </span>
-            </div>
-          </div>
+                    {/* Rule applied */}
+                    <li style={{ fontSize: '0.75rem', lineHeight: '1.5', color: 'oklch(0.3 0.01 260)' }}>
+                      <strong style={{ color: 'oklch(0.25 0.01 260)' }}>Rule Applied:</strong>{' '}
+                      {groupSuperseded?.decisionRule} ({groupSuperseded?.appliedRuleSet})
+                    </li>
+
+                    {/* Confidence */}
+                    <li style={{ fontSize: '0.75rem', lineHeight: '1.5', color: 'oklch(0.3 0.01 260)' }}>
+                      <strong style={{ color: 'oklch(0.25 0.01 260)' }}>Confidence:</strong>{' '}
+                      <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: confColor }}>{avgConf}%</span>
+                    </li>
+
+                    {/* Escalation as bullet */}
+                    {groupSuperseded?.escalationReason && (
+                      <li style={{ fontSize: '0.75rem', lineHeight: '1.5', color: 'oklch(0.45 0.16 60)' }}>
+                        <strong style={{ color: 'oklch(0.5 0.16 60)' }}>Escalation:</strong>{' '}
+                        {groupSuperseded.escalationReason}
+                      </li>
+                    )}
+
+                    {/* Key differences as sub-bullets */}
+                    {mismatches.length > 0 && (
+                      <li style={{ fontSize: '0.75rem', lineHeight: '1.5', color: 'oklch(0.3 0.01 260)' }}>
+                        <strong style={{ color: 'oklch(0.45 0.12 25)' }}>Key Differences ({mismatches.length}):</strong>
+                        <ul style={{ marginBlockStart: '0.25rem', paddingInlineStart: '1rem', listStyleType: 'circle', display: 'flex', flexDirection: 'column', gap: '0.1875rem' }}>
+                          {mismatches.map(v => (
+                            <li key={v.field} style={{ fontSize: '0.6875rem', color: 'oklch(0.35 0.01 260)' }}>
+                              <span style={{ fontWeight: 600 }}>{v.field}:</span>{' '}
+                              <span style={{ padding: '0 0.1875rem', borderRadius: '0.125rem', backgroundColor: 'oklch(0.94 0.04 25)', color: 'oklch(0.45 0.14 25)' }}>
+                                {v.valueA}
+                              </span>
+                              {' '}&rarr;{' '}
+                              <span style={{ padding: '0 0.1875rem', borderRadius: '0.125rem', backgroundColor: 'oklch(0.94 0.04 145)', color: 'oklch(0.35 0.12 145)' }}>
+                                {v.valueB}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </li>
+                    )}
+                  </ul>
+                </div>
+              </details>
+            )
+          })()}
 
           {/* ── Field Comparison strip (collapsible) ── */}
           {comparedValues.length > 0 && (
