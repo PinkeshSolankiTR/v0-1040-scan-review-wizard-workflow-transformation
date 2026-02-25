@@ -546,11 +546,17 @@ export async function GET() {
   })
 
   const buffer = await Packer.toBuffer(doc)
+  const uint8 = new Uint8Array(buffer)
 
-  return new Response(buffer, {
+  return new Response(uint8, {
+    status: 200,
     headers: {
       'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       'Content-Disposition': 'attachment; filename="AI-Learning-Feedback-Loop-Spec.docx"',
+      'Content-Length': String(uint8.byteLength),
+      'Cache-Control': 'no-store',
     },
   })
 }
+
+export const dynamic = 'force-dynamic'
