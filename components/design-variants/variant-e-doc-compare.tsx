@@ -423,10 +423,12 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                     listStyleType: 'disc',
                   }}>
                     {/* Decision reasoning split into individual pointers */}
+                    {/* Split on period + space + uppercase letter (sentence boundary) to avoid breaking decimals like $3,285.60 */}
                     {groupSuperseded?.decisionReason
-                      ?.split('.')
+                      ?.split(/\.(?=\s+[A-Z])/)
                       .map(s => s.trim())
                       .filter(s => s.length > 0)
+                      .map(s => s.replace(/\.$/, ''))
                       .map((sentence, i) => (
                         <li key={`reason-${i}`} style={{ fontSize: '0.75rem', lineHeight: '1.5', color: 'oklch(0.3 0.01 260)' }}>
                           {sentence}
