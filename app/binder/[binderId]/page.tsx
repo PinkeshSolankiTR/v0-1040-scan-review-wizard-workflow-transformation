@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { FileStack, Copy, Link2, FileSearch, ArrowRight, Sparkles } from 'lucide-react'
+import { FileStack, Copy, Link2, FileSearch, ArrowRight, Sparkles, Brain } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -80,12 +80,20 @@ export default async function DashboardPage({
             AI review summary for {binder.taxpayerName} — TY {binder.taxYear}
           </p>
         </div>
-        <Button asChild>
-          <Link href={`/binder/${binderId}/review-queue`}>
-            Review Queue
-            <Badge className="bg-[var(--confidence-low)] text-white">{reviewNeeded}</Badge>
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" asChild>
+            <Link href="/admin/learned-rules">
+              <Brain className="size-4" />
+              AI Rules Admin
+            </Link>
+          </Button>
+          <Button asChild>
+            <Link href={`/binder/${binderId}/review-queue`}>
+              Review Queue
+              <Badge className="bg-[var(--confidence-low)] text-white">{reviewNeeded}</Badge>
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {/* Summary row */}
