@@ -1,21 +1,25 @@
 'use client'
 
 import { createContext, useContext, useCallback, useState, type ReactNode } from 'react'
-import type { AuditEntry, WizardType } from '@/lib/types'
+import type { AuditEntry, WizardType, OverrideDetail } from '@/lib/types'
 
 interface DecisionContextValue {
-  decisions: Record<string, 'accepted' | 'undone'>
+  decisions: Record<string, 'accepted' | 'undone' | 'overridden'>
+  overrides: Record<string, OverrideDetail>
   auditLog: AuditEntry[]
   accept: (itemKey: string, wizardType: WizardType, confidence: number, method: 'manual' | 'bulk') => void
   undo: (itemKey: string, wizardType: WizardType, confidence: number) => void
+  override: (itemKey: string, wizardType: WizardType, confidence: number, detail: OverrideDetail) => void
   acceptAllHighConfidence: (items: { key: string; wizardType: WizardType; confidence: number }[]) => void
   isAccepted: (itemKey: string) => boolean
+  isOverridden: (itemKey: string) => boolean
 }
 
 const DecisionContext = createContext<DecisionContextValue | null>(null)
 
 export function DecisionProvider({ children, seedAudit = [] }: { children: ReactNode; seedAudit?: AuditEntry[] }) {
-  const [decisions, setDecisions] = useState<Record<string, 'accepted' | 'undone'>>({})
+  const [decisions, setDecisions] = useState<Record<string, 'accepted' | 'undone' | 'overridden'>>({})
+  const [overrides, setOverrides] = useState<Record<string, OverrideDetail>>({})
   const [auditLog, setAuditLog] = useState<AuditEntry[]>(seedAudit)
 
   const accept = useCallback((itemKey: string, wizardType: WizardType, confidence: number, method: 'manual' | 'bulk') => {
@@ -42,6 +46,20 @@ export function DecisionProvider({ children, seedAudit = [] }: { children: React
     }])
   }, [])
 
+  const override = useCallback((itemKey: string, wizardType: WizardType, confidence: number, detail: OverrideDetail) => {
+    setDecisions(prev => ({ ...prev, [itemKey]: 'overridden' }))
+    setOverrides(prev => ({ ...prev, [itemKey]: detail }))
+    setAuditLog(prev => [...prev, {
+      timestamp: new Date().toISOString(),
+      wizardType,
+      itemKey,
+      action: 'overridden',
+      confidence,
+      method: 'manual',
+      overrideDetail: detail,
+    }])
+  }, [])
+
   const acceptAllHighConfidence = useCallback((items: { key: string; wizardType: WizardType; confidence: number }[]) => {
     const highItems = items.filter(i => i.confidence >= 0.9)
     setDecisions(prev => {
@@ -65,9 +83,10 @@ export function DecisionProvider({ children, seedAudit = [] }: { children: React
   }, [])
 
   const isAccepted = useCallback((itemKey: string) => decisions[itemKey] === 'accepted', [decisions])
+  const isOverridden = useCallback((itemKey: string) => decisions[itemKey] === 'overridden', [decisions])
 
   return (
-    <DecisionContext value={{ decisions, auditLog, accept, undo, acceptAllHighConfidence, isAccepted }}>
+    <DecisionContext value={{ decisions, overrides, auditLog, accept, undo, override, acceptAllHighConfidence, isAccepted, isOverridden }}>
       {children}
     </DecisionContext>
   )

@@ -20,6 +20,7 @@ import {
   Undo2,
   AlertTriangle,
   ArrowRight,
+  ArrowLeftRight,
   ZoomIn,
   ZoomOut,
   RotateCw,
@@ -27,7 +28,7 @@ import {
   FlipVertical,
   Maximize,
 } from 'lucide-react'
-import type { SupersededRecord } from '@/lib/types'
+import type { SupersededRecord, OverrideDetail } from '@/lib/types'
 
 /* ── Types ── */
 
@@ -65,8 +66,11 @@ function groupByFormType(data: SupersededRecord[]): FormGroup[] {
 /* ── Main Component ── */
 
 export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
-  const { decisions, accept, undo } = useDecisions()
+  const { decisions, overrides, accept, undo, override, isOverridden } = useDecisions()
   const groups = useMemo(() => groupByFormType(data), [data])
+
+  /* Track local flipped labels per group (key = formType) */
+  const [flippedGroups, setFlippedGroups] = useState<Set<string>>(new Set())
 
   /* Track which group is expanded and which record is selected */
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
@@ -121,6 +125,35 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
     }
   }
 
+  /* ── Override handler: flip Superseded <-> Original for active group ── */
+  const handleOverrideGroup = () => {
+    if (!activeGroup) return
+    const isAlreadyFlipped = flippedGroups.has(activeGroup.formType)
+
+    // Toggle the flip state
+    setFlippedGroups(prev => {
+      const next = new Set(prev)
+      if (isAlreadyFlipped) next.delete(activeGroup.formType)
+      else next.add(activeGroup.formType)
+      return next
+    })
+
+    // Log override for each record in the group
+    for (const r of activeGroup.records) {
+      const key = `sup-pg${r.engagementPageId}`
+      const originalDecision = r.decisionType
+      const newDecision = originalDecision === 'Superseded' ? 'Original' : 'Superseded'
+      const detail: OverrideDetail = {
+        originalAIDecision: `Page ${r.engagementPageId} = ${originalDecision}`,
+        userOverrideDecision: `Page ${r.engagementPageId} = ${newDecision}`,
+        overrideReason: null,
+        formType: r.documentRef?.formType ?? 'Unknown',
+        fieldContext: r.comparedValues ?? [],
+      }
+      override(key, 'superseded', r.confidenceLevel, detail)
+    }
+  }
+
   /* ── Field comparison data for the active group ── */
   const comparedValues = useMemo(() => {
     if (!activeGroup) return []
@@ -166,6 +199,27 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
           </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          {/* Override / Flip button */}
+          <button
+            type="button"
+            onClick={handleOverrideGroup}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '0.375rem',
+              padding: '0.375rem 0.75rem',
+              border: '0.0625rem solid oklch(0.82 0.08 60)',
+              borderRadius: '0.25rem',
+              backgroundColor: activeGroup && flippedGroups.has(activeGroup.formType)
+                ? 'oklch(0.96 0.04 60)'
+                : 'oklch(1 0 0)',
+              fontSize: '0.75rem', fontWeight: 600,
+              color: 'oklch(0.5 0.16 60)',
+              cursor: 'pointer',
+            }}
+          >
+            <ArrowLeftRight style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem' }} />
+            {activeGroup && flippedGroups.has(activeGroup.formType) ? 'Undo Override' : 'Override Classification'}
+          </button>
+
           {allGroupAccepted ? (
             <button
               type="button"
@@ -310,8 +364,12 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                     <div style={{ paddingInlineStart: '0.1875rem' }}>
                       {/* Page items with Superseded / Original labels */}
                       {group.records.map((r) => {
-                        const isAccepted = decisions[`sup-pg${r.engagementPageId}`] === 'accepted'
-                        const isSup = r.decisionType === 'Superseded'
+                        const recordKey = `sup-pg${r.engagementPageId}`
+                        const isAccepted = decisions[recordKey] === 'accepted'
+                        const isFlipped = flippedGroups.has(group.formType)
+                        const isSup = isFlipped
+                          ? r.decisionType !== 'Superseded'
+                          : r.decisionType === 'Superseded'
                         return (
                           <button
                             key={r.engagementPageId}
@@ -380,6 +438,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
           {/* ── AI Analysis (collapsible, collapsed by default, bullet points) ── */}
           {(() => {
             const groupSuperseded = activeGroup?.records.find(r => r.decisionType === 'Superseded')
+            const groupOriginal = activeGroup?.records.find(r => r.decisionType === 'Original')
             const groupCompared = (activeGroup?.records ?? []).flatMap(r => r.comparedValues ?? [])
               .filter((v, i, arr) => arr.findIndex(x => x.field === v.field) === i)
             const avgConf = activeGroup
@@ -387,36 +446,77 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
               : 0
             const confColor = avgConf >= 90 ? 'oklch(0.55 0.17 145)' : avgConf >= 70 ? 'oklch(0.65 0.14 80)' : 'oklch(0.6 0.18 15)'
             const mismatches = groupCompared.filter(v => !v.match)
+            const isGroupOverridden = activeGroup ? flippedGroups.has(activeGroup.formType) : false
 
             return (
-              <details style={{ borderBlockEnd: '0.0625rem solid oklch(0.91 0.005 260)' }}>
+              <details open={isGroupOverridden} style={{ borderBlockEnd: '0.0625rem solid oklch(0.91 0.005 260)' }}>
                 <summary style={{
                   display: 'flex', alignItems: 'center', gap: '0.5rem',
                   padding: '0.5rem 0.75rem',
                   fontSize: '0.75rem', fontWeight: 700,
-                  color: 'var(--ai-accent)',
-                  backgroundColor: 'oklch(0.97 0.005 240)',
+                  color: isGroupOverridden ? 'oklch(0.5 0.16 60)' : 'var(--ai-accent)',
+                  backgroundColor: isGroupOverridden ? 'oklch(0.97 0.04 60)' : 'oklch(0.97 0.005 240)',
                   cursor: 'pointer', listStyle: 'none',
                   textTransform: 'uppercase', letterSpacing: '0.04em',
                 }}>
                   <Sparkles style={{ inlineSize: '0.875rem', blockSize: '0.875rem' }} />
                   AI Analysis
-                  <span style={{
-                    fontSize: '0.625rem', fontWeight: 700, fontFamily: 'var(--font-mono)',
-                    padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem',
-                    backgroundColor: `${confColor} / 0.12`, color: confColor,
-                    marginInlineStart: '0.25rem',
-                  }}>
-                    {avgConf}%
-                  </span>
+                  {isGroupOverridden ? (
+                    <span style={{
+                      fontSize: '0.625rem', fontWeight: 700, fontFamily: 'var(--font-mono)',
+                      padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem',
+                      backgroundColor: 'oklch(0.92 0.06 60)', color: 'oklch(0.45 0.16 60)',
+                      marginInlineStart: '0.25rem',
+                    }}>
+                      Manual Override
+                    </span>
+                  ) : (
+                    <span style={{
+                      fontSize: '0.625rem', fontWeight: 700, fontFamily: 'var(--font-mono)',
+                      padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem',
+                      backgroundColor: `${confColor} / 0.12`, color: confColor,
+                      marginInlineStart: '0.25rem',
+                    }}>
+                      {avgConf}%
+                    </span>
+                  )}
                   {groupSuperseded?.reviewRequired && (
                     <AlertTriangle style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.6 0.18 60)' }} />
                   )}
                 </summary>
                 <div style={{
                   padding: '0.625rem 0.75rem',
-                  backgroundColor: 'oklch(0.98 0.003 240)',
+                  backgroundColor: isGroupOverridden ? 'oklch(0.98 0.02 60)' : 'oklch(0.98 0.003 240)',
                 }}>
+                  {/* ── Amber warning banner when overridden ── */}
+                  {isGroupOverridden && (
+                    <div style={{
+                      display: 'flex', flexDirection: 'column', gap: '0.25rem',
+                      padding: '0.5rem 0.625rem',
+                      marginBlockEnd: '0.625rem',
+                      borderRadius: '0.25rem',
+                      border: '0.0625rem solid oklch(0.82 0.08 60)',
+                      backgroundColor: 'oklch(0.96 0.04 60)',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                        <AlertTriangle style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem', color: 'oklch(0.55 0.16 60)', flexShrink: 0 }} />
+                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'oklch(0.4 0.14 60)' }}>
+                          User has reversed this classification
+                        </span>
+                      </div>
+                      <div style={{ paddingInlineStart: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.125rem' }}>
+                        <p style={{ fontSize: '0.6875rem', color: 'oklch(0.4 0.1 60)', margin: 0 }}>
+                          <strong>AI recommended:</strong>{' '}
+                          Page {groupSuperseded?.engagementPageId} = Superseded, Page {groupOriginal?.engagementPageId} = Original
+                        </p>
+                        <p style={{ fontSize: '0.6875rem', color: 'oklch(0.4 0.1 60)', margin: 0 }}>
+                          <strong>User changed to:</strong>{' '}
+                          Page {groupSuperseded?.engagementPageId} = Original, Page {groupOriginal?.engagementPageId} = Superseded
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
                   <ul style={{
                     margin: 0, paddingInlineStart: '1.25rem',
                     display: 'flex', flexDirection: 'column', gap: '0.375rem',
@@ -509,12 +609,12 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
             flex: '1 1 auto',
             minBlockSize: 0,
           }}>
-            {/* Left PDF viewer (Superseded) */}
+            {/* Left PDF viewer (Superseded / flipped to Original) */}
             <div style={{ overflow: 'auto', padding: '0.5rem' }}>
               {leftDoc?.documentRef ? (
                 <PdfPageViewer
                   documentRef={leftDoc.documentRef}
-                  stamp="SUPERSEDED"
+                  stamp={activeGroup && flippedGroups.has(activeGroup.formType) ? 'ORIGINAL' : 'SUPERSEDED'}
                   height="30rem"
                 />
               ) : (
@@ -562,12 +662,12 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
               ))}
             </div>
 
-            {/* Right PDF viewer (Original / Corrected) */}
+            {/* Right PDF viewer (Original / flipped to Superseded) */}
             <div style={{ overflow: 'auto', padding: '0.5rem' }}>
               {rightDoc?.documentRef ? (
                 <PdfPageViewer
                   documentRef={rightDoc.documentRef}
-                  stamp="ORIGINAL"
+                  stamp={activeGroup && flippedGroups.has(activeGroup.formType) ? 'SUPERSEDED' : 'ORIGINAL'}
                   height="30rem"
                 />
               ) : (

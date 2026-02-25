@@ -121,9 +121,19 @@ export interface AuditEntry {
   timestamp: string
   wizardType: WizardType
   itemKey: string
-  action: 'accepted' | 'undone'
+  action: 'accepted' | 'undone' | 'overridden'
   confidence: number
   method: 'manual' | 'bulk'
+  overrideDetail?: OverrideDetail
+}
+
+// ── Override ──
+export interface OverrideDetail {
+  originalAIDecision: string
+  userOverrideDecision: string
+  overrideReason: string | null
+  formType: string
+  fieldContext: ComparedValue[]
 }
 
 // ── Compared Field Values ──
