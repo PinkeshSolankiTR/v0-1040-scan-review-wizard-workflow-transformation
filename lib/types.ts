@@ -142,6 +142,8 @@ export interface ComparedValue {
   valueA: string
   valueB: string
   match: boolean
+  /** Optional category for grouped display (e.g. 'Payer Info', 'Income', 'Document') */
+  category?: string
   /** Bounding-box regions on the source PDFs for snip previews (optional) */
   cropA?: CropRegion
   cropB?: CropRegion
