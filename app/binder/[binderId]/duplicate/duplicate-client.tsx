@@ -122,14 +122,68 @@ function groupByFormCategory(
   return groups
 }
 
+/* ── Unique document extraction ── */
+
+interface UniqueDoc {
+  id: string
+  label: string
+  pdfPath: string
+  pageNumber: number
+  formType: string
+  /** true if AI originally classified this doc as Original (not duplicate) */
+  aiOriginal: boolean
+}
+
+function getUniqueDocsInGroup(records: DuplicateRecord[]): UniqueDoc[] {
+  const seen = new Map<string, UniqueDoc>()
+  for (const r of records) {
+    const decision = getDecisionLabel(r)
+    const isDuplicate = decision === 'DuplicateData' || decision === 'Duplicate'
+    if (r.documentRefA) {
+      const id = r.documentRefA.formLabel ?? `doc-a-${r.documentRefA.pageNumber}`
+      if (!seen.has(id)) {
+        seen.set(id, {
+          id,
+          label: r.documentRefA.formLabel ?? 'Document A',
+          pdfPath: r.documentRefA.pdfPath,
+          pageNumber: r.documentRefA.pageNumber,
+          formType: r.documentRefA.formType,
+          aiOriginal: !isDuplicate,
+        })
+      }
+    }
+    if (r.documentRefB) {
+      const id = r.documentRefB.formLabel ?? `doc-b-${r.documentRefB.pageNumber}`
+      if (!seen.has(id)) {
+        seen.set(id, {
+          id,
+          label: r.documentRefB.formLabel ?? 'Document B',
+          pdfPath: r.documentRefB.pdfPath,
+          pageNumber: r.documentRefB.pageNumber,
+          formType: r.documentRefB.formType,
+          aiOriginal: !isDuplicate,
+        })
+      }
+    }
+  }
+  return Array.from(seen.values())
+}
+
+function getAIOriginalId(docs: UniqueDoc[]): string | null {
+  const original = docs.find(d => d.aiOriginal)
+  return original?.id ?? docs[0]?.id ?? null
+}
+
 /* ── Main Component ── */
 
 export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
   const { decisions, accept, undo, override, isOverridden } = useDecisions()
   const { addRuleFromOverride } = useLearnedRules()
 
-  /* Override classification: tracks groups where user flipped which doc is "Original" */
-  const [flippedGroups, setFlippedGroups] = useState<Set<string>>(new Set())
+  /* Override classification: maps formType -> docId the user selected as Original.
+     If a group is NOT in this map, the AI-selected original applies. */
+  const [overriddenOriginals, setOverriddenOriginals] = useState<Map<string, string>>(new Map())
+  const [showOverridePanel, setShowOverridePanel] = useState(false)
 
   const [showAutoMatched, setShowAutoMatched] = useState(true)
   const groups = useMemo(() => groupByFormCategory(data, decisions, showAutoMatched), [data, decisions, showAutoMatched])
@@ -210,35 +264,67 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
     }
   }
 
-  /* Override handler: flip which doc is Original vs Duplicate for active group.
-     Only 1 document is Original; the override swaps A <-> B classification. */
-  const handleOverrideGroup = () => {
+  /* All unique docs in the active group + AI-selected original */
+  const groupDocs = useMemo(
+    () => (activeGroup ? getUniqueDocsInGroup(activeGroup.records) : []),
+    [activeGroup]
+  )
+  const aiOriginalId = useMemo(() => getAIOriginalId(groupDocs), [groupDocs])
+
+  /* Effective original = user override or AI default */
+  const effectiveOriginalId = (activeGroup && overriddenOriginals.has(activeGroup.formType))
+    ? overriddenOriginals.get(activeGroup.formType)!
+    : aiOriginalId
+
+  const isGroupOverridden = !!(activeGroup && overriddenOriginals.has(activeGroup.formType))
+
+  /* Pick a different doc as Original */
+  const handleSelectOriginal = (docId: string) => {
     if (!activeGroup) return
-    const isAlreadyFlipped = flippedGroups.has(activeGroup.formType)
 
-    setFlippedGroups(prev => {
-      const next = new Set(prev)
-      if (isAlreadyFlipped) next.delete(activeGroup.formType)
-      else next.add(activeGroup.formType)
-      return next
-    })
+    /* If user selects the AI default again, remove the override */
+    if (docId === aiOriginalId) {
+      setOverriddenOriginals(prev => {
+        const next = new Map(prev)
+        next.delete(activeGroup.formType)
+        return next
+      })
+    } else {
+      setOverriddenOriginals(prev => {
+        const next = new Map(prev)
+        next.set(activeGroup.formType, docId)
+        return next
+      })
+    }
 
+    /* Log override for each record in the group */
     for (const r of activeGroup.records) {
       const key = getItemKey(r)
       const originalDecision = getDecisionLabel(r)
-      const newDecision = originalDecision.includes('Not') ? 'Duplicate' : 'NotDuplicate'
       const detail: OverrideDetail = {
-        originalAIDecision: `${getRecordLabel(r)} = ${originalDecision}`,
-        userOverrideDecision: `${getRecordLabel(r)} = ${newDecision}`,
+        originalAIDecision: `AI Original: ${aiOriginalId}; ${getRecordLabel(r)} = ${originalDecision}`,
+        userOverrideDecision: `User selected "${docId}" as Original`,
         overrideReason: null,
         formType: r.documentRefA?.formType ?? 'Unknown',
         fieldContext: r.comparedValues ?? [],
       }
       override(key, 'duplicate', r.confidenceLevel, detail)
     }
+    setShowOverridePanel(false)
   }
 
-  const isGroupFlipped = !!(activeGroup && flippedGroups.has(activeGroup.formType))
+  const handleUndoOverride = () => {
+    if (!activeGroup) return
+    setOverriddenOriginals(prev => {
+      const next = new Map(prev)
+      next.delete(activeGroup.formType)
+      return next
+    })
+    setShowOverridePanel(false)
+  }
+
+  /** Is a specific document the "Original" based on current effective selection? */
+  const isDocOriginal = (docLabel: string | undefined) => docLabel === effectiveOriginalId
 
   /* Field comparison data for the active group */
   const comparedValues = useMemo(() => {
@@ -300,24 +386,123 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
           </label>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          {/* Override / Flip button */}
-          <button
-            type="button"
-            onClick={handleOverrideGroup}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '0.375rem',
-              padding: '0.375rem 0.75rem',
-              border: '0.0625rem solid oklch(0.82 0.08 60)',
-              borderRadius: '0.25rem',
-              backgroundColor: isGroupFlipped ? 'oklch(0.96 0.04 60)' : 'oklch(1 0 0)',
-              fontSize: '0.75rem', fontWeight: 600,
-              color: 'oklch(0.45 0.12 60)',
-              cursor: 'pointer',
-            }}
-          >
-            <FlipHorizontal style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem' }} />
-            {isGroupFlipped ? 'Undo Override' : 'Override Classification'}
-          </button>
+          {/* Override Classification */}
+          <div style={{ position: 'relative' }}>
+            <button
+              type="button"
+              onClick={() => setShowOverridePanel(p => !p)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '0.375rem',
+                padding: '0.375rem 0.75rem',
+                border: '0.0625rem solid oklch(0.82 0.08 60)',
+                borderRadius: '0.25rem',
+                backgroundColor: isGroupOverridden ? 'oklch(0.96 0.04 60)' : 'oklch(1 0 0)',
+                fontSize: '0.75rem', fontWeight: 600,
+                color: 'oklch(0.45 0.12 60)',
+                cursor: 'pointer',
+              }}
+              aria-expanded={showOverridePanel}
+            >
+              <FlipHorizontal style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem' }} />
+              {isGroupOverridden ? 'Override Active' : 'Override Classification'}
+              <ChevronDown style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
+            </button>
+
+            {/* Radio selector popover */}
+            {showOverridePanel && (
+              <>
+              {/* Invisible backdrop to close on outside click */}
+              <div
+                onClick={() => setShowOverridePanel(false)}
+                style={{ position: 'fixed', inset: 0, zIndex: 49 }}
+                aria-hidden="true"
+              />
+              <div style={{
+                position: 'absolute', insetBlockStart: '100%', insetInlineEnd: 0,
+                marginBlockStart: '0.25rem', zIndex: 50,
+                inlineSize: 'max-content', minInlineSize: '16rem',
+                padding: '0.625rem', borderRadius: '0.375rem',
+                border: '0.0625rem solid oklch(0.88 0.01 260)',
+                backgroundColor: 'oklch(1 0 0)',
+                boxShadow: '0 0.25rem 0.75rem oklch(0 0 0 / 0.12)',
+              }}>
+                <p style={{
+                  fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.35 0.01 260)',
+                  textTransform: 'uppercase', letterSpacing: '0.04em',
+                  marginBlockEnd: '0.5rem',
+                }}>
+                  Select the Original document
+                </p>
+                <p style={{
+                  fontSize: '0.625rem', color: 'oklch(0.5 0.01 260)',
+                  marginBlockEnd: '0.625rem', lineHeight: '1.4',
+                }}>
+                  Only 1 document can be Original. All others will be marked as Duplicate.
+                </p>
+
+                <fieldset style={{ border: 'none', padding: 0, margin: 0 }}>
+                  <legend className="sr-only">Select the Original document</legend>
+                  {groupDocs.map(doc => {
+                    const isSelected = doc.id === effectiveOriginalId
+                    const isAIChoice = doc.id === aiOriginalId
+                    return (
+                      <label
+                        key={doc.id}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: '0.5rem',
+                          padding: '0.375rem 0.5rem', borderRadius: '0.25rem',
+                          cursor: 'pointer',
+                          backgroundColor: isSelected ? 'oklch(0.95 0.04 145)' : 'transparent',
+                        }}
+                      >
+                        <input
+                          type="radio"
+                          name="original-doc"
+                          checked={isSelected}
+                          onChange={() => handleSelectOriginal(doc.id)}
+                          style={{ accentColor: 'oklch(0.45 0.18 145)', flexShrink: 0 }}
+                        />
+                        <FileText style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem', color: 'oklch(0.45 0.01 260)', flexShrink: 0 }} />
+                        <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.25 0.01 260)' }}>
+                          {doc.label}
+                        </span>
+                        {isAIChoice && (
+                          <span style={{
+                            marginInlineStart: 'auto', flexShrink: 0,
+                            fontSize: '0.5rem', fontWeight: 700, textTransform: 'uppercase',
+                            padding: '0.0625rem 0.25rem', borderRadius: '0.125rem',
+                            backgroundColor: 'oklch(0.94 0.03 240)',
+                            color: 'oklch(0.45 0.08 240)',
+                          }}>
+                            AI pick
+                          </span>
+                        )}
+                      </label>
+                    )
+                  })}
+                </fieldset>
+
+                {isGroupOverridden && (
+                  <button
+                    type="button"
+                    onClick={handleUndoOverride}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '0.25rem',
+                      marginBlockStart: '0.5rem', padding: '0.25rem 0.5rem',
+                      border: '0.0625rem solid oklch(0.88 0.01 260)',
+                      borderRadius: '0.25rem', backgroundColor: 'oklch(1 0 0)',
+                      fontSize: '0.625rem', fontWeight: 600, color: 'oklch(0.45 0.01 260)',
+                      cursor: 'pointer', inlineSize: '100%', justifyContent: 'center',
+                    }}
+                  >
+                    <Undo2 style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
+                    Reset to AI Selection
+                  </button>
+                )}
+              </div>
+              </>
+            )}
+          </div>
 
           {allGroupAccepted ? (
             <button
@@ -478,9 +663,13 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
                         const isAccepted = decisions[recordKey] === 'accepted'
                         const isMatched = isRecordMatched(r, recordKey, decisions, showAutoMatched)
                         const decision = getDecisionLabel(r)
-                        const isGroupOverridden = flippedGroups.has(group.formType)
+                        const groupOverrideId = overriddenOriginals.get(group.formType)
                         const rawDuplicate = decision === 'DuplicateData' || decision === 'Duplicate'
-                        const isDuplicate = isGroupOverridden ? !rawDuplicate : rawDuplicate
+                        /* If override is active, classification depends on whether this record's
+                           docs match the user-selected original */
+                        const isDuplicate = groupOverrideId
+                          ? !(r.documentRefA?.formLabel === groupOverrideId || r.documentRefB?.formLabel === groupOverrideId)
+                          : rawDuplicate
                         return (
                           <button
                             key={recordKey}
@@ -709,7 +898,7 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
                     labelB={firstRecord?.documentRefB?.formLabel ?? 'Document B'}
                     docRefA={firstRecord?.documentRefA}
                     docRefB={firstRecord?.documentRefB}
-                    isOverridden={isGroupFlipped}
+                    isOverridden={isGroupOverridden}
                   />
                 </div>
               )}
@@ -779,15 +968,20 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
                   <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.3 0.01 260)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {firstRecord?.documentRefA?.formLabel ?? 'Document A'}
                   </span>
-                  <span style={{
-                    marginInlineStart: 'auto', flexShrink: 0,
-                    fontSize: '0.5rem', fontWeight: 700, textTransform: 'uppercase',
-                    padding: '0.0625rem 0.1875rem', borderRadius: '0.125rem',
-                    backgroundColor: isGroupFlipped ? 'oklch(0.94 0.04 145)' : 'oklch(0.94 0.04 25)',
-                    color: isGroupFlipped ? 'oklch(0.35 0.14 145)' : 'oklch(0.45 0.18 25)',
-                  }}>
-                    {isGroupFlipped ? 'Original' : 'Duplicate'}
-                  </span>
+                  {(() => {
+                    const aIsOriginal = isDocOriginal(firstRecord?.documentRefA?.formLabel)
+                    return (
+                      <span style={{
+                        marginInlineStart: 'auto', flexShrink: 0,
+                        fontSize: '0.5rem', fontWeight: 700, textTransform: 'uppercase',
+                        padding: '0.0625rem 0.1875rem', borderRadius: '0.125rem',
+                        backgroundColor: aIsOriginal ? 'oklch(0.94 0.04 145)' : 'oklch(0.94 0.04 25)',
+                        color: aIsOriginal ? 'oklch(0.35 0.14 145)' : 'oklch(0.45 0.18 25)',
+                      }}>
+                        {aIsOriginal ? 'Original' : 'Duplicate'}
+                      </span>
+                    )
+                  })()}
                 </div>
                 <div style={{
                   display: 'flex', alignItems: 'center', gap: '0.375rem',
@@ -800,15 +994,20 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
                   <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.3 0.01 260)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {firstRecord?.documentRefB?.formLabel ?? 'Document B'}
                   </span>
-                  <span style={{
-                    marginInlineStart: 'auto', flexShrink: 0,
-                    fontSize: '0.5rem', fontWeight: 700, textTransform: 'uppercase',
-                    padding: '0.0625rem 0.1875rem', borderRadius: '0.125rem',
-                    backgroundColor: isGroupFlipped ? 'oklch(0.94 0.04 25)' : 'oklch(0.94 0.04 145)',
-                    color: isGroupFlipped ? 'oklch(0.45 0.18 25)' : 'oklch(0.35 0.14 145)',
-                  }}>
-                    {isGroupFlipped ? 'Duplicate' : 'Original'}
-                  </span>
+                  {(() => {
+                    const bIsOriginal = isDocOriginal(firstRecord?.documentRefB?.formLabel)
+                    return (
+                      <span style={{
+                        marginInlineStart: 'auto', flexShrink: 0,
+                        fontSize: '0.5rem', fontWeight: 700, textTransform: 'uppercase',
+                        padding: '0.0625rem 0.1875rem', borderRadius: '0.125rem',
+                        backgroundColor: bIsOriginal ? 'oklch(0.94 0.04 145)' : 'oklch(0.94 0.04 25)',
+                        color: bIsOriginal ? 'oklch(0.35 0.14 145)' : 'oklch(0.45 0.18 25)',
+                      }}>
+                        {bIsOriginal ? 'Original' : 'Duplicate'}
+                      </span>
+                    )
+                  })()}
                 </div>
               </div>
             )}
@@ -822,19 +1021,24 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
               }}>
                 {/* Left PDF -- Doc A */}
                 <div style={{ overflow: 'auto', padding: '0.5rem' }}>
-                  <div style={{
-                    textAlign: 'center', padding: '0.25rem',
-                    fontSize: '0.625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em',
-                    backgroundColor: isGroupFlipped ? 'oklch(0.94 0.04 145)' : 'oklch(0.94 0.04 25)',
-                    color: isGroupFlipped ? 'oklch(0.35 0.14 145)' : 'oklch(0.45 0.18 25)',
-                    borderRadius: '0.1875rem 0.1875rem 0 0',
-                  }}>
-                    {isGroupFlipped ? 'Original' : 'Duplicate'}
-                  </div>
+                  {(() => {
+                    const aIsOrig = isDocOriginal(firstRecord?.documentRefA?.formLabel)
+                    return (
+                      <div style={{
+                        textAlign: 'center', padding: '0.25rem',
+                        fontSize: '0.625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em',
+                        backgroundColor: aIsOrig ? 'oklch(0.94 0.04 145)' : 'oklch(0.94 0.04 25)',
+                        color: aIsOrig ? 'oklch(0.35 0.14 145)' : 'oklch(0.45 0.18 25)',
+                        borderRadius: '0.1875rem 0.1875rem 0 0',
+                      }}>
+                        {aIsOrig ? 'Original' : 'Duplicate'}
+                      </div>
+                    )
+                  })()}
                   {firstRecord?.documentRefA ? (
                     <PdfPageViewer
                       documentRef={firstRecord.documentRefA}
-                      stamp={isGroupFlipped ? 'ORIGINAL' : 'SUPERSEDED'}
+                      stamp={isDocOriginal(firstRecord.documentRefA.formLabel) ? 'ORIGINAL' : 'SUPERSEDED'}
                       height="30rem"
                     />
                   ) : (
@@ -881,19 +1085,24 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
 
                 {/* Right PDF -- Doc B */}
                 <div style={{ overflow: 'auto', padding: '0.5rem' }}>
-                  <div style={{
-                    textAlign: 'center', padding: '0.25rem',
-                    fontSize: '0.625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em',
-                    backgroundColor: isGroupFlipped ? 'oklch(0.94 0.04 25)' : 'oklch(0.94 0.04 145)',
-                    color: isGroupFlipped ? 'oklch(0.45 0.18 25)' : 'oklch(0.35 0.14 145)',
-                    borderRadius: '0.1875rem 0.1875rem 0 0',
-                  }}>
-                    {isGroupFlipped ? 'Duplicate' : 'Original'}
-                  </div>
+                  {(() => {
+                    const bIsOrig = isDocOriginal(firstRecord?.documentRefB?.formLabel)
+                    return (
+                      <div style={{
+                        textAlign: 'center', padding: '0.25rem',
+                        fontSize: '0.625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em',
+                        backgroundColor: bIsOrig ? 'oklch(0.94 0.04 145)' : 'oklch(0.94 0.04 25)',
+                        color: bIsOrig ? 'oklch(0.35 0.14 145)' : 'oklch(0.45 0.18 25)',
+                        borderRadius: '0.1875rem 0.1875rem 0 0',
+                      }}>
+                        {bIsOrig ? 'Original' : 'Duplicate'}
+                      </div>
+                    )
+                  })()}
                   {firstRecord?.documentRefB ? (
                     <PdfPageViewer
                       documentRef={firstRecord.documentRefB}
-                      stamp={isGroupFlipped ? 'SUPERSEDED' : 'ORIGINAL'}
+                      stamp={isDocOriginal(firstRecord.documentRefB.formLabel) ? 'ORIGINAL' : 'SUPERSEDED'}
                       height="30rem"
                     />
                   ) : (
