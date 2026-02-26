@@ -527,7 +527,7 @@ const doc = new Document({
           ['Confidence badge', 'Always, in summary bar', 'Percentage with color coding (green >= 90, amber >= 70, red < 70)'],
           ['Reasoning', 'Always, in expanded body', 'Individual bullet points (one observation per bullet)'],
           ['Escalation', 'Only when escalationReason is present', 'Bullet point with warning/amber color'],
-          ['Key Differences', 'Only when mismatched fields exist', 'Bullet with sub-bullets showing valueA vs valueB'],
+          ['AI-Flagged Fields', 'Only when mismatched fields exist', 'Bullet with sub-bullets showing valueA vs valueB'],
           ['Learned Rule tag', 'Only when decision came from a learned rule', 'Green tag next to confidence badge'],
           ['Override warning', 'Only when user has overridden AI', 'Amber banner above reasoning bullets'],
         ],

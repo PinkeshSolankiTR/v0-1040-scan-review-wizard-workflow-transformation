@@ -408,7 +408,7 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
                       {groupCompared.some(v => !v.match) && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3125rem' }}>
                           <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.45 0.12 25)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                            Key Differences
+                            AI-Flagged Fields
                           </span>
                           {groupCompared.filter(v => !v.match).map(v => (
                             <div key={v.field} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', flexWrap: 'wrap' }}>
@@ -783,7 +783,7 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
                       {groupCompared.some(v => !v.match) && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3125rem' }}>
                           <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.45 0.12 25)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                            Key Differences
+                            AI-Flagged Fields
                           </span>
                           {groupCompared.filter(v => !v.match).map(v => (
                             <div key={v.field} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', flexWrap: 'wrap' }}>

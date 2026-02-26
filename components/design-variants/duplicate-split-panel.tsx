@@ -435,7 +435,7 @@ export function DuplicateSplitPanel({ data }: { data: DuplicateRecord[] }) {
                     border: '0.0625rem solid oklch(0.92 0.03 25)',
                   }}>
                     <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.45 0.12 25)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                      Key Differences
+                      AI-Flagged Fields
                     </span>
                     {groupCompared.filter(v => !v.match).map(v => (
                       <div key={v.field} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', flexWrap: 'wrap' }}>

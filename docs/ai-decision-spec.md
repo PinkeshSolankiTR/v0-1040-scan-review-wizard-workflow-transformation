@@ -338,7 +338,7 @@ AI reasoning is presented as **bullet points** (not paragraphs). Each distinct o
 | Confidence badge | Always (in summary bar) | Percentage with color coding |
 | Reasoning | Always (in expanded body) | Individual bullet points |
 | Escalation | Only when `escalationReason` is present | Bullet with warning color |
-| Key Differences | Only when mismatched fields exist | Bullet with sub-bullets showing valueA vs valueB |
+| AI-Flagged Fields | Only when mismatched fields exist | Bullet with sub-bullets showing valueA vs valueB |
 | Learned Rule tag | Only when decision came from a learned rule | Tag next to confidence badge |
 | Override warning | Only when user has overridden AI | Amber banner above reasoning |
 

@@ -594,7 +594,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                       )}
                       {mismatches.length > 0 && (
                         <li style={{ fontSize: '0.75rem', lineHeight: '1.5', color: 'oklch(0.3 0.01 260)' }}>
-                          <strong style={{ color: 'oklch(0.45 0.12 25)' }}>Key Differences ({mismatches.length}):</strong>
+                          <strong style={{ color: 'oklch(0.45 0.12 25)' }}>AI-Flagged Fields ({mismatches.length}):</strong>
                           <ul style={{ marginBlockStart: '0.25rem', paddingInlineStart: '1rem', listStyleType: 'circle', display: 'flex', flexDirection: 'column', gap: '0.1875rem' }}>
                             {mismatches.map(v => (
                               <li key={v.field} style={{ fontSize: '0.6875rem', color: 'oklch(0.35 0.01 260)' }}>
