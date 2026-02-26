@@ -389,12 +389,24 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
                         <span style={{ fontSize: '0.625rem', fontWeight: 600, color: 'oklch(0.5 0.01 260)' }}>
                           {group.records.length} {group.records.length === 1 ? 'pair' : 'pairs'}
                         </span>
-                        <span style={{ fontSize: '0.5625rem', fontWeight: 600, color: 'oklch(0.55 0.17 145)' }}>
-                          {group.matchedRecords.length}M
+                        <span style={{
+                          display: 'inline-flex', alignItems: 'center', gap: '0.125rem',
+                          fontSize: '0.5625rem', fontWeight: 600,
+                          padding: '0.0625rem 0.25rem', borderRadius: '0.125rem',
+                          backgroundColor: 'oklch(0.94 0.04 145)', color: 'oklch(0.4 0.14 145)',
+                        }}>
+                          {group.matchedRecords.length} matched
                         </span>
-                        <span style={{ fontSize: '0.5625rem', fontWeight: 600, color: 'oklch(0.6 0.18 15)' }}>
-                          {group.unmatchedRecords.length}U
-                        </span>
+                        {group.unmatchedRecords.length > 0 && (
+                          <span style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '0.125rem',
+                            fontSize: '0.5625rem', fontWeight: 600,
+                            padding: '0.0625rem 0.25rem', borderRadius: '0.125rem',
+                            backgroundColor: 'oklch(0.94 0.04 25)', color: 'oklch(0.45 0.14 25)',
+                          }}>
+                            {group.unmatchedRecords.length} unmatched
+                          </span>
+                        )}
                         {group.needsReview && (
                           <AlertTriangle style={{ inlineSize: '0.625rem', blockSize: '0.625rem', color: 'oklch(0.6 0.18 60)' }} />
                         )}
