@@ -135,7 +135,11 @@ interface UniqueDoc {
 }
 
 function getUniqueDocsInGroup(records: DuplicateRecord[]): UniqueDoc[] {
-  const seen = new Map<string, UniqueDoc>()
+  /* Pass 1: collect all unique documents */
+  const seen = new Map<string, Omit<UniqueDoc, 'aiOriginal'>>()
+  /* Track how many times each doc appears on the "not duplicate" side */
+  const originalVotes = new Map<string, number>()
+
   for (const r of records) {
     const decision = getDecisionLabel(r)
     const isDuplicate = decision === 'DuplicateData' || decision === 'Duplicate'
@@ -148,9 +152,10 @@ function getUniqueDocsInGroup(records: DuplicateRecord[]): UniqueDoc[] {
           pdfPath: r.documentRefA.pdfPath,
           pageNumber: r.documentRefA.pageNumber,
           formType: r.documentRefA.formType,
-          aiOriginal: !isDuplicate,
         })
       }
+      /* Doc A is "not duplicate" when the record says NotDuplicate */
+      if (!isDuplicate) originalVotes.set(id, (originalVotes.get(id) ?? 0) + 1)
     }
     if (r.documentRefB) {
       const id = r.documentRefB.formLabel ?? `doc-b-${r.documentRefB.pageNumber}`
@@ -161,12 +166,33 @@ function getUniqueDocsInGroup(records: DuplicateRecord[]): UniqueDoc[] {
           pdfPath: r.documentRefB.pdfPath,
           pageNumber: r.documentRefB.pageNumber,
           formType: r.documentRefB.formType,
-          aiOriginal: !isDuplicate,
         })
       }
+      /* Doc B is "not duplicate" when the record says Duplicate (B is the original copy) */
+      if (isDuplicate) originalVotes.set(id, (originalVotes.get(id) ?? 0) + 1)
     }
   }
-  return Array.from(seen.values())
+
+  /* Pass 2: exactly 1 original -- the doc with the most "original" votes, tie-break by first seen */
+  let bestId: string | null = null
+  let bestVotes = -1
+  for (const [id] of seen) {
+    const votes = originalVotes.get(id) ?? 0
+    if (votes > bestVotes) {
+      bestVotes = votes
+      bestId = id
+    }
+  }
+  /* Fallback: first doc if no votes at all */
+  if (bestId === null) {
+    const first = seen.keys().next()
+    if (!first.done) bestId = first.value
+  }
+
+  return Array.from(seen.entries()).map(([id, doc]) => ({
+    ...doc,
+    aiOriginal: id === bestId,
+  }))
 }
 
 function getAIOriginalId(docs: UniqueDoc[]): string | null {
