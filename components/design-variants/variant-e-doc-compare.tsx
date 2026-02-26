@@ -659,7 +659,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
             </div>
           )}
 
-          {/* ═══════════════════════════════════════════════════════════
+          {/* ═════════���═════════════════════════════════════════════════
               PANEL 3: Document Viewer (bottom -- collapsible thumbnails/full)
               Future: removable once users trust AI Analysis
               ═══════════════════════════════════════════════════════════ */}
@@ -702,7 +702,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
               )}
             </button>
 
-            {/* Thumbnails (shown when collapsed) */}
+            {/* Compact document chips (shown when collapsed -- no preview) */}
             {!isDocExpanded && (
               <div
                 role="button"
@@ -710,101 +710,60 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                 onClick={() => togglePanel('documents')}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') togglePanel('documents') }}
                 style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr',
-                  gap: '0.75rem',
-                  padding: '0.75rem',
+                  display: 'flex',
+                  gap: '0.5rem',
+                  padding: '0.5rem 0.75rem',
                   cursor: 'pointer',
                   backgroundColor: 'oklch(0.98 0.003 260)',
                 }}
                 aria-label="Click to expand document viewer"
               >
-                {/* Left thumbnail */}
+                {/* Left doc chip */}
                 <div style={{
-                  borderRadius: '0.375rem',
-                  overflow: 'hidden',
-                  border: '0.125rem solid oklch(0.88 0.01 260)',
-                  position: 'relative',
-                  blockSize: '10rem',
+                  display: 'flex', alignItems: 'center', gap: '0.375rem',
+                  flex: '1 1 0',
+                  padding: '0.375rem 0.5rem',
+                  borderRadius: '0.25rem',
+                  border: '0.0625rem solid oklch(0.88 0.01 260)',
                   backgroundColor: 'oklch(0.97 0.003 260)',
                 }}>
-                  {leftDoc?.documentRef ? (
-                    <>
-                      <div style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                        padding: '0.25rem 0.5rem',
-                        backgroundColor: 'oklch(0.17 0.01 260)',
-                        color: 'oklch(0.92 0 0)',
-                        fontSize: '0.625rem', fontWeight: 600,
-                      }}>
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{leftDoc.documentRef.formLabel}</span>
-                        <span style={{ flexShrink: 0, color: 'oklch(0.65 0 0)' }}>Pg {leftDoc.documentRef.pageNumber}</span>
-                      </div>
-                      <iframe
-                        src={`${leftDoc.documentRef.pdfPath}#page=${leftDoc.documentRef.pageNumber}&toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
-                        title={`Thumbnail: ${leftDoc.documentRef.formLabel}`}
-                        style={{ inlineSize: '100%', blockSize: '7rem', border: 'none', pointerEvents: 'none' }}
-                        tabIndex={-1}
-                      />
-                      <div style={{
-                        position: 'absolute', insetBlockEnd: '0.375rem', insetInlineStart: '0.375rem',
-                        padding: '0.0625rem 0.375rem', borderRadius: '0.1875rem',
-                        fontSize: '0.5625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em',
-                        backgroundColor: activeGroup && flippedGroups.has(activeGroup.formType) ? 'oklch(0.94 0.04 145)' : 'oklch(0.94 0.04 25)',
-                        color: activeGroup && flippedGroups.has(activeGroup.formType) ? 'oklch(0.35 0.14 145)' : 'oklch(0.45 0.18 25)',
-                      }}>
-                        {activeGroup && flippedGroups.has(activeGroup.formType) ? 'Original' : 'Superseded'}
-                      </div>
-                    </>
-                  ) : (
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', blockSize: '100%', fontSize: '0.75rem', color: 'oklch(0.55 0.01 260)' }}>
-                      No document
-                    </div>
-                  )}
+                  <FileText style={{ inlineSize: '0.875rem', blockSize: '0.875rem', flexShrink: 0, color: 'oklch(0.45 0.01 260)' }} />
+                  <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.3 0.01 260)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {leftDoc?.documentRef?.formLabel ?? 'Document A'}
+                  </span>
+                  <span style={{
+                    marginInlineStart: 'auto', flexShrink: 0,
+                    padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem',
+                    fontSize: '0.5625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.03em',
+                    backgroundColor: activeGroup && flippedGroups.has(activeGroup.formType) ? 'oklch(0.94 0.04 145)' : 'oklch(0.94 0.04 25)',
+                    color: activeGroup && flippedGroups.has(activeGroup.formType) ? 'oklch(0.35 0.14 145)' : 'oklch(0.45 0.18 25)',
+                  }}>
+                    {activeGroup && flippedGroups.has(activeGroup.formType) ? 'Original' : 'Superseded'}
+                  </span>
                 </div>
 
-                {/* Right thumbnail */}
+                {/* Right doc chip */}
                 <div style={{
-                  borderRadius: '0.375rem',
-                  overflow: 'hidden',
-                  border: '0.125rem solid oklch(0.88 0.01 260)',
-                  position: 'relative',
-                  blockSize: '10rem',
+                  display: 'flex', alignItems: 'center', gap: '0.375rem',
+                  flex: '1 1 0',
+                  padding: '0.375rem 0.5rem',
+                  borderRadius: '0.25rem',
+                  border: '0.0625rem solid oklch(0.88 0.01 260)',
                   backgroundColor: 'oklch(0.97 0.003 260)',
                 }}>
-                  {rightDoc?.documentRef ? (
-                    <>
-                      <div style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                        padding: '0.25rem 0.5rem',
-                        backgroundColor: 'oklch(0.17 0.01 260)',
-                        color: 'oklch(0.92 0 0)',
-                        fontSize: '0.625rem', fontWeight: 600,
-                      }}>
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{rightDoc.documentRef.formLabel}</span>
-                        <span style={{ flexShrink: 0, color: 'oklch(0.65 0 0)' }}>Pg {rightDoc.documentRef.pageNumber}</span>
-                      </div>
-                      <iframe
-                        src={`${rightDoc.documentRef.pdfPath}#page=${rightDoc.documentRef.pageNumber}&toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
-                        title={`Thumbnail: ${rightDoc.documentRef.formLabel}`}
-                        style={{ inlineSize: '100%', blockSize: '7rem', border: 'none', pointerEvents: 'none' }}
-                        tabIndex={-1}
-                      />
-                      <div style={{
-                        position: 'absolute', insetBlockEnd: '0.375rem', insetInlineStart: '0.375rem',
-                        padding: '0.0625rem 0.375rem', borderRadius: '0.1875rem',
-                        fontSize: '0.5625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em',
-                        backgroundColor: activeGroup && flippedGroups.has(activeGroup.formType) ? 'oklch(0.94 0.04 25)' : 'oklch(0.94 0.04 145)',
-                        color: activeGroup && flippedGroups.has(activeGroup.formType) ? 'oklch(0.45 0.18 25)' : 'oklch(0.35 0.14 145)',
-                      }}>
-                        {activeGroup && flippedGroups.has(activeGroup.formType) ? 'Superseded' : 'Original'}
-                      </div>
-                    </>
-                  ) : (
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', blockSize: '100%', fontSize: '0.75rem', color: 'oklch(0.55 0.01 260)' }}>
-                      No document
-                    </div>
-                  )}
+                  <FileText style={{ inlineSize: '0.875rem', blockSize: '0.875rem', flexShrink: 0, color: 'oklch(0.45 0.01 260)' }} />
+                  <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.3 0.01 260)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {rightDoc?.documentRef?.formLabel ?? 'Document B'}
+                  </span>
+                  <span style={{
+                    marginInlineStart: 'auto', flexShrink: 0,
+                    padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem',
+                    fontSize: '0.5625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.03em',
+                    backgroundColor: activeGroup && flippedGroups.has(activeGroup.formType) ? 'oklch(0.94 0.04 25)' : 'oklch(0.94 0.04 145)',
+                    color: activeGroup && flippedGroups.has(activeGroup.formType) ? 'oklch(0.45 0.18 25)' : 'oklch(0.35 0.14 145)',
+                  }}>
+                    {activeGroup && flippedGroups.has(activeGroup.formType) ? 'Superseded' : 'Original'}
+                  </span>
                 </div>
               </div>
             )}
