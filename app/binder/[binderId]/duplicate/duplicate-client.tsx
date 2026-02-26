@@ -105,6 +105,29 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
   const [openDocId, setOpenDocId] = useState<string | null>(null)
   const [showAutoMatched, setShowAutoMatched] = useState(true)
 
+  /* Panel accordion state for each section (matched / unmatched) */
+  type DupPanel = 'ai' | 'fields' | 'documents'
+  const [matchedPanels, setMatchedPanels] = useState<Set<DupPanel>>(() => new Set<DupPanel>(['ai', 'fields']))
+  const [unmatchedPanels, setUnmatchedPanels] = useState<Set<DupPanel>>(() => new Set<DupPanel>(['ai', 'fields']))
+
+  const toggleDupPanel = (which: 'matched' | 'unmatched', panel: DupPanel) => {
+    const setter = which === 'matched' ? setMatchedPanels : setUnmatchedPanels
+    setter(prev => {
+      if (prev.has(panel)) {
+        const next = new Set(prev)
+        next.delete(panel)
+        return next
+      }
+      if (panel === 'documents') {
+        return new Set<DupPanel>(['documents'])
+      }
+      const next = new Set(prev)
+      next.add(panel)
+      next.delete('documents')
+      return next
+    })
+  }
+
   const groups = useMemo(() => groupByFormCategory(data, decisions, showAutoMatched), [data, decisions, showAutoMatched])
 
   // Initialize category to first group if not set
@@ -359,17 +382,22 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
 
               return (
                 <div>
-                  {/* Group-level AI Analysis */}
-                  <details open style={{ borderBlockEnd: '0.0625rem solid oklch(0.91 0.005 260)' }}>
-                    <summary style={{
-                      display: 'flex', alignItems: 'center', gap: '0.5rem',
-                      padding: '0.625rem 1.25rem',
-                      fontSize: '0.75rem', fontWeight: 700,
-                      color: 'var(--ai-accent)',
-                      backgroundColor: 'oklch(0.97 0.005 240)',
-                      cursor: 'pointer', listStyle: 'none',
-                      textTransform: 'uppercase', letterSpacing: '0.04em',
-                    }}>
+                  {/* ── AI Analysis (managed panel) ── */}
+                  <div style={{ borderBlockEnd: '0.0625rem solid oklch(0.91 0.005 260)' }}>
+                    <button
+                      type="button"
+                      onClick={() => toggleDupPanel('matched', 'ai')}
+                      aria-expanded={matchedPanels.has('ai')}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '0.5rem',
+                        inlineSize: '100%', padding: '0.625rem 1.25rem',
+                        fontSize: '0.75rem', fontWeight: 700,
+                        color: 'var(--ai-accent)',
+                        backgroundColor: 'oklch(0.97 0.005 240)',
+                        cursor: 'pointer', border: 'none', textAlign: 'start',
+                        textTransform: 'uppercase', letterSpacing: '0.04em',
+                      }}
+                    >
                       <Sparkles style={{ inlineSize: '0.875rem', blockSize: '0.875rem' }} />
                       AI Analysis
                       {firstRec.reviewRequired && (
@@ -382,79 +410,189 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
                       }}>
                         {firstRec.appliedRuleSet} / {firstRec.decisionRule}
                       </span>
-                    </summary>
-                    <div style={{
-                      padding: '0.75rem 1.25rem', backgroundColor: 'oklch(0.98 0.003 240)',
-                      display: 'flex', flexDirection: 'column', gap: '0.625rem',
-                    }}>
-                      <p style={{ fontSize: '0.8125rem', lineHeight: '1.5', color: 'oklch(0.3 0.01 260)' }}>
-                        {firstRec.decisionReason}
-                      </p>
+                      {matchedPanels.has('ai')
+                        ? <ChevronDown style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.5 0.01 260)' }} />
+                        : <ChevronRight style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.5 0.01 260)' }} />
+                      }
+                    </button>
+                    {matchedPanels.has('ai') && (
+                      <div style={{
+                        padding: '0.75rem 1.25rem', backgroundColor: 'oklch(0.98 0.003 240)',
+                        display: 'flex', flexDirection: 'column', gap: '0.625rem',
+                      }}>
+                        <p style={{ fontSize: '0.8125rem', lineHeight: '1.5', color: 'oklch(0.3 0.01 260)' }}>
+                          {firstRec.decisionReason}
+                        </p>
 
-                      {firstRec.escalationReason && (
-                        <div style={{
-                          display: 'flex', alignItems: 'flex-start', gap: '0.5rem',
-                          padding: '0.4375rem 0.625rem', borderRadius: '0.25rem',
-                          backgroundColor: 'oklch(0.96 0.04 60)', border: '0.0625rem solid oklch(0.88 0.08 60)',
-                        }}>
-                          <AlertTriangle style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem', color: 'oklch(0.6 0.18 60)', flexShrink: 0, marginBlockStart: '0.0625rem' }} />
-                          <div>
-                            <p style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.5 0.16 60)' }}>Escalation</p>
-                            <p style={{ fontSize: '0.75rem', color: 'oklch(0.35 0.1 60)', lineHeight: '1.4' }}>{firstRec.escalationReason}</p>
-                          </div>
-                        </div>
-                      )}
-
-                      {groupCompared.some(v => !v.match) && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3125rem' }}>
-                          <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.45 0.12 25)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                            AI-Flagged Fields
-                          </span>
-                          {groupCompared.filter(v => !v.match).map(v => (
-                            <div key={v.field} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', flexWrap: 'wrap' }}>
-                              <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.35 0.01 260)' }}>{v.field}:</span>
-                              <span style={{ fontSize: '0.625rem', padding: '0.0625rem 0.3125rem', borderRadius: '0.125rem', backgroundColor: 'oklch(0.94 0.04 25)', color: 'oklch(0.45 0.14 25)' }}>
-                                {v.valueA}
-                              </span>
-                              <span style={{ fontSize: '0.625rem', color: 'oklch(0.55 0.01 260)' }}>&rarr;</span>
-                              <span style={{ fontSize: '0.625rem', padding: '0.0625rem 0.3125rem', borderRadius: '0.125rem', backgroundColor: 'oklch(0.94 0.04 145)', color: 'oklch(0.35 0.12 145)' }}>
-                                {v.valueB}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {groupCompared.length > 0 && (
-                        <details style={{
-                          marginBlockStart: '0.25rem', borderRadius: '0.25rem', overflow: 'hidden',
-                          border: '0.0625rem solid oklch(0.92 0.005 260)',
-                        }}>
-                          <summary style={{
-                            display: 'flex', alignItems: 'center', gap: '0.375rem',
-                            padding: '0.4375rem 0.625rem',
-                            fontSize: '0.6875rem', fontWeight: 700,
-                            color: 'oklch(0.35 0.01 260)', backgroundColor: 'oklch(0.97 0.003 260)',
-                            cursor: 'pointer', listStyle: 'none',
-                            textTransform: 'uppercase', letterSpacing: '0.04em',
+                        {firstRec.escalationReason && (
+                          <div style={{
+                            display: 'flex', alignItems: 'flex-start', gap: '0.5rem',
+                            padding: '0.4375rem 0.625rem', borderRadius: '0.25rem',
+                            backgroundColor: 'oklch(0.96 0.04 60)', border: '0.0625rem solid oklch(0.88 0.08 60)',
                           }}>
-                            <ChevronRight style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.5 0.01 260)' }} />
-                            Field Comparison
-                            <span style={{ fontSize: '0.625rem', fontWeight: 600, color: 'oklch(0.5 0.01 260)' }}>
-                              {groupCompared.filter(v => !v.match).length} of {groupCompared.length} differ
-                            </span>
-                          </summary>
-                          <div style={{ padding: '0.5rem 0.625rem', backgroundColor: 'oklch(0.99 0.002 260)' }}>
-                            <FieldComparison
-                              values={groupCompared}
-                              labelA={firstRec.documentRefA?.formLabel ?? 'Doc A'}
-                              labelB={firstRec.documentRefB?.formLabel ?? 'Doc B'}
-                            />
+                            <AlertTriangle style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem', color: 'oklch(0.6 0.18 60)', flexShrink: 0, marginBlockStart: '0.0625rem' }} />
+                            <div>
+                              <p style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.5 0.16 60)' }}>Escalation</p>
+                              <p style={{ fontSize: '0.75rem', color: 'oklch(0.35 0.1 60)', lineHeight: '1.4' }}>{firstRec.escalationReason}</p>
+                            </div>
                           </div>
-                        </details>
+                        )}
+
+                        {groupCompared.some(v => !v.match) && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3125rem' }}>
+                            <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.45 0.12 25)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                              AI-Flagged Fields
+                            </span>
+                            {groupCompared.filter(v => !v.match).map(v => (
+                              <div key={v.field} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', flexWrap: 'wrap' }}>
+                                <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.35 0.01 260)' }}>{v.field}:</span>
+                                <span style={{ fontSize: '0.625rem', padding: '0.0625rem 0.3125rem', borderRadius: '0.125rem', backgroundColor: 'oklch(0.94 0.04 25)', color: 'oklch(0.45 0.14 25)' }}>
+                                  {v.valueA}
+                                </span>
+                                <span style={{ fontSize: '0.625rem', color: 'oklch(0.55 0.01 260)' }}>&rarr;</span>
+                                <span style={{ fontSize: '0.625rem', padding: '0.0625rem 0.3125rem', borderRadius: '0.125rem', backgroundColor: 'oklch(0.94 0.04 145)', color: 'oklch(0.35 0.12 145)' }}>
+                                  {v.valueB}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* ── Field Comparison (managed panel) ── */}
+                  {groupCompared.length > 0 && (
+                    <div style={{ borderBlockEnd: '0.0625rem solid oklch(0.91 0.005 260)' }}>
+                      <button
+                        type="button"
+                        onClick={() => toggleDupPanel('matched', 'fields')}
+                        aria-expanded={matchedPanels.has('fields')}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: '0.375rem',
+                          inlineSize: '100%', padding: '0.625rem 1.25rem',
+                          fontSize: '0.6875rem', fontWeight: 700,
+                          color: 'oklch(0.35 0.01 260)', backgroundColor: 'oklch(0.97 0.003 260)',
+                          cursor: 'pointer', border: 'none', textAlign: 'start',
+                          textTransform: 'uppercase', letterSpacing: '0.04em',
+                        }}
+                      >
+                        {matchedPanels.has('fields')
+                          ? <ChevronDown style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.5 0.01 260)' }} />
+                          : <ChevronRight style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.5 0.01 260)' }} />
+                        }
+                        Field Comparison
+                        <span style={{ fontSize: '0.625rem', fontWeight: 600, color: 'oklch(0.5 0.01 260)' }}>
+                          {groupCompared.filter(v => !v.match).length} of {groupCompared.length} differ
+                        </span>
+                      </button>
+                      {matchedPanels.has('fields') && (
+                        <div style={{ padding: '0.5rem 0.625rem', backgroundColor: 'oklch(0.99 0.002 260)' }}>
+                          <FieldComparison
+                            values={groupCompared}
+                            labelA={firstRec.documentRefA?.formLabel ?? 'Doc A'}
+                            labelB={firstRec.documentRefB?.formLabel ?? 'Doc B'}
+                          />
+                        </div>
                       )}
                     </div>
-                  </details>
+                  )}
+
+                  {/* ── Document Viewer (managed panel, collapsed by default) ── */}
+                  <div style={{ borderBlockEnd: '0.0625rem solid oklch(0.91 0.005 260)' }}>
+                    <button
+                      type="button"
+                      onClick={() => toggleDupPanel('matched', 'documents')}
+                      aria-expanded={matchedPanels.has('documents')}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '0.375rem',
+                        inlineSize: '100%', padding: '0.625rem 1.25rem',
+                        fontSize: '0.6875rem', fontWeight: 700,
+                        color: 'oklch(0.35 0.01 260)', backgroundColor: 'oklch(0.97 0.003 260)',
+                        cursor: 'pointer', border: 'none', textAlign: 'start',
+                        textTransform: 'uppercase', letterSpacing: '0.04em',
+                      }}
+                    >
+                      {matchedPanels.has('documents')
+                        ? <ChevronDown style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.5 0.01 260)' }} />
+                        : <ChevronRight style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.5 0.01 260)' }} />
+                      }
+                      <FileText style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} />
+                      Document Viewer
+                    </button>
+
+                    {!matchedPanels.has('documents') && (
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => toggleDupPanel('matched', 'documents')}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') toggleDupPanel('matched', 'documents') }}
+                        style={{
+                          display: 'flex', gap: '0.5rem',
+                          padding: '0.5rem 0.75rem',
+                          cursor: 'pointer',
+                          backgroundColor: 'oklch(0.98 0.003 260)',
+                        }}
+                        aria-label="Click to expand document viewer"
+                      >
+                        <div style={{
+                          display: 'flex', alignItems: 'center', gap: '0.375rem',
+                          flex: '1 1 0', padding: '0.375rem 0.5rem',
+                          borderRadius: '0.25rem',
+                          border: '0.0625rem solid oklch(0.88 0.01 260)',
+                          backgroundColor: 'oklch(0.97 0.003 260)',
+                        }}>
+                          <FileText style={{ inlineSize: '0.875rem', blockSize: '0.875rem', flexShrink: 0, color: 'oklch(0.45 0.01 260)' }} />
+                          <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.3 0.01 260)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {firstRec.documentRefA?.formLabel ?? 'Doc A'}
+                          </span>
+                        </div>
+                        <div style={{
+                          display: 'flex', alignItems: 'center', gap: '0.375rem',
+                          flex: '1 1 0', padding: '0.375rem 0.5rem',
+                          borderRadius: '0.25rem',
+                          border: '0.0625rem solid oklch(0.88 0.01 260)',
+                          backgroundColor: 'oklch(0.97 0.003 260)',
+                        }}>
+                          <FileText style={{ inlineSize: '0.875rem', blockSize: '0.875rem', flexShrink: 0, color: 'oklch(0.45 0.01 260)' }} />
+                          <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.3 0.01 260)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {firstRec.documentRefB?.formLabel ?? 'Doc B'}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {matchedPanels.has('documents') && (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.0625rem', backgroundColor: 'oklch(0.91 0.005 260)' }}>
+                        <div style={{ backgroundColor: 'oklch(0.99 0.002 260)', padding: '0.25rem' }}>
+                          {firstRec.documentRefA ? (
+                            <PdfPageViewer
+                              pdfPath={firstRec.documentRefA.pdfPath}
+                              pageNumber={firstRec.documentRefA.pageNumber}
+                              label={firstRec.documentRefA.formLabel}
+                            />
+                          ) : (
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', blockSize: '20rem', fontSize: '0.8125rem', color: 'oklch(0.55 0.01 260)' }}>
+                              No document available
+                            </div>
+                          )}
+                        </div>
+                        <div style={{ backgroundColor: 'oklch(0.99 0.002 260)', padding: '0.25rem' }}>
+                          {firstRec.documentRefB ? (
+                            <PdfPageViewer
+                              pdfPath={firstRec.documentRefB.pdfPath}
+                              pageNumber={firstRec.documentRefB.pageNumber}
+                              label={firstRec.documentRefB.formLabel}
+                            />
+                          ) : (
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', blockSize: '20rem', fontSize: '0.8125rem', color: 'oklch(0.55 0.01 260)' }}>
+                              No document available
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
 
                   {/* Matched split table with inline values + Dup column */}
                   {(() => {
@@ -734,17 +872,22 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
 
               return (
                 <div>
-                  {/* Group-level AI Analysis */}
-                  <details open style={{ borderBlockEnd: '0.0625rem solid oklch(0.91 0.005 260)' }}>
-                    <summary style={{
-                      display: 'flex', alignItems: 'center', gap: '0.5rem',
-                      padding: '0.625rem 1.25rem',
-                      fontSize: '0.75rem', fontWeight: 700,
-                      color: 'var(--ai-accent)',
-                      backgroundColor: 'oklch(0.97 0.005 240)',
-                      cursor: 'pointer', listStyle: 'none',
-                      textTransform: 'uppercase', letterSpacing: '0.04em',
-                    }}>
+                  {/* ── AI Analysis (managed panel) ── */}
+                  <div style={{ borderBlockEnd: '0.0625rem solid oklch(0.91 0.005 260)' }}>
+                    <button
+                      type="button"
+                      onClick={() => toggleDupPanel('unmatched', 'ai')}
+                      aria-expanded={unmatchedPanels.has('ai')}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '0.5rem',
+                        inlineSize: '100%', padding: '0.625rem 1.25rem',
+                        fontSize: '0.75rem', fontWeight: 700,
+                        color: 'var(--ai-accent)',
+                        backgroundColor: 'oklch(0.97 0.005 240)',
+                        cursor: 'pointer', border: 'none', textAlign: 'start',
+                        textTransform: 'uppercase', letterSpacing: '0.04em',
+                      }}
+                    >
                       <Sparkles style={{ inlineSize: '0.875rem', blockSize: '0.875rem' }} />
                       AI Analysis
                       {firstRec.reviewRequired && (
@@ -757,79 +900,189 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
                       }}>
                         {firstRec.appliedRuleSet} / {firstRec.decisionRule}
                       </span>
-                    </summary>
-                    <div style={{
-                      padding: '0.75rem 1.25rem', backgroundColor: 'oklch(0.98 0.003 240)',
-                      display: 'flex', flexDirection: 'column', gap: '0.625rem',
-                    }}>
-                      <p style={{ fontSize: '0.8125rem', lineHeight: '1.5', color: 'oklch(0.3 0.01 260)' }}>
-                        {firstRec.decisionReason}
-                      </p>
+                      {unmatchedPanels.has('ai')
+                        ? <ChevronDown style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.5 0.01 260)' }} />
+                        : <ChevronRight style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.5 0.01 260)' }} />
+                      }
+                    </button>
+                    {unmatchedPanels.has('ai') && (
+                      <div style={{
+                        padding: '0.75rem 1.25rem', backgroundColor: 'oklch(0.98 0.003 240)',
+                        display: 'flex', flexDirection: 'column', gap: '0.625rem',
+                      }}>
+                        <p style={{ fontSize: '0.8125rem', lineHeight: '1.5', color: 'oklch(0.3 0.01 260)' }}>
+                          {firstRec.decisionReason}
+                        </p>
 
-                      {firstRec.escalationReason && (
-                        <div style={{
-                          display: 'flex', alignItems: 'flex-start', gap: '0.5rem',
-                          padding: '0.4375rem 0.625rem', borderRadius: '0.25rem',
-                          backgroundColor: 'oklch(0.96 0.04 60)', border: '0.0625rem solid oklch(0.88 0.08 60)',
-                        }}>
-                          <AlertTriangle style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem', color: 'oklch(0.6 0.18 60)', flexShrink: 0, marginBlockStart: '0.0625rem' }} />
-                          <div>
-                            <p style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.5 0.16 60)' }}>Escalation</p>
-                            <p style={{ fontSize: '0.75rem', color: 'oklch(0.35 0.1 60)', lineHeight: '1.4' }}>{firstRec.escalationReason}</p>
-                          </div>
-                        </div>
-                      )}
-
-                      {groupCompared.some(v => !v.match) && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3125rem' }}>
-                          <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.45 0.12 25)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                            AI-Flagged Fields
-                          </span>
-                          {groupCompared.filter(v => !v.match).map(v => (
-                            <div key={v.field} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', flexWrap: 'wrap' }}>
-                              <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.35 0.01 260)' }}>{v.field}:</span>
-                              <span style={{ fontSize: '0.625rem', padding: '0.0625rem 0.3125rem', borderRadius: '0.125rem', backgroundColor: 'oklch(0.94 0.04 25)', color: 'oklch(0.45 0.14 25)' }}>
-                                {v.valueA}
-                              </span>
-                              <span style={{ fontSize: '0.625rem', color: 'oklch(0.55 0.01 260)' }}>&rarr;</span>
-                              <span style={{ fontSize: '0.625rem', padding: '0.0625rem 0.3125rem', borderRadius: '0.125rem', backgroundColor: 'oklch(0.94 0.04 145)', color: 'oklch(0.35 0.12 145)' }}>
-                                {v.valueB}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {groupCompared.length > 0 && (
-                        <details style={{
-                          marginBlockStart: '0.25rem', borderRadius: '0.25rem', overflow: 'hidden',
-                          border: '0.0625rem solid oklch(0.92 0.005 260)',
-                        }}>
-                          <summary style={{
-                            display: 'flex', alignItems: 'center', gap: '0.375rem',
-                            padding: '0.4375rem 0.625rem',
-                            fontSize: '0.6875rem', fontWeight: 700,
-                            color: 'oklch(0.35 0.01 260)', backgroundColor: 'oklch(0.97 0.003 260)',
-                            cursor: 'pointer', listStyle: 'none',
-                            textTransform: 'uppercase', letterSpacing: '0.04em',
+                        {firstRec.escalationReason && (
+                          <div style={{
+                            display: 'flex', alignItems: 'flex-start', gap: '0.5rem',
+                            padding: '0.4375rem 0.625rem', borderRadius: '0.25rem',
+                            backgroundColor: 'oklch(0.96 0.04 60)', border: '0.0625rem solid oklch(0.88 0.08 60)',
                           }}>
-                            <ChevronRight style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.5 0.01 260)' }} />
-                            Field Comparison
-                            <span style={{ fontSize: '0.625rem', fontWeight: 600, color: 'oklch(0.5 0.01 260)' }}>
-                              {groupCompared.filter(v => !v.match).length} of {groupCompared.length} differ
-                            </span>
-                          </summary>
-                          <div style={{ padding: '0.5rem 0.625rem', backgroundColor: 'oklch(0.99 0.002 260)' }}>
-                            <FieldComparison
-                              values={groupCompared}
-                              labelA={firstRec.documentRefA?.formLabel ?? 'Doc A'}
-                              labelB={firstRec.documentRefB?.formLabel ?? 'Doc B'}
-                            />
+                            <AlertTriangle style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem', color: 'oklch(0.6 0.18 60)', flexShrink: 0, marginBlockStart: '0.0625rem' }} />
+                            <div>
+                              <p style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.5 0.16 60)' }}>Escalation</p>
+                              <p style={{ fontSize: '0.75rem', color: 'oklch(0.35 0.1 60)', lineHeight: '1.4' }}>{firstRec.escalationReason}</p>
+                            </div>
                           </div>
-                        </details>
+                        )}
+
+                        {groupCompared.some(v => !v.match) && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3125rem' }}>
+                            <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.45 0.12 25)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                              AI-Flagged Fields
+                            </span>
+                            {groupCompared.filter(v => !v.match).map(v => (
+                              <div key={v.field} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', flexWrap: 'wrap' }}>
+                                <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.35 0.01 260)' }}>{v.field}:</span>
+                                <span style={{ fontSize: '0.625rem', padding: '0.0625rem 0.3125rem', borderRadius: '0.125rem', backgroundColor: 'oklch(0.94 0.04 25)', color: 'oklch(0.45 0.14 25)' }}>
+                                  {v.valueA}
+                                </span>
+                                <span style={{ fontSize: '0.625rem', color: 'oklch(0.55 0.01 260)' }}>&rarr;</span>
+                                <span style={{ fontSize: '0.625rem', padding: '0.0625rem 0.3125rem', borderRadius: '0.125rem', backgroundColor: 'oklch(0.94 0.04 145)', color: 'oklch(0.35 0.12 145)' }}>
+                                  {v.valueB}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* ── Field Comparison (managed panel) ── */}
+                  {groupCompared.length > 0 && (
+                    <div style={{ borderBlockEnd: '0.0625rem solid oklch(0.91 0.005 260)' }}>
+                      <button
+                        type="button"
+                        onClick={() => toggleDupPanel('unmatched', 'fields')}
+                        aria-expanded={unmatchedPanels.has('fields')}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: '0.375rem',
+                          inlineSize: '100%', padding: '0.625rem 1.25rem',
+                          fontSize: '0.6875rem', fontWeight: 700,
+                          color: 'oklch(0.35 0.01 260)', backgroundColor: 'oklch(0.97 0.003 260)',
+                          cursor: 'pointer', border: 'none', textAlign: 'start',
+                          textTransform: 'uppercase', letterSpacing: '0.04em',
+                        }}
+                      >
+                        {unmatchedPanels.has('fields')
+                          ? <ChevronDown style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.5 0.01 260)' }} />
+                          : <ChevronRight style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.5 0.01 260)' }} />
+                        }
+                        Field Comparison
+                        <span style={{ fontSize: '0.625rem', fontWeight: 600, color: 'oklch(0.5 0.01 260)' }}>
+                          {groupCompared.filter(v => !v.match).length} of {groupCompared.length} differ
+                        </span>
+                      </button>
+                      {unmatchedPanels.has('fields') && (
+                        <div style={{ padding: '0.5rem 0.625rem', backgroundColor: 'oklch(0.99 0.002 260)' }}>
+                          <FieldComparison
+                            values={groupCompared}
+                            labelA={firstRec.documentRefA?.formLabel ?? 'Doc A'}
+                            labelB={firstRec.documentRefB?.formLabel ?? 'Doc B'}
+                          />
+                        </div>
                       )}
                     </div>
-                  </details>
+                  )}
+
+                  {/* ── Document Viewer (managed panel, collapsed by default) ── */}
+                  <div style={{ borderBlockEnd: '0.0625rem solid oklch(0.91 0.005 260)' }}>
+                    <button
+                      type="button"
+                      onClick={() => toggleDupPanel('unmatched', 'documents')}
+                      aria-expanded={unmatchedPanels.has('documents')}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '0.375rem',
+                        inlineSize: '100%', padding: '0.625rem 1.25rem',
+                        fontSize: '0.6875rem', fontWeight: 700,
+                        color: 'oklch(0.35 0.01 260)', backgroundColor: 'oklch(0.97 0.003 260)',
+                        cursor: 'pointer', border: 'none', textAlign: 'start',
+                        textTransform: 'uppercase', letterSpacing: '0.04em',
+                      }}
+                    >
+                      {unmatchedPanels.has('documents')
+                        ? <ChevronDown style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.5 0.01 260)' }} />
+                        : <ChevronRight style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.5 0.01 260)' }} />
+                      }
+                      <FileText style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} />
+                      Document Viewer
+                    </button>
+
+                    {!unmatchedPanels.has('documents') && (
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => toggleDupPanel('unmatched', 'documents')}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') toggleDupPanel('unmatched', 'documents') }}
+                        style={{
+                          display: 'flex', gap: '0.5rem',
+                          padding: '0.5rem 0.75rem',
+                          cursor: 'pointer',
+                          backgroundColor: 'oklch(0.98 0.003 260)',
+                        }}
+                        aria-label="Click to expand document viewer"
+                      >
+                        <div style={{
+                          display: 'flex', alignItems: 'center', gap: '0.375rem',
+                          flex: '1 1 0', padding: '0.375rem 0.5rem',
+                          borderRadius: '0.25rem',
+                          border: '0.0625rem solid oklch(0.88 0.01 260)',
+                          backgroundColor: 'oklch(0.97 0.003 260)',
+                        }}>
+                          <FileText style={{ inlineSize: '0.875rem', blockSize: '0.875rem', flexShrink: 0, color: 'oklch(0.45 0.01 260)' }} />
+                          <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.3 0.01 260)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {firstRec.documentRefA?.formLabel ?? 'Doc A'}
+                          </span>
+                        </div>
+                        <div style={{
+                          display: 'flex', alignItems: 'center', gap: '0.375rem',
+                          flex: '1 1 0', padding: '0.375rem 0.5rem',
+                          borderRadius: '0.25rem',
+                          border: '0.0625rem solid oklch(0.88 0.01 260)',
+                          backgroundColor: 'oklch(0.97 0.003 260)',
+                        }}>
+                          <FileText style={{ inlineSize: '0.875rem', blockSize: '0.875rem', flexShrink: 0, color: 'oklch(0.45 0.01 260)' }} />
+                          <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.3 0.01 260)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {firstRec.documentRefB?.formLabel ?? 'Doc B'}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {unmatchedPanels.has('documents') && (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.0625rem', backgroundColor: 'oklch(0.91 0.005 260)' }}>
+                        <div style={{ backgroundColor: 'oklch(0.99 0.002 260)', padding: '0.25rem' }}>
+                          {firstRec.documentRefA ? (
+                            <PdfPageViewer
+                              pdfPath={firstRec.documentRefA.pdfPath}
+                              pageNumber={firstRec.documentRefA.pageNumber}
+                              label={firstRec.documentRefA.formLabel}
+                            />
+                          ) : (
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', blockSize: '20rem', fontSize: '0.8125rem', color: 'oklch(0.55 0.01 260)' }}>
+                              No document available
+                            </div>
+                          )}
+                        </div>
+                        <div style={{ backgroundColor: 'oklch(0.99 0.002 260)', padding: '0.25rem' }}>
+                          {firstRec.documentRefB ? (
+                            <PdfPageViewer
+                              pdfPath={firstRec.documentRefB.pdfPath}
+                              pageNumber={firstRec.documentRefB.pageNumber}
+                              label={firstRec.documentRefB.formLabel}
+                            />
+                          ) : (
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', blockSize: '20rem', fontSize: '0.8125rem', color: 'oklch(0.55 0.01 260)' }}>
+                              No document available
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
 
                   {/* Instruction text */}
                   <p style={{
