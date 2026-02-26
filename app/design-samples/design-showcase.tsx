@@ -19,14 +19,7 @@ import {
   VariantCNfr,
 } from '@/components/design-variants/variant-c-kanban'
 
-import {
-  VariantDSuperseded,
-  VariantDDuplicate,
-  VariantDCfa,
-  VariantDNfr,
-} from '@/components/design-variants/variant-d-split-panel'
-
-type DesignId = 'B' | 'C' | 'D'
+type DesignId = 'B' | 'C'
 type WizardId = 'superseded' | 'duplicate' | 'cfa' | 'nfr'
 
 const DESIGNS: { id: DesignId; label: string; subtitle: string; colorAccent: string }[] = [
@@ -41,12 +34,6 @@ const DESIGNS: { id: DesignId; label: string; subtitle: string; colorAccent: str
     label: 'Kanban Swim Lane',
     subtitle: 'Three-column board grouped by confidence tier (High / Medium / Low)',
     colorAccent: 'oklch(0.5 0.15 260)',
-  },
-  {
-    id: 'D',
-    label: 'Split Panel',
-    subtitle: 'Master-detail layout with compact list and rich detail pane',
-    colorAccent: 'oklch(0.22 0.03 240)',
   },
 ]
 
@@ -88,14 +75,6 @@ export function DesignShowcase({
         case 'nfr': return <VariantCNfr data={nfr} />
       }
     }
-    if (activeDesign === 'D') {
-      switch (activeWizard) {
-        case 'superseded': return <VariantDSuperseded data={superseded} />
-        case 'duplicate': return <VariantDDuplicate data={duplicate} />
-        case 'cfa': return <VariantDCfa data={cfa} />
-        case 'nfr': return <VariantDNfr data={nfr} />
-      }
-    }
     return null
   }
 
@@ -115,8 +94,8 @@ export function DesignShowcase({
           UI Design Samples
         </h1>
         <p className="mt-1 text-sm leading-relaxed" style={{ color: 'oklch(0.5 0.01 260)' }}>
-          Three alternative visual styles for the post-verification AI review wizard pages.
-          Each renders the same Demo Binder A mock data with a distinctly different layout and color scheme.
+          Alternative visual styles for the post-verification AI review wizard pages.
+          Each renders the same demo binder mock data with a distinctly different layout and color scheme.
         </p>
       </header>
 
@@ -126,7 +105,7 @@ export function DesignShowcase({
           <h2 className="text-xs font-bold uppercase tracking-widest" style={{ color: 'oklch(0.5 0.01 260)' }}>
             Select Design Style
           </h2>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             {DESIGNS.map((d) => {
               const isActive = d.id === activeDesign
               return (
