@@ -188,6 +188,14 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
   const [showAutoMatched, setShowAutoMatched] = useState(true)
   const groups = useMemo(() => groupByFormCategory(data, decisions, showAutoMatched), [data, decisions, showAutoMatched])
 
+  /* Per-document selection within a group */
+  const [selectedDocId, setSelectedDocId] = useState<string | null>(() => {
+    const firstGroup = groups[0]
+    if (!firstGroup) return null
+    const docs = getUniqueDocsInGroup(firstGroup.records)
+    return docs[0]?.id ?? null
+  })
+
   /* 3-panel collapse/expand: AI Analysis + Field Comparison open by default */
   const [expandedPanels, setExpandedPanels] = useState<Set<PanelId>>(
     () => new Set<PanelId>(['aiAnalysis', 'fieldComparison'])
@@ -225,6 +233,12 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
       else next.add(formType)
       return next
     })
+    /* Auto-select first doc in the group */
+    const grp = groups[gIdx]
+    if (grp) {
+      const docs = getUniqueDocsInGroup(grp.records)
+      if (docs.length > 0) setSelectedDocId(docs[0].id)
+    }
   }
 
   const selectGroup = (idx: number) => {
@@ -237,6 +251,14 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
         next.add(ft)
         return next
       })
+    }
+    /* Auto-select first doc in the group if no doc was previously selected */
+    const grp = groups[idx]
+    if (grp) {
+      const docs = getUniqueDocsInGroup(grp.records)
+      if (docs.length > 0 && !selectedDocId) {
+        setSelectedDocId(docs[0].id)
+      }
     }
   }
 
@@ -655,54 +677,55 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
                     }
                   </button>
 
-                  {/* Expanded: record items */}
+                  {/* Expanded: individual document rows */}
                   {isExpanded && (
                     <div style={{ paddingInlineStart: '0.1875rem' }}>
-                      {group.records.map((r) => {
-                        const recordKey = getItemKey(r)
-                        const isAccepted = decisions[recordKey] === 'accepted'
-                        const isMatched = isRecordMatched(r, recordKey, decisions, showAutoMatched)
-                        const decision = getDecisionLabel(r)
+                      {(() => {
+                        /* Extract unique docs for this group */
+                        const docs = getUniqueDocsInGroup(group.records)
                         const groupOverrideId = overriddenOriginals.get(group.formType)
-                        const rawDuplicate = decision === 'DuplicateData' || decision === 'Duplicate'
-                        /* If override is active, classification depends on whether this record's
-                           docs match the user-selected original */
-                        const isDuplicate = groupOverrideId
-                          ? !(r.documentRefA?.formLabel === groupOverrideId || r.documentRefB?.formLabel === groupOverrideId)
-                          : rawDuplicate
-                        return (
-                          <button
-                            key={recordKey}
-                            type="button"
-                            onClick={() => selectGroup(gIdx)}
-                            style={{
-                              display: 'flex', alignItems: 'center', gap: '0.375rem',
-                              inlineSize: '100%', padding: '0.375rem 0.75rem 0.375rem 2rem',
-                              border: 'none', cursor: 'pointer', textAlign: 'start',
-                              backgroundColor: 'transparent',
-                            }}
-                          >
-                            <input
-                              type="checkbox" checked={isAccepted || isMatched} readOnly
-                              aria-label={`${getRecordLabel(r)} matched`}
-                              style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem', accentColor: 'oklch(0.45 0.18 145)', flexShrink: 0 }}
-                            />
-                            <FileText style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem', color: 'oklch(0.5 0.01 260)', flexShrink: 0 }} />
-                            <span style={{ fontSize: '0.6875rem', fontWeight: 500, color: 'oklch(0.25 0.01 260)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {getRecordLabel(r)}
-                            </span>
-                            <span style={{
-                              marginInlineStart: 'auto', flexShrink: 0,
-                              fontSize: '0.5625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em',
-                              padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem',
-                              backgroundColor: isDuplicate ? 'oklch(0.94 0.04 25)' : 'oklch(0.94 0.04 145)',
-                              color: isDuplicate ? 'oklch(0.45 0.18 25)' : 'oklch(0.35 0.14 145)',
-                            }}>
-                              {isDuplicate ? 'Dup' : 'Not Dup'}
-                            </span>
-                          </button>
-                        )
-                      })}
+                        return docs.map(doc => {
+                          const docIsOriginal = groupOverrideId
+                            ? doc.id === groupOverrideId
+                            : doc.aiOriginal
+                          const isActive = isActiveGroup && selectedDocId === doc.id
+                          return (
+                            <button
+                              key={doc.id}
+                              type="button"
+                              onClick={() => {
+                                selectGroup(gIdx)
+                                setSelectedDocId(doc.id)
+                              }}
+                              style={{
+                                display: 'flex', alignItems: 'center', gap: '0.375rem',
+                                inlineSize: '100%', padding: '0.375rem 0.75rem 0.375rem 2rem',
+                                border: 'none', cursor: 'pointer', textAlign: 'start',
+                                backgroundColor: isActive ? 'oklch(0.96 0.01 240)' : 'transparent',
+                                borderInlineStart: isActive ? '0.125rem solid oklch(0.5 0.18 240)' : '0.125rem solid transparent',
+                              }}
+                            >
+                              <FileText style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem', color: 'oklch(0.5 0.01 260)', flexShrink: 0 }} />
+                              <span style={{
+                                fontSize: '0.6875rem', fontWeight: isActive ? 700 : 500,
+                                color: 'oklch(0.25 0.01 260)',
+                                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                              }}>
+                                {doc.label}
+                              </span>
+                              <span style={{
+                                marginInlineStart: 'auto', flexShrink: 0,
+                                fontSize: '0.5625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em',
+                                padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem',
+                                backgroundColor: docIsOriginal ? 'oklch(0.94 0.04 145)' : 'oklch(0.94 0.04 25)',
+                                color: docIsOriginal ? 'oklch(0.35 0.14 145)' : 'oklch(0.45 0.18 25)',
+                              }}>
+                                {docIsOriginal ? 'Original' : 'Duplicate'}
+                              </span>
+                            </button>
+                          )
+                        })
+                      })()}
                     </div>
                   )}
                 </div>
@@ -821,170 +844,205 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
                       </div>
                     )}
 
-                    {/* Per-document AI analysis cards */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {/* Document tabs -- click to switch between docs */}
+                    <nav style={{
+                      display: 'flex', gap: '0.125rem',
+                      marginBlockEnd: '0.625rem',
+                      borderBlockEnd: '0.0625rem solid oklch(0.91 0.005 260)',
+                    }} aria-label="Document analysis tabs">
                       {groupDocs.map(doc => {
-                        /* Find the record(s) involving this document */
-                        const relatedRecords = activeGroup!.records.filter(
-                          r => r.documentRefA?.formLabel === doc.id || r.documentRefB?.formLabel === doc.id
-                        )
-                        const primaryRec = relatedRecords[0]
-                        if (!primaryRec) return null
-
-                        const docIsOriginal = isDocOriginal(doc.id)
-                        const aiDecision = getDecisionLabel(primaryRec)
-                        const effectiveDecision = isGroupOverridden
-                          ? (docIsOriginal ? 'NotDuplicate' : 'Duplicate')
-                          : (doc.aiOriginal ? 'NotDuplicate' : aiDecision)
-                        const isNotDup = effectiveDecision.includes('Not')
-
-                        /* Mismatches relevant to this doc's records */
-                        const docMismatches = relatedRecords.flatMap(
-                          r => (r.comparedValues ?? []).filter(v => v.valueA !== v.valueB)
-                        )
-                        /* Deduplicate by field name */
-                        const seenFields = new Set<string>()
-                        const uniqueMismatches = docMismatches.filter(v => {
-                          if (seenFields.has(v.field)) return false
-                          seenFields.add(v.field)
-                          return true
-                        })
-
+                        const isActiveDoc = selectedDocId === doc.id
+                        const docIsOrig = isDocOriginal(doc.id)
                         return (
-                          <article
+                          <button
                             key={doc.id}
+                            type="button"
+                            onClick={() => setSelectedDocId(doc.id)}
+                            aria-selected={isActiveDoc}
                             style={{
-                              border: `0.0625rem solid ${docIsOriginal ? 'oklch(0.82 0.06 145)' : 'oklch(0.88 0.01 260)'}`,
-                              borderRadius: '0.3125rem',
-                              backgroundColor: docIsOriginal ? 'oklch(0.98 0.01 145)' : 'oklch(1 0 0)',
-                              overflow: 'hidden',
+                              display: 'flex', alignItems: 'center', gap: '0.25rem',
+                              padding: '0.375rem 0.625rem',
+                              border: 'none', cursor: 'pointer',
+                              fontSize: '0.6875rem', fontWeight: isActiveDoc ? 700 : 500,
+                              color: isActiveDoc ? 'oklch(0.3 0.01 260)' : 'oklch(0.55 0.01 260)',
+                              backgroundColor: isActiveDoc ? 'oklch(0.97 0.003 240)' : 'transparent',
+                              borderBlockEnd: isActiveDoc ? '0.125rem solid oklch(0.5 0.18 240)' : '0.125rem solid transparent',
+                              borderRadius: '0.25rem 0.25rem 0 0',
                             }}
                           >
-                            {/* Document header */}
-                            <header style={{
-                              display: 'flex', alignItems: 'center', gap: '0.375rem',
-                              padding: '0.375rem 0.625rem',
-                              borderBlockEnd: `0.0625rem solid ${docIsOriginal ? 'oklch(0.88 0.04 145)' : 'oklch(0.92 0.005 260)'}`,
-                              backgroundColor: docIsOriginal ? 'oklch(0.96 0.02 145)' : 'oklch(0.97 0.003 260)',
+                            <FileText style={{ inlineSize: '0.6875rem', blockSize: '0.6875rem' }} />
+                            {doc.label}
+                            <span style={{
+                              fontSize: '0.5rem', fontWeight: 700, textTransform: 'uppercase',
+                              padding: '0 0.1875rem', borderRadius: '0.0625rem',
+                              backgroundColor: docIsOrig ? 'oklch(0.94 0.04 145)' : 'oklch(0.94 0.04 25)',
+                              color: docIsOrig ? 'oklch(0.35 0.14 145)' : 'oklch(0.45 0.18 25)',
                             }}>
-                              <FileText style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.45 0.01 260)', flexShrink: 0 }} />
-                              <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.25 0.01 260)' }}>
-                                {doc.label}
-                              </span>
-                              {/* Classification badge */}
-                              <span style={{
-                                marginInlineStart: 'auto',
-                                fontSize: '0.5625rem', fontWeight: 700, textTransform: 'uppercase',
-                                padding: '0.0625rem 0.3125rem', borderRadius: '0.125rem',
-                                backgroundColor: isNotDup ? 'oklch(0.94 0.04 145)' : 'oklch(0.94 0.04 25)',
-                                color: isNotDup ? 'oklch(0.35 0.14 145)' : 'oklch(0.45 0.14 25)',
-                              }}>
-                                {docIsOriginal ? 'Original' : 'Duplicate'}
-                              </span>
-                              {isGroupOverridden && !doc.aiOriginal === docIsOriginal && (
-                                <span style={{
-                                  fontSize: '0.5rem', fontWeight: 600,
-                                  padding: '0 0.1875rem', borderRadius: '0.0625rem',
-                                  backgroundColor: 'oklch(0.92 0.06 60)', color: 'oklch(0.4 0.14 60)',
-                                }}>
-                                  overridden
-                                </span>
-                              )}
-                            </header>
-
-                            {/* Analysis body */}
-                            <div style={{ padding: '0.375rem 0.625rem' }}>
-                              {/* Ruleset + decision */}
-                              <div style={{
-                                display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.25rem',
-                                marginBlockEnd: '0.375rem',
-                              }}>
-                                <span style={{
-                                  fontSize: '0.5625rem', fontWeight: 700, fontFamily: 'var(--font-mono)',
-                                  padding: '0.0625rem 0.25rem', borderRadius: '0.125rem',
-                                  backgroundColor: 'oklch(0.93 0.005 260)', color: 'oklch(0.4 0.01 260)',
-                                }}>
-                                  {primaryRec.appliedRuleSet} / {primaryRec.decisionRule}
-                                </span>
-                                {'matchType' in primaryRec && (primaryRec as DuplicateDataRecord).matchType && (
-                                  <span style={{
-                                    fontSize: '0.5625rem', fontWeight: 600, fontFamily: 'var(--font-mono)',
-                                    padding: '0.0625rem 0.25rem', borderRadius: '0.125rem',
-                                    backgroundColor: 'oklch(0.93 0.01 240)', color: 'oklch(0.4 0.08 240)',
-                                  }}>
-                                    {(primaryRec as DuplicateDataRecord).matchType}
-                                  </span>
-                                )}
-                                <span style={{
-                                  fontSize: '0.5625rem', fontWeight: 700,
-                                  padding: '0.0625rem 0.25rem', borderRadius: '0.125rem',
-                                  backgroundColor: `${primaryRec.confidenceLevel >= 0.9 ? 'oklch(0.94 0.04 145)' : primaryRec.confidenceLevel >= 0.6 ? 'oklch(0.95 0.04 85)' : 'oklch(0.94 0.04 25)'}`,
-                                  color: `${primaryRec.confidenceLevel >= 0.9 ? 'oklch(0.35 0.14 145)' : primaryRec.confidenceLevel >= 0.6 ? 'oklch(0.4 0.12 85)' : 'oklch(0.45 0.14 25)'}`,
-                                }}>
-                                  {Math.round(primaryRec.confidenceLevel * 100)}%
-                                </span>
-                              </div>
-
-                              {/* Decision reasons */}
-                              <ul style={{
-                                margin: 0, paddingInlineStart: '1rem',
-                                display: 'flex', flexDirection: 'column', gap: '0.25rem',
-                                listStyleType: 'disc',
-                              }}>
-                                {primaryRec.decisionReason
-                                  ?.split(/\.(?=\s+[A-Z])/)
-                                  .map(s => s.trim())
-                                  .filter(s => s.length > 0)
-                                  .map(s => s.replace(/\.$/, ''))
-                                  .map((sentence, i) => (
-                                    <li key={`${doc.id}-reason-${i}`} style={{ fontSize: '0.6875rem', lineHeight: '1.5', color: 'oklch(0.3 0.01 260)' }}>
-                                      {sentence}
-                                    </li>
-                                  ))
-                                }
-                                {primaryRec.escalationReason && (
-                                  <li style={{ fontSize: '0.6875rem', lineHeight: '1.5', color: 'oklch(0.45 0.16 60)' }}>
-                                    <strong style={{ color: 'oklch(0.5 0.16 60)' }}>Escalation:</strong>{' '}
-                                    {primaryRec.escalationReason}
-                                  </li>
-                                )}
-                              </ul>
-
-                              {/* Per-doc mismatched fields */}
-                              {uniqueMismatches.length > 0 && (
-                                <div style={{ marginBlockStart: '0.375rem' }}>
-                                  <p style={{
-                                    margin: 0, marginBlockEnd: '0.1875rem',
-                                    fontSize: '0.625rem', fontWeight: 700,
-                                    color: 'oklch(0.45 0.12 25)',
-                                  }}>
-                                    Flagged Fields ({uniqueMismatches.length})
-                                  </p>
-                                  <ul style={{
-                                    margin: 0, paddingInlineStart: '1rem',
-                                    listStyleType: 'circle',
-                                    display: 'flex', flexDirection: 'column', gap: '0.125rem',
-                                  }}>
-                                    {uniqueMismatches.map(v => (
-                                      <li key={v.field} style={{ fontSize: '0.625rem', color: 'oklch(0.35 0.01 260)' }}>
-                                        <span style={{ fontWeight: 600 }}>{v.field}:</span>{' '}
-                                        <span style={{ padding: '0 0.125rem', borderRadius: '0.0625rem', backgroundColor: 'oklch(0.94 0.04 25)', color: 'oklch(0.45 0.14 25)' }}>
-                                          {v.valueA}
-                                        </span>
-                                        {' '}&rarr;{' '}
-                                        <span style={{ padding: '0 0.125rem', borderRadius: '0.0625rem', backgroundColor: 'oklch(0.94 0.04 145)', color: 'oklch(0.35 0.12 145)' }}>
-                                          {v.valueB}
-                                        </span>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              )}
-                            </div>
-                          </article>
+                              {docIsOrig ? 'Orig' : 'Dup'}
+                            </span>
+                          </button>
                         )
                       })}
-                    </div>
+                    </nav>
+
+                    {/* Selected document's AI analysis */}
+                    {(() => {
+                      const doc = groupDocs.find(d => d.id === selectedDocId) ?? groupDocs[0]
+                      if (!doc || !activeGroup) return null
+
+                      const relatedRecords = activeGroup.records.filter(
+                        r => r.documentRefA?.formLabel === doc.id || r.documentRefB?.formLabel === doc.id
+                      )
+                      const primaryRec = relatedRecords[0]
+                      if (!primaryRec) return null
+
+                      const docIsOriginal = isDocOriginal(doc.id)
+                      const aiDecision = getDecisionLabel(primaryRec)
+                      const effectiveDecision = isGroupOverridden
+                        ? (docIsOriginal ? 'NotDuplicate' : 'Duplicate')
+                        : (doc.aiOriginal ? 'NotDuplicate' : aiDecision)
+                      const isNotDup = effectiveDecision.includes('Not')
+
+                      const docMismatches = relatedRecords.flatMap(
+                        r => (r.comparedValues ?? []).filter(v => v.valueA !== v.valueB)
+                      )
+                      const seenFields = new Set<string>()
+                      const uniqueMismatches = docMismatches.filter(v => {
+                        if (seenFields.has(v.field)) return false
+                        seenFields.add(v.field)
+                        return true
+                      })
+
+                      return (
+                        <article style={{
+                          border: `0.0625rem solid ${docIsOriginal ? 'oklch(0.82 0.06 145)' : 'oklch(0.88 0.01 260)'}`,
+                          borderRadius: '0.3125rem',
+                          backgroundColor: docIsOriginal ? 'oklch(0.98 0.01 145)' : 'oklch(1 0 0)',
+                          overflow: 'hidden',
+                        }}>
+                          {/* Document header */}
+                          <header style={{
+                            display: 'flex', alignItems: 'center', gap: '0.375rem',
+                            padding: '0.375rem 0.625rem',
+                            borderBlockEnd: `0.0625rem solid ${docIsOriginal ? 'oklch(0.88 0.04 145)' : 'oklch(0.92 0.005 260)'}`,
+                            backgroundColor: docIsOriginal ? 'oklch(0.96 0.02 145)' : 'oklch(0.97 0.003 260)',
+                          }}>
+                            <FileText style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.45 0.01 260)', flexShrink: 0 }} />
+                            <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.25 0.01 260)' }}>
+                              {doc.label}
+                            </span>
+                            <span style={{
+                              marginInlineStart: 'auto',
+                              fontSize: '0.5625rem', fontWeight: 700, textTransform: 'uppercase',
+                              padding: '0.0625rem 0.3125rem', borderRadius: '0.125rem',
+                              backgroundColor: isNotDup ? 'oklch(0.94 0.04 145)' : 'oklch(0.94 0.04 25)',
+                              color: isNotDup ? 'oklch(0.35 0.14 145)' : 'oklch(0.45 0.14 25)',
+                            }}>
+                              {docIsOriginal ? 'Original' : 'Duplicate'}
+                            </span>
+                            {isGroupOverridden && doc.aiOriginal !== docIsOriginal && (
+                              <span style={{
+                                fontSize: '0.5rem', fontWeight: 600,
+                                padding: '0 0.1875rem', borderRadius: '0.0625rem',
+                                backgroundColor: 'oklch(0.92 0.06 60)', color: 'oklch(0.4 0.14 60)',
+                              }}>
+                                overridden
+                              </span>
+                            )}
+                          </header>
+
+                          {/* Analysis body */}
+                          <div style={{ padding: '0.5rem 0.625rem' }}>
+                            {/* Ruleset + decision + confidence */}
+                            <div style={{
+                              display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.25rem',
+                              marginBlockEnd: '0.5rem',
+                            }}>
+                              <span style={{
+                                fontSize: '0.5625rem', fontWeight: 700, fontFamily: 'var(--font-mono)',
+                                padding: '0.0625rem 0.25rem', borderRadius: '0.125rem',
+                                backgroundColor: 'oklch(0.93 0.005 260)', color: 'oklch(0.4 0.01 260)',
+                              }}>
+                                {primaryRec.appliedRuleSet} / {primaryRec.decisionRule}
+                              </span>
+                              {'matchType' in primaryRec && (primaryRec as DuplicateDataRecord).matchType && (
+                                <span style={{
+                                  fontSize: '0.5625rem', fontWeight: 600, fontFamily: 'var(--font-mono)',
+                                  padding: '0.0625rem 0.25rem', borderRadius: '0.125rem',
+                                  backgroundColor: 'oklch(0.93 0.01 240)', color: 'oklch(0.4 0.08 240)',
+                                }}>
+                                  {(primaryRec as DuplicateDataRecord).matchType}
+                                </span>
+                              )}
+                              <span style={{
+                                fontSize: '0.5625rem', fontWeight: 700,
+                                padding: '0.0625rem 0.25rem', borderRadius: '0.125rem',
+                                backgroundColor: `${primaryRec.confidenceLevel >= 0.9 ? 'oklch(0.94 0.04 145)' : primaryRec.confidenceLevel >= 0.6 ? 'oklch(0.95 0.04 85)' : 'oklch(0.94 0.04 25)'}`,
+                                color: `${primaryRec.confidenceLevel >= 0.9 ? 'oklch(0.35 0.14 145)' : primaryRec.confidenceLevel >= 0.6 ? 'oklch(0.4 0.12 85)' : 'oklch(0.45 0.14 25)'}`,
+                              }}>
+                                {Math.round(primaryRec.confidenceLevel * 100)}%
+                              </span>
+                            </div>
+
+                            {/* Decision reasons */}
+                            <ul style={{
+                              margin: 0, paddingInlineStart: '1rem',
+                              display: 'flex', flexDirection: 'column', gap: '0.25rem',
+                              listStyleType: 'disc',
+                            }}>
+                              {primaryRec.decisionReason
+                                ?.split(/\.(?=\s+[A-Z])/)
+                                .map(s => s.trim())
+                                .filter(s => s.length > 0)
+                                .map(s => s.replace(/\.$/, ''))
+                                .map((sentence, i) => (
+                                  <li key={`${doc.id}-reason-${i}`} style={{ fontSize: '0.6875rem', lineHeight: '1.5', color: 'oklch(0.3 0.01 260)' }}>
+                                    {sentence}
+                                  </li>
+                                ))
+                              }
+                              {primaryRec.escalationReason && (
+                                <li style={{ fontSize: '0.6875rem', lineHeight: '1.5', color: 'oklch(0.45 0.16 60)' }}>
+                                  <strong style={{ color: 'oklch(0.5 0.16 60)' }}>Escalation:</strong>{' '}
+                                  {primaryRec.escalationReason}
+                                </li>
+                              )}
+                            </ul>
+
+                            {/* Mismatched fields */}
+                            {uniqueMismatches.length > 0 && (
+                              <div style={{ marginBlockStart: '0.5rem' }}>
+                                <p style={{
+                                  margin: 0, marginBlockEnd: '0.1875rem',
+                                  fontSize: '0.625rem', fontWeight: 700,
+                                  color: 'oklch(0.45 0.12 25)',
+                                }}>
+                                  Flagged Fields ({uniqueMismatches.length})
+                                </p>
+                                <ul style={{
+                                  margin: 0, paddingInlineStart: '1rem',
+                                  listStyleType: 'circle',
+                                  display: 'flex', flexDirection: 'column', gap: '0.125rem',
+                                }}>
+                                  {uniqueMismatches.map(v => (
+                                    <li key={v.field} style={{ fontSize: '0.625rem', color: 'oklch(0.35 0.01 260)' }}>
+                                      <span style={{ fontWeight: 600 }}>{v.field}:</span>{' '}
+                                      <span style={{ padding: '0 0.125rem', borderRadius: '0.0625rem', backgroundColor: 'oklch(0.94 0.04 25)', color: 'oklch(0.45 0.14 25)' }}>
+                                        {v.valueA}
+                                      </span>
+                                      {' '}&rarr;{' '}
+                                      <span style={{ padding: '0 0.125rem', borderRadius: '0.0625rem', backgroundColor: 'oklch(0.94 0.04 145)', color: 'oklch(0.35 0.12 145)' }}>
+                                        {v.valueB}
+                                      </span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                          </div>
+                        </article>
+                      )
+                    })()}
                   </div>
                 )}
               </div>
