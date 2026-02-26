@@ -4,7 +4,6 @@ import { useState, useMemo } from 'react'
 import {
   CheckCircle2,
   XCircle,
-  Filter,
   ScanSearch,
   X,
 } from 'lucide-react'
@@ -132,34 +131,10 @@ export function FieldComparison({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
 
-      {/* ── Toolbar: summary + view toggle ── */}
+      {/* ── Toolbar: toggle with embedded counts ── */}
       <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        flexWrap: 'wrap', gap: '0.375rem',
+        display: 'flex', alignItems: 'center', gap: '0.5rem',
       }}>
-        {/* Summary */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.75rem' }}>
-          <span style={{
-            display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
-            color: mismatches.length > 0 ? 'oklch(0.5 0.18 25)' : 'oklch(0.45 0.15 145)',
-            fontWeight: 600,
-          }}>
-            <XCircle style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem' }} />
-            {mismatches.length} unmatched
-          </span>
-          <span style={{
-            display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
-            color: 'oklch(0.5 0.01 260)', fontWeight: 500,
-          }}>
-            <CheckCircle2 style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem', color: 'oklch(0.6 0.14 145)' }} />
-            {matched} matched
-          </span>
-          <span style={{ color: 'oklch(0.6 0.01 260)', fontWeight: 400 }}>
-            of {totalFields} fields
-          </span>
-        </div>
-
-        {/* View toggle */}
         <div role="group" aria-label="View mode" style={{
           display: 'flex',
           borderRadius: '0.25rem',
@@ -170,8 +145,8 @@ export function FieldComparison({
             type="button"
             onClick={() => setViewMode('unmatched')}
             style={{
-              display: 'flex', alignItems: 'center', gap: '0.25rem',
-              padding: '0.25rem 0.5rem',
+              display: 'flex', alignItems: 'center', gap: '0.3125rem',
+              padding: '0.3125rem 0.625rem',
               border: 'none', cursor: 'pointer',
               fontSize: '0.6875rem', fontWeight: 600,
               backgroundColor: viewMode === 'unmatched' ? 'oklch(0.35 0.12 25)' : 'oklch(0.98 0.003 260)',
@@ -179,27 +154,48 @@ export function FieldComparison({
             }}
             aria-pressed={viewMode === 'unmatched'}
           >
-            <Filter style={{ inlineSize: '0.6875rem', blockSize: '0.6875rem' }} />
+            <XCircle style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} />
             Unmatched
+            <span style={{
+              padding: '0.0625rem 0.3125rem',
+              borderRadius: '0.5rem',
+              fontSize: '0.625rem', fontWeight: 700,
+              backgroundColor: viewMode === 'unmatched' ? 'oklch(0.95 0.03 25)' : 'oklch(0.93 0.005 260)',
+              color: viewMode === 'unmatched' ? 'oklch(0.4 0.15 25)' : 'oklch(0.45 0.01 260)',
+            }}>
+              {mismatches.length}
+            </span>
           </button>
           <button
             type="button"
             onClick={() => setViewMode('matched')}
             style={{
-              display: 'flex', alignItems: 'center', gap: '0.25rem',
-              padding: '0.25rem 0.5rem',
+              display: 'flex', alignItems: 'center', gap: '0.3125rem',
+              padding: '0.3125rem 0.625rem',
               border: 'none', cursor: 'pointer',
               borderInlineStart: '0.0625rem solid oklch(0.88 0.01 260)',
               fontSize: '0.6875rem', fontWeight: 600,
-              backgroundColor: viewMode === 'matched' ? 'oklch(0.25 0.01 260)' : 'oklch(0.98 0.003 260)',
+              backgroundColor: viewMode === 'matched' ? 'oklch(0.3 0.1 145)' : 'oklch(0.98 0.003 260)',
               color: viewMode === 'matched' ? 'oklch(0.98 0 0)' : 'oklch(0.4 0.01 260)',
             }}
             aria-pressed={viewMode === 'matched'}
           >
-            <CheckCircle2 style={{ inlineSize: '0.6875rem', blockSize: '0.6875rem' }} />
+            <CheckCircle2 style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} />
             Matched
+            <span style={{
+              padding: '0.0625rem 0.3125rem',
+              borderRadius: '0.5rem',
+              fontSize: '0.625rem', fontWeight: 700,
+              backgroundColor: viewMode === 'matched' ? 'oklch(0.92 0.04 145)' : 'oklch(0.93 0.005 260)',
+              color: viewMode === 'matched' ? 'oklch(0.35 0.14 145)' : 'oklch(0.45 0.01 260)',
+            }}>
+              {matched}
+            </span>
           </button>
         </div>
+        <span style={{ fontSize: '0.6875rem', color: 'oklch(0.55 0.01 260)', fontWeight: 400 }}>
+          of {totalFields} fields
+        </span>
       </div>
 
       {/* ── UNMATCHED view (Option B) ── */}
