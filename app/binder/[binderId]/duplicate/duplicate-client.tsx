@@ -125,8 +125,11 @@ function groupByFormCategory(
 /* ── Main Component ── */
 
 export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
-  const { decisions, accept, undo } = useDecisions()
+  const { decisions, accept, undo, override, isOverridden } = useDecisions()
   const { addRuleFromOverride } = useLearnedRules()
+
+  /* Override classification: tracks groups where user flipped which doc is "Original" */
+  const [flippedGroups, setFlippedGroups] = useState<Set<string>>(new Set())
 
   const [showAutoMatched, setShowAutoMatched] = useState(true)
   const groups = useMemo(() => groupByFormCategory(data, decisions, showAutoMatched), [data, decisions, showAutoMatched])
@@ -207,6 +210,36 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
     }
   }
 
+  /* Override handler: flip which doc is Original vs Duplicate for active group.
+     Only 1 document is Original; the override swaps A <-> B classification. */
+  const handleOverrideGroup = () => {
+    if (!activeGroup) return
+    const isAlreadyFlipped = flippedGroups.has(activeGroup.formType)
+
+    setFlippedGroups(prev => {
+      const next = new Set(prev)
+      if (isAlreadyFlipped) next.delete(activeGroup.formType)
+      else next.add(activeGroup.formType)
+      return next
+    })
+
+    for (const r of activeGroup.records) {
+      const key = getItemKey(r)
+      const originalDecision = getDecisionLabel(r)
+      const newDecision = originalDecision.includes('Not') ? 'Duplicate' : 'NotDuplicate'
+      const detail: OverrideDetail = {
+        originalAIDecision: `${getRecordLabel(r)} = ${originalDecision}`,
+        userOverrideDecision: `${getRecordLabel(r)} = ${newDecision}`,
+        overrideReason: null,
+        formType: r.documentRefA?.formType ?? 'Unknown',
+        fieldContext: r.comparedValues ?? [],
+      }
+      override(key, 'duplicate', r.confidenceLevel, detail)
+    }
+  }
+
+  const isGroupFlipped = !!(activeGroup && flippedGroups.has(activeGroup.formType))
+
   /* Field comparison data for the active group */
   const comparedValues = useMemo(() => {
     if (!activeGroup) return []
@@ -267,6 +300,25 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
           </label>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          {/* Override / Flip button */}
+          <button
+            type="button"
+            onClick={handleOverrideGroup}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '0.375rem',
+              padding: '0.375rem 0.75rem',
+              border: '0.0625rem solid oklch(0.82 0.08 60)',
+              borderRadius: '0.25rem',
+              backgroundColor: isGroupFlipped ? 'oklch(0.96 0.04 60)' : 'oklch(1 0 0)',
+              fontSize: '0.75rem', fontWeight: 600,
+              color: 'oklch(0.45 0.12 60)',
+              cursor: 'pointer',
+            }}
+          >
+            <FlipHorizontal style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem' }} />
+            {isGroupFlipped ? 'Undo Override' : 'Override Classification'}
+          </button>
+
           {allGroupAccepted ? (
             <button
               type="button"
@@ -426,7 +478,9 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
                         const isAccepted = decisions[recordKey] === 'accepted'
                         const isMatched = isRecordMatched(r, recordKey, decisions, showAutoMatched)
                         const decision = getDecisionLabel(r)
-                        const isDuplicate = decision === 'DuplicateData' || decision === 'Duplicate'
+                        const isGroupOverridden = flippedGroups.has(group.formType)
+                        const rawDuplicate = decision === 'DuplicateData' || decision === 'Duplicate'
+                        const isDuplicate = isGroupOverridden ? !rawDuplicate : rawDuplicate
                         return (
                           <button
                             key={recordKey}
@@ -655,6 +709,7 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
                     labelB={firstRecord?.documentRefB?.formLabel ?? 'Document B'}
                     docRefA={firstRecord?.documentRefA}
                     docRefB={firstRecord?.documentRefB}
+                    isOverridden={isGroupFlipped}
                   />
                 </div>
               )}
@@ -724,6 +779,15 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
                   <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.3 0.01 260)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {firstRecord?.documentRefA?.formLabel ?? 'Document A'}
                   </span>
+                  <span style={{
+                    marginInlineStart: 'auto', flexShrink: 0,
+                    fontSize: '0.5rem', fontWeight: 700, textTransform: 'uppercase',
+                    padding: '0.0625rem 0.1875rem', borderRadius: '0.125rem',
+                    backgroundColor: isGroupFlipped ? 'oklch(0.94 0.04 145)' : 'oklch(0.94 0.04 25)',
+                    color: isGroupFlipped ? 'oklch(0.35 0.14 145)' : 'oklch(0.45 0.18 25)',
+                  }}>
+                    {isGroupFlipped ? 'Original' : 'Duplicate'}
+                  </span>
                 </div>
                 <div style={{
                   display: 'flex', alignItems: 'center', gap: '0.375rem',
@@ -736,6 +800,15 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
                   <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.3 0.01 260)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {firstRecord?.documentRefB?.formLabel ?? 'Document B'}
                   </span>
+                  <span style={{
+                    marginInlineStart: 'auto', flexShrink: 0,
+                    fontSize: '0.5rem', fontWeight: 700, textTransform: 'uppercase',
+                    padding: '0.0625rem 0.1875rem', borderRadius: '0.125rem',
+                    backgroundColor: isGroupFlipped ? 'oklch(0.94 0.04 25)' : 'oklch(0.94 0.04 145)',
+                    color: isGroupFlipped ? 'oklch(0.45 0.18 25)' : 'oklch(0.35 0.14 145)',
+                  }}>
+                    {isGroupFlipped ? 'Duplicate' : 'Original'}
+                  </span>
                 </div>
               </div>
             )}
@@ -747,12 +820,21 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
                 gridTemplateColumns: '1fr auto 1fr',
                 minBlockSize: '32rem',
               }}>
-                {/* Left PDF */}
+                {/* Left PDF -- Doc A */}
                 <div style={{ overflow: 'auto', padding: '0.5rem' }}>
+                  <div style={{
+                    textAlign: 'center', padding: '0.25rem',
+                    fontSize: '0.625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em',
+                    backgroundColor: isGroupFlipped ? 'oklch(0.94 0.04 145)' : 'oklch(0.94 0.04 25)',
+                    color: isGroupFlipped ? 'oklch(0.35 0.14 145)' : 'oklch(0.45 0.18 25)',
+                    borderRadius: '0.1875rem 0.1875rem 0 0',
+                  }}>
+                    {isGroupFlipped ? 'Original' : 'Duplicate'}
+                  </div>
                   {firstRecord?.documentRefA ? (
                     <PdfPageViewer
                       documentRef={firstRecord.documentRefA}
-                      stamp="SUPERSEDED"
+                      stamp={isGroupFlipped ? 'ORIGINAL' : 'SUPERSEDED'}
                       height="30rem"
                     />
                   ) : (
@@ -797,12 +879,21 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
                   ))}
                 </div>
 
-                {/* Right PDF */}
+                {/* Right PDF -- Doc B */}
                 <div style={{ overflow: 'auto', padding: '0.5rem' }}>
+                  <div style={{
+                    textAlign: 'center', padding: '0.25rem',
+                    fontSize: '0.625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em',
+                    backgroundColor: isGroupFlipped ? 'oklch(0.94 0.04 25)' : 'oklch(0.94 0.04 145)',
+                    color: isGroupFlipped ? 'oklch(0.45 0.18 25)' : 'oklch(0.35 0.14 145)',
+                    borderRadius: '0.1875rem 0.1875rem 0 0',
+                  }}>
+                    {isGroupFlipped ? 'Duplicate' : 'Original'}
+                  </div>
                   {firstRecord?.documentRefB ? (
                     <PdfPageViewer
                       documentRef={firstRecord.documentRefB}
-                      stamp="ORIGINAL"
+                      stamp={isGroupFlipped ? 'SUPERSEDED' : 'ORIGINAL'}
                       height="30rem"
                     />
                   ) : (
