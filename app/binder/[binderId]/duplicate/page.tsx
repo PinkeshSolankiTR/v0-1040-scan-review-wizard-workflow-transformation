@@ -1,5 +1,5 @@
 import type { DuplicateRecord } from '@/lib/types'
-import { DuplicateWithVariants } from './duplicate-with-variants'
+import { DuplicateClient } from './duplicate-client'
 
 async function getData(_binderId: string): Promise<DuplicateRecord[]> {
   const { duplicateA } = await import('@/lib/mock-data/demo-a')
@@ -13,5 +13,5 @@ export default async function DuplicatePage({
 }) {
   const { binderId } = await params
   const data = await getData(binderId)
-  return <DuplicateWithVariants data={data} />
+  return <DuplicateClient data={data} />
 }
