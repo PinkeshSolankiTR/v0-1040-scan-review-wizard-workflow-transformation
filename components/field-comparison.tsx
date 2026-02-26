@@ -23,6 +23,7 @@ export function FieldComparison({
   labelB = 'Comparison',
   docRefA,
   docRefB,
+  isOverridden = false,
 }: {
   values: ComparedValue[]
   labelA?: string
@@ -30,6 +31,8 @@ export function FieldComparison({
   /** Optional doc refs for source crop strip */
   docRefA?: DocumentRef
   docRefB?: DocumentRef
+  /** When true, shows a banner indicating classification was overridden */
+  isOverridden?: boolean
 }) {
   const [viewMode, setViewMode] = useState<ViewMode>('unmatched')
   const [selectedField, setSelectedField] = useState<string | null>(null)
@@ -145,6 +148,32 @@ export function FieldComparison({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+
+      {/* ── Override indicator ── */}
+      {isOverridden && (
+        <div
+          role="status"
+          style={{
+            display: 'flex', alignItems: 'center', gap: '0.375rem',
+            padding: '0.3125rem 0.625rem',
+            borderRadius: '0.25rem',
+            backgroundColor: 'oklch(0.95 0.04 65)',
+            border: '0.0625rem solid oklch(0.85 0.08 65)',
+            fontSize: '0.6875rem', fontWeight: 600,
+            color: 'oklch(0.4 0.12 65)',
+          }}
+        >
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 16 16"
+            fill="currentColor"
+            style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem', flexShrink: 0 }}
+          >
+            <path d="M8 1a7 7 0 100 14A7 7 0 008 1zm-.75 3.25a.75.75 0 011.5 0v4a.75.75 0 01-1.5 0v-4zm.75 7a.75.75 0 110-1.5.75.75 0 010 1.5z" />
+          </svg>
+          Classification overridden -- field values unchanged, column labels reflect new assignment
+        </div>
+      )}
 
       {/* ── Toolbar: toggle with embedded counts ── */}
       <div style={{

@@ -655,6 +655,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                     labelB={rightDoc?.documentRef?.formLabel ?? 'Original'}
                     docRefA={leftDoc?.documentRef}
                     docRefB={rightDoc?.documentRef}
+                    isOverridden={!!(activeGroup && flippedGroups.has(activeGroup.formType))}
                   />
                 </div>
               )}
