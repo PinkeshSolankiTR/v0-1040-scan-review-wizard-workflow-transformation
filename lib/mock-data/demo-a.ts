@@ -4,7 +4,7 @@ const PDF_PATH = '/documents/1TDI-CCH-2024-binder.pdf'
 
 export const binderA: Binder = {
   id: 'demo-a',
-  label: 'Demo Binder A',
+  label: 'Demo Binder',
   taxpayerName: 'Jill Anderson',
   taxYear: 2024,
   totalDocuments: 48,

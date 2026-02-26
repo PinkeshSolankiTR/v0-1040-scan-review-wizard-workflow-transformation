@@ -4,7 +4,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { binderA } from '@/lib/mock-data/demo-a'
-import { binderB } from '@/lib/mock-data/demo-b'
 
 const WIZARD_ICONS: Record<string, React.ElementType> = {
   superseded: FileStack,
@@ -82,14 +81,13 @@ export default function LandingPage() {
         </div>
         <p className="max-w-lg text-base text-muted-foreground leading-relaxed text-pretty">
           AI-assisted review of Superseded, Duplicate, CFA, and NFR decisions.
-          Select a demo binder to explore AI-driven recommendations with
+          Select a binder to explore AI-driven recommendations with
           confidence scoring.
         </p>
       </div>
 
-      <div className="mt-10 grid w-full max-w-2xl gap-6 sm:grid-cols-2">
+      <div className="mt-10 w-full max-w-sm">
         <BinderCard binder={binderA} />
-        <BinderCard binder={binderB} />
       </div>
 
       <p className="mt-10 text-xs text-muted-foreground/60">

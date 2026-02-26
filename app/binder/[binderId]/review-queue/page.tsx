@@ -93,15 +93,13 @@ function buildItems(
   return items.sort((a, b) => a.confidence - b.confidence)
 }
 
-async function getAllData(binderId: string) {
-  const isB = binderId === 'demo-b'
+async function getAllData(_binderId: string) {
   const { supersededA, duplicateA, cfaA, nfrA } = await import('@/lib/mock-data/demo-a')
-  const { supersededB, duplicateB, cfaB, nfrB } = await import('@/lib/mock-data/demo-b')
   return {
-    superseded: isB ? supersededB : supersededA,
-    duplicates: isB ? duplicateB : duplicateA,
-    cfas: isB ? cfaB : cfaA,
-    nfrs: isB ? nfrB : nfrA,
+    superseded: supersededA,
+    duplicates: duplicateA,
+    cfas: cfaA,
+    nfrs: nfrA,
   }
 }
 

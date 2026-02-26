@@ -54,10 +54,9 @@ function WizardCard({ summary, binderId }: { summary: WizardSummary; binderId: s
   )
 }
 
-async function getBinder(binderId: string): Promise<Binder> {
+async function getBinder(_binderId: string): Promise<Binder> {
   const { binderA } = await import('@/lib/mock-data/demo-a')
-  const { binderB } = await import('@/lib/mock-data/demo-b')
-  return binderId === 'demo-b' ? binderB : binderA
+  return binderA
 }
 
 export default async function DashboardPage({

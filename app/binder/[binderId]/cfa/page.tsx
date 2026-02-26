@@ -1,10 +1,9 @@
 import type { CfaRecord } from '@/lib/types'
 import { CfaClient } from './cfa-client'
 
-async function getData(binderId: string): Promise<CfaRecord[]> {
+async function getData(_binderId: string): Promise<CfaRecord[]> {
   const { cfaA } = await import('@/lib/mock-data/demo-a')
-  const { cfaB } = await import('@/lib/mock-data/demo-b')
-  return binderId === 'demo-b' ? cfaB : cfaA
+  return cfaA
 }
 
 export default async function CfaPage({

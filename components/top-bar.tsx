@@ -81,8 +81,7 @@ export function TopBar({ binder }: { binder: Binder }) {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="demo-a">Demo Binder A</SelectItem>
-            <SelectItem value="demo-b">Demo Binder B</SelectItem>
+            <SelectItem value="demo-a">Demo Binder</SelectItem>
           </SelectContent>
         </Select>
 

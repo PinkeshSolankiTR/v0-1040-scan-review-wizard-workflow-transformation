@@ -1,10 +1,9 @@
 import type { SupersededRecord } from '@/lib/types'
 import { SupersededWithVariants } from './superseded-with-variants'
 
-async function getData(binderId: string): Promise<SupersededRecord[]> {
+async function getData(_binderId: string): Promise<SupersededRecord[]> {
   const { supersededA } = await import('@/lib/mock-data/demo-a')
-  const { supersededB } = await import('@/lib/mock-data/demo-b')
-  return binderId === 'demo-b' ? supersededB : supersededA
+  return supersededA
 }
 
 export default async function SupersededPage({
