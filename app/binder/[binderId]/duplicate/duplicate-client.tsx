@@ -790,8 +790,37 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
                 {expandedPanels.has('aiAnalysis') && firstRec && (
                   <div style={{
                     padding: '0.625rem 0.75rem',
-                    backgroundColor: 'oklch(0.98 0.003 240)',
+                    backgroundColor: isGroupOverridden ? 'oklch(0.98 0.02 60)' : 'oklch(0.98 0.003 240)',
                   }}>
+                    {/* Amber warning banner when overridden */}
+                    {isGroupOverridden && (
+                      <div style={{
+                        display: 'flex', flexDirection: 'column', gap: '0.25rem',
+                        padding: '0.5rem 0.625rem',
+                        marginBlockEnd: '0.625rem',
+                        borderRadius: '0.25rem',
+                        border: '0.0625rem solid oklch(0.82 0.08 60)',
+                        backgroundColor: 'oklch(0.96 0.04 60)',
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                          <AlertTriangle style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem', color: 'oklch(0.55 0.16 60)', flexShrink: 0 }} />
+                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'oklch(0.4 0.14 60)' }}>
+                            User has overridden the Original classification
+                          </span>
+                        </div>
+                        <div style={{ paddingInlineStart: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.125rem' }}>
+                          <p style={{ fontSize: '0.6875rem', color: 'oklch(0.4 0.1 60)', margin: 0 }}>
+                            <strong>AI recommended:</strong>{' '}
+                            {aiOriginalId ?? 'Unknown'} = Original; all others = Duplicate
+                          </p>
+                          <p style={{ fontSize: '0.6875rem', color: 'oklch(0.4 0.1 60)', margin: 0 }}>
+                            <strong>User changed to:</strong>{' '}
+                            {effectiveOriginalId} = Original; all others = Duplicate
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Ruleset / Decision rule */}
                     <div style={{
                       display: 'flex', alignItems: 'center', gap: '0.375rem',
@@ -804,14 +833,33 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
                       }}>
                         {firstRec.appliedRuleSet} / {firstRec.decisionRule}
                       </span>
-                      <span style={{
-                        fontSize: '0.625rem', fontWeight: 700,
-                        padding: '0.125rem 0.375rem', borderRadius: '0.1875rem',
-                        backgroundColor: getDecisionLabel(firstRec).includes('Not') ? 'oklch(0.94 0.04 145)' : 'oklch(0.94 0.04 25)',
-                        color: getDecisionLabel(firstRec).includes('Not') ? 'oklch(0.35 0.14 145)' : 'oklch(0.45 0.14 25)',
-                      }}>
-                        {getDecisionLabel(firstRec)}
-                      </span>
+                      {/* Show the effective decision label -- reflects override */}
+                      {(() => {
+                        const aiDecision = getDecisionLabel(firstRec)
+                        const effectiveDecision = isGroupOverridden
+                          ? (isDocOriginal(firstRec.documentRefA?.formLabel) ? 'NotDuplicate' : 'Duplicate')
+                          : aiDecision
+                        const isNotDup = effectiveDecision.includes('Not')
+                        return (
+                          <span style={{
+                            fontSize: '0.625rem', fontWeight: 700,
+                            padding: '0.125rem 0.375rem', borderRadius: '0.1875rem',
+                            backgroundColor: isNotDup ? 'oklch(0.94 0.04 145)' : 'oklch(0.94 0.04 25)',
+                            color: isNotDup ? 'oklch(0.35 0.14 145)' : 'oklch(0.45 0.14 25)',
+                          }}>
+                            {effectiveDecision}
+                            {isGroupOverridden && (
+                              <span style={{
+                                marginInlineStart: '0.25rem', fontSize: '0.5rem', fontWeight: 600,
+                                padding: '0 0.1875rem', borderRadius: '0.0625rem',
+                                backgroundColor: 'oklch(0.92 0.06 60)', color: 'oklch(0.4 0.14 60)',
+                              }}>
+                                overridden
+                              </span>
+                            )}
+                          </span>
+                        )
+                      })()}
                     </div>
 
                     {/* Decision reasons as bullet list */}
