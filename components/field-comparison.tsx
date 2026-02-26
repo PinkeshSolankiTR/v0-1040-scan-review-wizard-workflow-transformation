@@ -196,7 +196,7 @@ export function FieldComparison({
             }}
             aria-pressed={viewMode === 'matched'}
           >
-            <Layers style={{ inlineSize: '0.6875rem', blockSize: '0.6875rem' }} />
+            <CheckCircle2 style={{ inlineSize: '0.6875rem', blockSize: '0.6875rem' }} />
             Matched
           </button>
         </div>
