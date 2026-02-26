@@ -41,7 +41,7 @@ function groupByCategory(values: ComparedValue[]): FieldGroup[] {
 /* ════════════════════════════════════════════════════════════
    View mode type
    ════════════════════════════════════════════════════════════ */
-type ViewMode = 'differences' | 'all'
+type ViewMode = 'unmatched' | 'matched'
 
 /* ════════════════════════════════════════════════════════════
    FieldComparison (B: Differences-Only + C: Grouped Categories)
@@ -60,7 +60,7 @@ export function FieldComparison({
   docRefA?: DocumentRef
   docRefB?: DocumentRef
 }) {
-  const [viewMode, setViewMode] = useState<ViewMode>('differences')
+  const [viewMode, setViewMode] = useState<ViewMode>('unmatched')
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
   const [selectedField, setSelectedField] = useState<string | null>(null)
 
@@ -186,14 +186,14 @@ export function FieldComparison({
             fontWeight: 600,
           }}>
             <XCircle style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem' }} />
-            {mismatches.length} difference{mismatches.length !== 1 ? 's' : ''}
+            {mismatches.length} unmatched
           </span>
           <span style={{
             display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
             color: 'oklch(0.5 0.01 260)', fontWeight: 500,
           }}>
             <CheckCircle2 style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem', color: 'oklch(0.6 0.14 145)' }} />
-            {matched} match
+            {matched} matched
           </span>
           <span style={{ color: 'oklch(0.6 0.01 260)', fontWeight: 400 }}>
             of {totalFields} fields
@@ -209,42 +209,42 @@ export function FieldComparison({
         }}>
           <button
             type="button"
-            onClick={() => setViewMode('differences')}
+            onClick={() => setViewMode('unmatched')}
             style={{
               display: 'flex', alignItems: 'center', gap: '0.25rem',
               padding: '0.25rem 0.5rem',
               border: 'none', cursor: 'pointer',
               fontSize: '0.6875rem', fontWeight: 600,
-              backgroundColor: viewMode === 'differences' ? 'oklch(0.35 0.12 25)' : 'oklch(0.98 0.003 260)',
-              color: viewMode === 'differences' ? 'oklch(0.98 0 0)' : 'oklch(0.4 0.01 260)',
+              backgroundColor: viewMode === 'unmatched' ? 'oklch(0.35 0.12 25)' : 'oklch(0.98 0.003 260)',
+              color: viewMode === 'unmatched' ? 'oklch(0.98 0 0)' : 'oklch(0.4 0.01 260)',
             }}
-            aria-pressed={viewMode === 'differences'}
+            aria-pressed={viewMode === 'unmatched'}
           >
             <Filter style={{ inlineSize: '0.6875rem', blockSize: '0.6875rem' }} />
-            Differences Only
+            Unmatched
           </button>
           <button
             type="button"
-            onClick={() => setViewMode('all')}
+            onClick={() => setViewMode('matched')}
             style={{
               display: 'flex', alignItems: 'center', gap: '0.25rem',
               padding: '0.25rem 0.5rem',
               border: 'none', cursor: 'pointer',
               borderInlineStart: '0.0625rem solid oklch(0.88 0.01 260)',
               fontSize: '0.6875rem', fontWeight: 600,
-              backgroundColor: viewMode === 'all' ? 'oklch(0.25 0.01 260)' : 'oklch(0.98 0.003 260)',
-              color: viewMode === 'all' ? 'oklch(0.98 0 0)' : 'oklch(0.4 0.01 260)',
+              backgroundColor: viewMode === 'matched' ? 'oklch(0.25 0.01 260)' : 'oklch(0.98 0.003 260)',
+              color: viewMode === 'matched' ? 'oklch(0.98 0 0)' : 'oklch(0.4 0.01 260)',
             }}
-            aria-pressed={viewMode === 'all'}
+            aria-pressed={viewMode === 'matched'}
           >
             <Layers style={{ inlineSize: '0.6875rem', blockSize: '0.6875rem' }} />
-            All Fields
+            Matched
           </button>
         </div>
       </div>
 
-      {/* ── DIFFERENCES ONLY view (Option B) ── */}
-      {viewMode === 'differences' && (
+      {/* ── UNMATCHED view (Option B) ── */}
+      {viewMode === 'unmatched' && (
         <>
           {mismatches.length === 0 ? (
             <div style={{
@@ -275,8 +275,8 @@ export function FieldComparison({
         </>
       )}
 
-      {/* ── ALL FIELDS view with category grouping (Option C) ── */}
-      {viewMode === 'all' && (
+      {/* ── MATCHED view with category grouping (Option C) ── */}
+      {viewMode === 'matched' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
           {hasCategories ? (
             groups.map(group => {
