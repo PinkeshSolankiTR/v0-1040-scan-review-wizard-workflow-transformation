@@ -472,10 +472,196 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
         </aside>
 
         {/* ── RIGHT: 3 independently collapsible panels ── */}
+        {/* Order: AI Analysis (top) > Field Comparison > Document Viewer (bottom) */}
+        {/* Strategy: AI-first layout builds user trust in AI over time */}
         <div style={{ display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
 
           {/* ═══════════════════════════════════════════════════════════
-              PANEL 1: Document Thumbnails / Full Document Viewer
+              PANEL 1: AI Analysis (collapsible) -- PRIMARY
+              ═══════════════════════════════════════════════════════════ */}
+          {(() => {
+            const groupSuperseded = activeGroup?.records.find(r => r.decisionType === 'Superseded')
+            const groupOriginal = activeGroup?.records.find(r => r.decisionType === 'Original')
+            const groupCompared = (activeGroup?.records ?? []).flatMap(r => r.comparedValues ?? [])
+              .filter((v, i, arr) => arr.findIndex(x => x.field === v.field) === i)
+            const avgConf = activeGroup
+              ? Math.round((activeGroup.records.reduce((sum, r) => sum + r.confidenceLevel, 0) / activeGroup.records.length) * 100)
+              : 0
+            const confColor = avgConf >= 90 ? 'oklch(0.55 0.17 145)' : avgConf >= 70 ? 'oklch(0.65 0.14 80)' : 'oklch(0.6 0.18 15)'
+            const mismatches = groupCompared.filter(v => !v.match)
+            const isGroupOverridden = activeGroup ? flippedGroups.has(activeGroup.formType) : false
+
+            return (
+              <div style={{ borderBlockEnd: '0.0625rem solid oklch(0.91 0.005 260)' }}>
+                <button
+                  type="button"
+                  onClick={() => togglePanel('aiAnalysis')}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '0.5rem',
+                    inlineSize: '100%', padding: '0.5rem 0.75rem',
+                    border: 'none', cursor: 'pointer', textAlign: 'start',
+                    fontSize: '0.75rem', fontWeight: 700,
+                    color: isGroupOverridden ? 'oklch(0.5 0.16 60)' : 'var(--ai-accent)',
+                    backgroundColor: isGroupOverridden ? 'oklch(0.97 0.04 60)' : 'oklch(0.97 0.005 240)',
+                    textTransform: 'uppercase', letterSpacing: '0.04em',
+                  }}
+                >
+                  {expandedPanels.has('aiAnalysis')
+                    ? <ChevronDown style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} />
+                    : <ChevronRight style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} />
+                  }
+                  <Sparkles style={{ inlineSize: '0.875rem', blockSize: '0.875rem' }} />
+                  AI Analysis
+                  {isGroupOverridden ? (
+                    <span style={{
+                      fontSize: '0.625rem', fontWeight: 700, fontFamily: 'var(--font-mono)',
+                      padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem',
+                      backgroundColor: 'oklch(0.92 0.06 60)', color: 'oklch(0.45 0.16 60)',
+                      marginInlineStart: '0.25rem',
+                    }}>
+                      Manual Override
+                    </span>
+                  ) : (
+                    <span style={{
+                      fontSize: '0.625rem', fontWeight: 700, fontFamily: 'var(--font-mono)',
+                      padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem',
+                      backgroundColor: `${confColor} / 0.12`, color: confColor,
+                      marginInlineStart: '0.25rem',
+                    }}>
+                      {avgConf}%
+                    </span>
+                  )}
+                  {groupSuperseded?.reviewRequired && (
+                    <AlertTriangle style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.6 0.18 60)' }} />
+                  )}
+                </button>
+
+                {expandedPanels.has('aiAnalysis') && (
+                  <div style={{
+                    padding: '0.625rem 0.75rem',
+                    backgroundColor: isGroupOverridden ? 'oklch(0.98 0.02 60)' : 'oklch(0.98 0.003 240)',
+                  }}>
+                    {/* Amber warning banner when overridden */}
+                    {isGroupOverridden && (
+                      <div style={{
+                        display: 'flex', flexDirection: 'column', gap: '0.25rem',
+                        padding: '0.5rem 0.625rem',
+                        marginBlockEnd: '0.625rem',
+                        borderRadius: '0.25rem',
+                        border: '0.0625rem solid oklch(0.82 0.08 60)',
+                        backgroundColor: 'oklch(0.96 0.04 60)',
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                          <AlertTriangle style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem', color: 'oklch(0.55 0.16 60)', flexShrink: 0 }} />
+                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'oklch(0.4 0.14 60)' }}>
+                            User has reversed this classification
+                          </span>
+                        </div>
+                        <div style={{ paddingInlineStart: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.125rem' }}>
+                          <p style={{ fontSize: '0.6875rem', color: 'oklch(0.4 0.1 60)', margin: 0 }}>
+                            <strong>AI recommended:</strong>{' '}
+                            Page {groupSuperseded?.engagementPageId} = Superseded, Page {groupOriginal?.engagementPageId} = Original
+                          </p>
+                          <p style={{ fontSize: '0.6875rem', color: 'oklch(0.4 0.1 60)', margin: 0 }}>
+                            <strong>User changed to:</strong>{' '}
+                            Page {groupSuperseded?.engagementPageId} = Original, Page {groupOriginal?.engagementPageId} = Superseded
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    <ul style={{
+                      margin: 0, paddingInlineStart: '1.25rem',
+                      display: 'flex', flexDirection: 'column', gap: '0.375rem',
+                      listStyleType: 'disc',
+                    }}>
+                      {groupSuperseded?.decisionReason
+                        ?.split(/\.(?=\s+[A-Z])/)
+                        .map(s => s.trim())
+                        .filter(s => s.length > 0)
+                        .map(s => s.replace(/\.$/, ''))
+                        .map((sentence, i) => (
+                          <li key={`reason-${i}`} style={{ fontSize: '0.75rem', lineHeight: '1.5', color: 'oklch(0.3 0.01 260)' }}>
+                            {sentence}
+                          </li>
+                        ))
+                      }
+                      {groupSuperseded?.escalationReason && (
+                        <li style={{ fontSize: '0.75rem', lineHeight: '1.5', color: 'oklch(0.45 0.16 60)' }}>
+                          <strong style={{ color: 'oklch(0.5 0.16 60)' }}>Escalation:</strong>{' '}
+                          {groupSuperseded.escalationReason}
+                        </li>
+                      )}
+                      {mismatches.length > 0 && (
+                        <li style={{ fontSize: '0.75rem', lineHeight: '1.5', color: 'oklch(0.3 0.01 260)' }}>
+                          <strong style={{ color: 'oklch(0.45 0.12 25)' }}>Key Differences ({mismatches.length}):</strong>
+                          <ul style={{ marginBlockStart: '0.25rem', paddingInlineStart: '1rem', listStyleType: 'circle', display: 'flex', flexDirection: 'column', gap: '0.1875rem' }}>
+                            {mismatches.map(v => (
+                              <li key={v.field} style={{ fontSize: '0.6875rem', color: 'oklch(0.35 0.01 260)' }}>
+                                <span style={{ fontWeight: 600 }}>{v.field}:</span>{' '}
+                                <span style={{ padding: '0 0.1875rem', borderRadius: '0.125rem', backgroundColor: 'oklch(0.94 0.04 25)', color: 'oklch(0.45 0.14 25)' }}>
+                                  {v.valueA}
+                                </span>
+                                {' '}&rarr;{' '}
+                                <span style={{ padding: '0 0.1875rem', borderRadius: '0.125rem', backgroundColor: 'oklch(0.94 0.04 145)', color: 'oklch(0.35 0.12 145)' }}>
+                                  {v.valueB}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        </li>
+                      )}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )
+          })()}
+
+          {/* ═══════════════════════════════════════════════════════════
+              PANEL 2: Field Comparison (collapsible)
+              ═══════════════════════════════════════════════════════════ */}
+          {comparedValues.length > 0 && (
+            <div style={{ borderBlockEnd: '0.0625rem solid oklch(0.91 0.005 260)' }}>
+              <button
+                type="button"
+                onClick={() => togglePanel('fieldComparison')}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '0.5rem',
+                  inlineSize: '100%', padding: '0.5rem 0.75rem',
+                  border: 'none', cursor: 'pointer', textAlign: 'start',
+                  fontSize: '0.75rem', fontWeight: 700,
+                  color: 'oklch(0.35 0.01 260)',
+                  backgroundColor: 'oklch(0.97 0.003 260)',
+                  textTransform: 'uppercase', letterSpacing: '0.04em',
+                }}
+              >
+                {expandedPanels.has('fieldComparison')
+                  ? <ChevronDown style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.5 0.01 260)' }} />
+                  : <ChevronRight style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.5 0.01 260)' }} />
+                }
+                <Columns2 style={{ inlineSize: '0.875rem', blockSize: '0.875rem', color: 'oklch(0.45 0.12 240)' }} />
+                Field Comparison
+                <span style={{ fontSize: '0.625rem', fontWeight: 600, color: 'oklch(0.5 0.01 260)', textTransform: 'none', letterSpacing: 'normal' }}>
+                  {comparedValues.filter(v => !v.match).length} of {comparedValues.length} differ
+                </span>
+              </button>
+
+              {expandedPanels.has('fieldComparison') && (
+                <div style={{ padding: '0.5rem 0.75rem', backgroundColor: 'oklch(0.99 0.002 260)' }}>
+                  <FieldComparison
+                    values={comparedValues}
+                    labelA={leftDoc?.documentRef?.formLabel ?? 'Superseded'}
+                    labelB={rightDoc?.documentRef?.formLabel ?? 'Original'}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ═══════════════════════════════════════════════════════════
+              PANEL 3: Document Viewer (bottom -- collapsible thumbnails/full)
+              Future: removable once users trust AI Analysis
               ═══════════════════════════════════════════════════════════ */}
           <div style={{ borderBlockEnd: '0.0625rem solid oklch(0.91 0.005 260)' }}>
             {/* Panel header */}
@@ -697,189 +883,6 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
               </div>
             )}
           </div>
-
-          {/* ═══════════════════════════════════════════════════════════
-              PANEL 2: AI Analysis (collapsible)
-              ═══════════════════════════════════════════════════════════ */}
-          {(() => {
-            const groupSuperseded = activeGroup?.records.find(r => r.decisionType === 'Superseded')
-            const groupOriginal = activeGroup?.records.find(r => r.decisionType === 'Original')
-            const groupCompared = (activeGroup?.records ?? []).flatMap(r => r.comparedValues ?? [])
-              .filter((v, i, arr) => arr.findIndex(x => x.field === v.field) === i)
-            const avgConf = activeGroup
-              ? Math.round((activeGroup.records.reduce((sum, r) => sum + r.confidenceLevel, 0) / activeGroup.records.length) * 100)
-              : 0
-            const confColor = avgConf >= 90 ? 'oklch(0.55 0.17 145)' : avgConf >= 70 ? 'oklch(0.65 0.14 80)' : 'oklch(0.6 0.18 15)'
-            const mismatches = groupCompared.filter(v => !v.match)
-            const isGroupOverridden = activeGroup ? flippedGroups.has(activeGroup.formType) : false
-
-            return (
-              <div style={{ borderBlockEnd: '0.0625rem solid oklch(0.91 0.005 260)' }}>
-                <button
-                  type="button"
-                  onClick={() => togglePanel('aiAnalysis')}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '0.5rem',
-                    inlineSize: '100%', padding: '0.5rem 0.75rem',
-                    border: 'none', cursor: 'pointer', textAlign: 'start',
-                    fontSize: '0.75rem', fontWeight: 700,
-                    color: isGroupOverridden ? 'oklch(0.5 0.16 60)' : 'var(--ai-accent)',
-                    backgroundColor: isGroupOverridden ? 'oklch(0.97 0.04 60)' : 'oklch(0.97 0.005 240)',
-                    textTransform: 'uppercase', letterSpacing: '0.04em',
-                  }}
-                >
-                  {expandedPanels.has('aiAnalysis')
-                    ? <ChevronDown style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} />
-                    : <ChevronRight style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} />
-                  }
-                  <Sparkles style={{ inlineSize: '0.875rem', blockSize: '0.875rem' }} />
-                  AI Analysis
-                  {isGroupOverridden ? (
-                    <span style={{
-                      fontSize: '0.625rem', fontWeight: 700, fontFamily: 'var(--font-mono)',
-                      padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem',
-                      backgroundColor: 'oklch(0.92 0.06 60)', color: 'oklch(0.45 0.16 60)',
-                      marginInlineStart: '0.25rem',
-                    }}>
-                      Manual Override
-                    </span>
-                  ) : (
-                    <span style={{
-                      fontSize: '0.625rem', fontWeight: 700, fontFamily: 'var(--font-mono)',
-                      padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem',
-                      backgroundColor: `${confColor} / 0.12`, color: confColor,
-                      marginInlineStart: '0.25rem',
-                    }}>
-                      {avgConf}%
-                    </span>
-                  )}
-                  {groupSuperseded?.reviewRequired && (
-                    <AlertTriangle style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.6 0.18 60)' }} />
-                  )}
-                </button>
-
-                {expandedPanels.has('aiAnalysis') && (
-                  <div style={{
-                    padding: '0.625rem 0.75rem',
-                    backgroundColor: isGroupOverridden ? 'oklch(0.98 0.02 60)' : 'oklch(0.98 0.003 240)',
-                  }}>
-                    {/* Amber warning banner when overridden */}
-                    {isGroupOverridden && (
-                      <div style={{
-                        display: 'flex', flexDirection: 'column', gap: '0.25rem',
-                        padding: '0.5rem 0.625rem',
-                        marginBlockEnd: '0.625rem',
-                        borderRadius: '0.25rem',
-                        border: '0.0625rem solid oklch(0.82 0.08 60)',
-                        backgroundColor: 'oklch(0.96 0.04 60)',
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                          <AlertTriangle style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem', color: 'oklch(0.55 0.16 60)', flexShrink: 0 }} />
-                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'oklch(0.4 0.14 60)' }}>
-                            User has reversed this classification
-                          </span>
-                        </div>
-                        <div style={{ paddingInlineStart: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.125rem' }}>
-                          <p style={{ fontSize: '0.6875rem', color: 'oklch(0.4 0.1 60)', margin: 0 }}>
-                            <strong>AI recommended:</strong>{' '}
-                            Page {groupSuperseded?.engagementPageId} = Superseded, Page {groupOriginal?.engagementPageId} = Original
-                          </p>
-                          <p style={{ fontSize: '0.6875rem', color: 'oklch(0.4 0.1 60)', margin: 0 }}>
-                            <strong>User changed to:</strong>{' '}
-                            Page {groupSuperseded?.engagementPageId} = Original, Page {groupOriginal?.engagementPageId} = Superseded
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    <ul style={{
-                      margin: 0, paddingInlineStart: '1.25rem',
-                      display: 'flex', flexDirection: 'column', gap: '0.375rem',
-                      listStyleType: 'disc',
-                    }}>
-                      {groupSuperseded?.decisionReason
-                        ?.split(/\.(?=\s+[A-Z])/)
-                        .map(s => s.trim())
-                        .filter(s => s.length > 0)
-                        .map(s => s.replace(/\.$/, ''))
-                        .map((sentence, i) => (
-                          <li key={`reason-${i}`} style={{ fontSize: '0.75rem', lineHeight: '1.5', color: 'oklch(0.3 0.01 260)' }}>
-                            {sentence}
-                          </li>
-                        ))
-                      }
-                      {groupSuperseded?.escalationReason && (
-                        <li style={{ fontSize: '0.75rem', lineHeight: '1.5', color: 'oklch(0.45 0.16 60)' }}>
-                          <strong style={{ color: 'oklch(0.5 0.16 60)' }}>Escalation:</strong>{' '}
-                          {groupSuperseded.escalationReason}
-                        </li>
-                      )}
-                      {mismatches.length > 0 && (
-                        <li style={{ fontSize: '0.75rem', lineHeight: '1.5', color: 'oklch(0.3 0.01 260)' }}>
-                          <strong style={{ color: 'oklch(0.45 0.12 25)' }}>Key Differences ({mismatches.length}):</strong>
-                          <ul style={{ marginBlockStart: '0.25rem', paddingInlineStart: '1rem', listStyleType: 'circle', display: 'flex', flexDirection: 'column', gap: '0.1875rem' }}>
-                            {mismatches.map(v => (
-                              <li key={v.field} style={{ fontSize: '0.6875rem', color: 'oklch(0.35 0.01 260)' }}>
-                                <span style={{ fontWeight: 600 }}>{v.field}:</span>{' '}
-                                <span style={{ padding: '0 0.1875rem', borderRadius: '0.125rem', backgroundColor: 'oklch(0.94 0.04 25)', color: 'oklch(0.45 0.14 25)' }}>
-                                  {v.valueA}
-                                </span>
-                                {' '}&rarr;{' '}
-                                <span style={{ padding: '0 0.1875rem', borderRadius: '0.125rem', backgroundColor: 'oklch(0.94 0.04 145)', color: 'oklch(0.35 0.12 145)' }}>
-                                  {v.valueB}
-                                </span>
-                              </li>
-                            ))}
-                          </ul>
-                        </li>
-                      )}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            )
-          })()}
-
-          {/* ═══════════════════════════════════════════════════════════
-              PANEL 3: Field Comparison (collapsible)
-              ═══════════════════════════════════════════════════════════ */}
-          {comparedValues.length > 0 && (
-            <div style={{ borderBlockEnd: '0.0625rem solid oklch(0.91 0.005 260)' }}>
-              <button
-                type="button"
-                onClick={() => togglePanel('fieldComparison')}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '0.5rem',
-                  inlineSize: '100%', padding: '0.5rem 0.75rem',
-                  border: 'none', cursor: 'pointer', textAlign: 'start',
-                  fontSize: '0.75rem', fontWeight: 700,
-                  color: 'oklch(0.35 0.01 260)',
-                  backgroundColor: 'oklch(0.97 0.003 260)',
-                  textTransform: 'uppercase', letterSpacing: '0.04em',
-                }}
-              >
-                {expandedPanels.has('fieldComparison')
-                  ? <ChevronDown style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.5 0.01 260)' }} />
-                  : <ChevronRight style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.5 0.01 260)' }} />
-                }
-                <Columns2 style={{ inlineSize: '0.875rem', blockSize: '0.875rem', color: 'oklch(0.45 0.12 240)' }} />
-                Field Comparison
-                <span style={{ fontSize: '0.625rem', fontWeight: 600, color: 'oklch(0.5 0.01 260)', textTransform: 'none', letterSpacing: 'normal' }}>
-                  {comparedValues.filter(v => !v.match).length} of {comparedValues.length} differ
-                </span>
-              </button>
-
-              {expandedPanels.has('fieldComparison') && (
-                <div style={{ padding: '0.5rem 0.75rem', backgroundColor: 'oklch(0.99 0.002 260)' }}>
-                  <FieldComparison
-                    values={comparedValues}
-                    labelA={leftDoc?.documentRef?.formLabel ?? 'Superseded'}
-                    labelB={rightDoc?.documentRef?.formLabel ?? 'Original'}
-                  />
-                </div>
-              )}
-            </div>
-          )}
         </div>
       </div>
     </div>
