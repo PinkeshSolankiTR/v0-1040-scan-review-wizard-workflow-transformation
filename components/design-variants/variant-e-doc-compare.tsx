@@ -7,7 +7,7 @@
  * Matches the existing Superseded UI pattern from the production app.
  */
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { PdfPageViewer } from '@/components/pdf-page-viewer'
 import { FieldComparison } from '@/components/field-comparison'
 import { useDecisions } from '@/contexts/decision-context'
@@ -28,8 +28,14 @@ import {
   FlipHorizontal,
   FlipVertical,
   Maximize,
+  Minimize2,
+  Eye,
+  Columns2,
 } from 'lucide-react'
 import type { SupersededRecord, OverrideDetail } from '@/lib/types'
+
+/* ── Panel visibility state ── */
+type PanelId = 'documents' | 'aiAnalysis' | 'fieldComparison'
 
 /* ── Types ── */
 
@@ -73,6 +79,20 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
 
   /* Track local flipped labels per group (key = formType) */
   const [flippedGroups, setFlippedGroups] = useState<Set<string>>(new Set())
+
+  /* 3-panel collapse/expand state: documents starts collapsed (thumbnails), others expanded */
+  const [expandedPanels, setExpandedPanels] = useState<Set<PanelId>>(
+    () => new Set<PanelId>(['aiAnalysis', 'fieldComparison'])
+  )
+  const togglePanel = useCallback((panel: PanelId) => {
+    setExpandedPanels(prev => {
+      const next = new Set(prev)
+      if (next.has(panel)) next.delete(panel)
+      else next.add(panel)
+      return next
+    })
+  }, [])
+  const isDocExpanded = expandedPanels.has('documents')
 
   /* Track which group is expanded and which record is selected */
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
@@ -451,10 +471,236 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
           </div>
         </aside>
 
-        {/* ── RIGHT: Dual document comparison area ── */}
-        <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        {/* ── RIGHT: 3 independently collapsible panels ── */}
+        <div style={{ display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
 
-          {/* ── AI Analysis (collapsible, collapsed by default, bullet points) ── */}
+          {/* ═══════════════════════════════════════════════════════════
+              PANEL 1: Document Thumbnails / Full Document Viewer
+              ═══════════════════════════════════════════════════════════ */}
+          <div style={{ borderBlockEnd: '0.0625rem solid oklch(0.91 0.005 260)' }}>
+            {/* Panel header */}
+            <button
+              type="button"
+              onClick={() => togglePanel('documents')}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '0.5rem',
+                inlineSize: '100%', padding: '0.5rem 0.75rem',
+                border: 'none', cursor: 'pointer', textAlign: 'start',
+                fontSize: '0.75rem', fontWeight: 700,
+                color: 'oklch(0.3 0.01 260)',
+                backgroundColor: 'oklch(0.96 0.005 260)',
+                textTransform: 'uppercase', letterSpacing: '0.04em',
+              }}
+            >
+              {isDocExpanded
+                ? <ChevronDown style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.5 0.01 260)' }} />
+                : <ChevronRight style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.5 0.01 260)' }} />
+              }
+              <Eye style={{ inlineSize: '0.875rem', blockSize: '0.875rem', color: 'oklch(0.45 0.12 240)' }} />
+              Document Viewer
+              {!isDocExpanded && (
+                <span style={{ fontSize: '0.625rem', fontWeight: 500, color: 'oklch(0.5 0.01 260)', textTransform: 'none', letterSpacing: 'normal' }}>
+                  -- Click to expand full view
+                </span>
+              )}
+              {isDocExpanded && (
+                <span style={{
+                  marginInlineStart: 'auto',
+                  display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+                  fontSize: '0.625rem', fontWeight: 500, color: 'oklch(0.5 0.01 260)',
+                  textTransform: 'none', letterSpacing: 'normal',
+                }}>
+                  <Minimize2 style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
+                  Collapse to thumbnails
+                </span>
+              )}
+            </button>
+
+            {/* Thumbnails (shown when collapsed) */}
+            {!isDocExpanded && (
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => togglePanel('documents')}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') togglePanel('documents') }}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: '0.75rem',
+                  padding: '0.75rem',
+                  cursor: 'pointer',
+                  backgroundColor: 'oklch(0.98 0.003 260)',
+                }}
+                aria-label="Click to expand document viewer"
+              >
+                {/* Left thumbnail */}
+                <div style={{
+                  borderRadius: '0.375rem',
+                  overflow: 'hidden',
+                  border: '0.125rem solid oklch(0.88 0.01 260)',
+                  position: 'relative',
+                  blockSize: '10rem',
+                  backgroundColor: 'oklch(0.97 0.003 260)',
+                }}>
+                  {leftDoc?.documentRef ? (
+                    <>
+                      <div style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        padding: '0.25rem 0.5rem',
+                        backgroundColor: 'oklch(0.17 0.01 260)',
+                        color: 'oklch(0.92 0 0)',
+                        fontSize: '0.625rem', fontWeight: 600,
+                      }}>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{leftDoc.documentRef.formLabel}</span>
+                        <span style={{ flexShrink: 0, color: 'oklch(0.65 0 0)' }}>Pg {leftDoc.documentRef.pageNumber}</span>
+                      </div>
+                      <iframe
+                        src={`${leftDoc.documentRef.pdfPath}#page=${leftDoc.documentRef.pageNumber}&toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
+                        title={`Thumbnail: ${leftDoc.documentRef.formLabel}`}
+                        style={{ inlineSize: '100%', blockSize: '7rem', border: 'none', pointerEvents: 'none' }}
+                        tabIndex={-1}
+                      />
+                      <div style={{
+                        position: 'absolute', insetBlockEnd: '0.375rem', insetInlineStart: '0.375rem',
+                        padding: '0.0625rem 0.375rem', borderRadius: '0.1875rem',
+                        fontSize: '0.5625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em',
+                        backgroundColor: activeGroup && flippedGroups.has(activeGroup.formType) ? 'oklch(0.94 0.04 145)' : 'oklch(0.94 0.04 25)',
+                        color: activeGroup && flippedGroups.has(activeGroup.formType) ? 'oklch(0.35 0.14 145)' : 'oklch(0.45 0.18 25)',
+                      }}>
+                        {activeGroup && flippedGroups.has(activeGroup.formType) ? 'Original' : 'Superseded'}
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', blockSize: '100%', fontSize: '0.75rem', color: 'oklch(0.55 0.01 260)' }}>
+                      No document
+                    </div>
+                  )}
+                </div>
+
+                {/* Right thumbnail */}
+                <div style={{
+                  borderRadius: '0.375rem',
+                  overflow: 'hidden',
+                  border: '0.125rem solid oklch(0.88 0.01 260)',
+                  position: 'relative',
+                  blockSize: '10rem',
+                  backgroundColor: 'oklch(0.97 0.003 260)',
+                }}>
+                  {rightDoc?.documentRef ? (
+                    <>
+                      <div style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        padding: '0.25rem 0.5rem',
+                        backgroundColor: 'oklch(0.17 0.01 260)',
+                        color: 'oklch(0.92 0 0)',
+                        fontSize: '0.625rem', fontWeight: 600,
+                      }}>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{rightDoc.documentRef.formLabel}</span>
+                        <span style={{ flexShrink: 0, color: 'oklch(0.65 0 0)' }}>Pg {rightDoc.documentRef.pageNumber}</span>
+                      </div>
+                      <iframe
+                        src={`${rightDoc.documentRef.pdfPath}#page=${rightDoc.documentRef.pageNumber}&toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
+                        title={`Thumbnail: ${rightDoc.documentRef.formLabel}`}
+                        style={{ inlineSize: '100%', blockSize: '7rem', border: 'none', pointerEvents: 'none' }}
+                        tabIndex={-1}
+                      />
+                      <div style={{
+                        position: 'absolute', insetBlockEnd: '0.375rem', insetInlineStart: '0.375rem',
+                        padding: '0.0625rem 0.375rem', borderRadius: '0.1875rem',
+                        fontSize: '0.5625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em',
+                        backgroundColor: activeGroup && flippedGroups.has(activeGroup.formType) ? 'oklch(0.94 0.04 25)' : 'oklch(0.94 0.04 145)',
+                        color: activeGroup && flippedGroups.has(activeGroup.formType) ? 'oklch(0.45 0.18 25)' : 'oklch(0.35 0.14 145)',
+                      }}>
+                        {activeGroup && flippedGroups.has(activeGroup.formType) ? 'Superseded' : 'Original'}
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', blockSize: '100%', fontSize: '0.75rem', color: 'oklch(0.55 0.01 260)' }}>
+                      No document
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Full document viewer (shown when expanded) */}
+            {isDocExpanded && (
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr auto 1fr',
+                minBlockSize: '32rem',
+              }}>
+                {/* Left PDF viewer */}
+                <div style={{ overflow: 'auto', padding: '0.5rem' }}>
+                  {leftDoc?.documentRef ? (
+                    <PdfPageViewer
+                      documentRef={leftDoc.documentRef}
+                      stamp={activeGroup && flippedGroups.has(activeGroup.formType) ? 'ORIGINAL' : 'SUPERSEDED'}
+                      height="30rem"
+                    />
+                  ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', blockSize: '100%', color: 'oklch(0.55 0.01 260)', fontSize: '0.8125rem' }}>
+                      No superseded document
+                    </div>
+                  )}
+                </div>
+
+                {/* Center vertical toolbar */}
+                <div style={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'center',
+                  gap: '0.25rem', padding: '0.5rem 0.25rem',
+                  borderInlineStart: '0.0625rem solid oklch(0.91 0.005 260)',
+                  borderInlineEnd: '0.0625rem solid oklch(0.91 0.005 260)',
+                  backgroundColor: 'oklch(0.97 0.003 260)',
+                }}>
+                  {[
+                    { icon: ZoomIn, label: 'Zoom in' },
+                    { icon: ZoomOut, label: 'Zoom out' },
+                    { icon: Maximize, label: 'Fit to view' },
+                    { icon: RotateCw, label: 'Rotate' },
+                    { icon: FlipHorizontal, label: 'Flip horizontal' },
+                    { icon: FlipVertical, label: 'Flip vertical' },
+                  ].map(({ icon: Icon, label }) => (
+                    <button
+                      key={label}
+                      type="button"
+                      aria-label={label}
+                      title={label}
+                      style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        inlineSize: '2rem', blockSize: '2rem',
+                        border: '0.0625rem solid oklch(0.88 0.01 260)',
+                        borderRadius: '0.25rem',
+                        backgroundColor: 'oklch(1 0 0)', color: 'oklch(0.35 0.01 260)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <Icon style={{ inlineSize: '0.875rem', blockSize: '0.875rem' }} />
+                    </button>
+                  ))}
+                </div>
+
+                {/* Right PDF viewer */}
+                <div style={{ overflow: 'auto', padding: '0.5rem' }}>
+                  {rightDoc?.documentRef ? (
+                    <PdfPageViewer
+                      documentRef={rightDoc.documentRef}
+                      stamp={activeGroup && flippedGroups.has(activeGroup.formType) ? 'SUPERSEDED' : 'ORIGINAL'}
+                      height="30rem"
+                    />
+                  ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', blockSize: '100%', color: 'oklch(0.55 0.01 260)', fontSize: '0.8125rem' }}>
+                      No original document
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ═══════════════════════════════════════════════════════════
+              PANEL 2: AI Analysis (collapsible)
+              ═══════════════════════════════════════════════════════════ */}
           {(() => {
             const groupSuperseded = activeGroup?.records.find(r => r.decisionType === 'Superseded')
             const groupOriginal = activeGroup?.records.find(r => r.decisionType === 'Original')
@@ -468,16 +714,24 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
             const isGroupOverridden = activeGroup ? flippedGroups.has(activeGroup.formType) : false
 
             return (
-              <details open={isGroupOverridden} style={{ borderBlockEnd: '0.0625rem solid oklch(0.91 0.005 260)' }}>
-                <summary style={{
-                  display: 'flex', alignItems: 'center', gap: '0.5rem',
-                  padding: '0.5rem 0.75rem',
-                  fontSize: '0.75rem', fontWeight: 700,
-                  color: isGroupOverridden ? 'oklch(0.5 0.16 60)' : 'var(--ai-accent)',
-                  backgroundColor: isGroupOverridden ? 'oklch(0.97 0.04 60)' : 'oklch(0.97 0.005 240)',
-                  cursor: 'pointer', listStyle: 'none',
-                  textTransform: 'uppercase', letterSpacing: '0.04em',
-                }}>
+              <div style={{ borderBlockEnd: '0.0625rem solid oklch(0.91 0.005 260)' }}>
+                <button
+                  type="button"
+                  onClick={() => togglePanel('aiAnalysis')}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '0.5rem',
+                    inlineSize: '100%', padding: '0.5rem 0.75rem',
+                    border: 'none', cursor: 'pointer', textAlign: 'start',
+                    fontSize: '0.75rem', fontWeight: 700,
+                    color: isGroupOverridden ? 'oklch(0.5 0.16 60)' : 'var(--ai-accent)',
+                    backgroundColor: isGroupOverridden ? 'oklch(0.97 0.04 60)' : 'oklch(0.97 0.005 240)',
+                    textTransform: 'uppercase', letterSpacing: '0.04em',
+                  }}
+                >
+                  {expandedPanels.has('aiAnalysis')
+                    ? <ChevronDown style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} />
+                    : <ChevronRight style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} />
+                  }
                   <Sparkles style={{ inlineSize: '0.875rem', blockSize: '0.875rem' }} />
                   AI Analysis
                   {isGroupOverridden ? (
@@ -502,203 +756,130 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                   {groupSuperseded?.reviewRequired && (
                     <AlertTriangle style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.6 0.18 60)' }} />
                   )}
-                </summary>
-                <div style={{
-                  padding: '0.625rem 0.75rem',
-                  backgroundColor: isGroupOverridden ? 'oklch(0.98 0.02 60)' : 'oklch(0.98 0.003 240)',
-                }}>
-                  {/* ── Amber warning banner when overridden ── */}
-                  {isGroupOverridden && (
-                    <div style={{
-                      display: 'flex', flexDirection: 'column', gap: '0.25rem',
-                      padding: '0.5rem 0.625rem',
-                      marginBlockEnd: '0.625rem',
-                      borderRadius: '0.25rem',
-                      border: '0.0625rem solid oklch(0.82 0.08 60)',
-                      backgroundColor: 'oklch(0.96 0.04 60)',
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                        <AlertTriangle style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem', color: 'oklch(0.55 0.16 60)', flexShrink: 0 }} />
-                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'oklch(0.4 0.14 60)' }}>
-                          User has reversed this classification
-                        </span>
-                      </div>
-                      <div style={{ paddingInlineStart: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.125rem' }}>
-                        <p style={{ fontSize: '0.6875rem', color: 'oklch(0.4 0.1 60)', margin: 0 }}>
-                          <strong>AI recommended:</strong>{' '}
-                          Page {groupSuperseded?.engagementPageId} = Superseded, Page {groupOriginal?.engagementPageId} = Original
-                        </p>
-                        <p style={{ fontSize: '0.6875rem', color: 'oklch(0.4 0.1 60)', margin: 0 }}>
-                          <strong>User changed to:</strong>{' '}
-                          Page {groupSuperseded?.engagementPageId} = Original, Page {groupOriginal?.engagementPageId} = Superseded
-                        </p>
-                      </div>
-                    </div>
-                  )}
+                </button>
 
-                  <ul style={{
-                    margin: 0, paddingInlineStart: '1.25rem',
-                    display: 'flex', flexDirection: 'column', gap: '0.375rem',
-                    listStyleType: 'disc',
+                {expandedPanels.has('aiAnalysis') && (
+                  <div style={{
+                    padding: '0.625rem 0.75rem',
+                    backgroundColor: isGroupOverridden ? 'oklch(0.98 0.02 60)' : 'oklch(0.98 0.003 240)',
                   }}>
-                    {/* Decision reasoning split into individual pointers */}
-                    {/* Split on period + space + uppercase letter (sentence boundary) to avoid breaking decimals like $3,285.60 */}
-                    {groupSuperseded?.decisionReason
-                      ?.split(/\.(?=\s+[A-Z])/)
-                      .map(s => s.trim())
-                      .filter(s => s.length > 0)
-                      .map(s => s.replace(/\.$/, ''))
-                      .map((sentence, i) => (
-                        <li key={`reason-${i}`} style={{ fontSize: '0.75rem', lineHeight: '1.5', color: 'oklch(0.3 0.01 260)' }}>
-                          {sentence}
+                    {/* Amber warning banner when overridden */}
+                    {isGroupOverridden && (
+                      <div style={{
+                        display: 'flex', flexDirection: 'column', gap: '0.25rem',
+                        padding: '0.5rem 0.625rem',
+                        marginBlockEnd: '0.625rem',
+                        borderRadius: '0.25rem',
+                        border: '0.0625rem solid oklch(0.82 0.08 60)',
+                        backgroundColor: 'oklch(0.96 0.04 60)',
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                          <AlertTriangle style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem', color: 'oklch(0.55 0.16 60)', flexShrink: 0 }} />
+                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'oklch(0.4 0.14 60)' }}>
+                            User has reversed this classification
+                          </span>
+                        </div>
+                        <div style={{ paddingInlineStart: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.125rem' }}>
+                          <p style={{ fontSize: '0.6875rem', color: 'oklch(0.4 0.1 60)', margin: 0 }}>
+                            <strong>AI recommended:</strong>{' '}
+                            Page {groupSuperseded?.engagementPageId} = Superseded, Page {groupOriginal?.engagementPageId} = Original
+                          </p>
+                          <p style={{ fontSize: '0.6875rem', color: 'oklch(0.4 0.1 60)', margin: 0 }}>
+                            <strong>User changed to:</strong>{' '}
+                            Page {groupSuperseded?.engagementPageId} = Original, Page {groupOriginal?.engagementPageId} = Superseded
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    <ul style={{
+                      margin: 0, paddingInlineStart: '1.25rem',
+                      display: 'flex', flexDirection: 'column', gap: '0.375rem',
+                      listStyleType: 'disc',
+                    }}>
+                      {groupSuperseded?.decisionReason
+                        ?.split(/\.(?=\s+[A-Z])/)
+                        .map(s => s.trim())
+                        .filter(s => s.length > 0)
+                        .map(s => s.replace(/\.$/, ''))
+                        .map((sentence, i) => (
+                          <li key={`reason-${i}`} style={{ fontSize: '0.75rem', lineHeight: '1.5', color: 'oklch(0.3 0.01 260)' }}>
+                            {sentence}
+                          </li>
+                        ))
+                      }
+                      {groupSuperseded?.escalationReason && (
+                        <li style={{ fontSize: '0.75rem', lineHeight: '1.5', color: 'oklch(0.45 0.16 60)' }}>
+                          <strong style={{ color: 'oklch(0.5 0.16 60)' }}>Escalation:</strong>{' '}
+                          {groupSuperseded.escalationReason}
                         </li>
-                      ))
-                    }
-
-                    {/* Escalation as bullet */}
-                    {groupSuperseded?.escalationReason && (
-                      <li style={{ fontSize: '0.75rem', lineHeight: '1.5', color: 'oklch(0.45 0.16 60)' }}>
-                        <strong style={{ color: 'oklch(0.5 0.16 60)' }}>Escalation:</strong>{' '}
-                        {groupSuperseded.escalationReason}
-                      </li>
-                    )}
-
-                    {/* Key differences as sub-bullets */}
-                    {mismatches.length > 0 && (
-                      <li style={{ fontSize: '0.75rem', lineHeight: '1.5', color: 'oklch(0.3 0.01 260)' }}>
-                        <strong style={{ color: 'oklch(0.45 0.12 25)' }}>Key Differences ({mismatches.length}):</strong>
-                        <ul style={{ marginBlockStart: '0.25rem', paddingInlineStart: '1rem', listStyleType: 'circle', display: 'flex', flexDirection: 'column', gap: '0.1875rem' }}>
-                          {mismatches.map(v => (
-                            <li key={v.field} style={{ fontSize: '0.6875rem', color: 'oklch(0.35 0.01 260)' }}>
-                              <span style={{ fontWeight: 600 }}>{v.field}:</span>{' '}
-                              <span style={{ padding: '0 0.1875rem', borderRadius: '0.125rem', backgroundColor: 'oklch(0.94 0.04 25)', color: 'oklch(0.45 0.14 25)' }}>
-                                {v.valueA}
-                              </span>
-                              {' '}&rarr;{' '}
-                              <span style={{ padding: '0 0.1875rem', borderRadius: '0.125rem', backgroundColor: 'oklch(0.94 0.04 145)', color: 'oklch(0.35 0.12 145)' }}>
-                                {v.valueB}
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
-                      </li>
-                    )}
-                  </ul>
-                </div>
-              </details>
+                      )}
+                      {mismatches.length > 0 && (
+                        <li style={{ fontSize: '0.75rem', lineHeight: '1.5', color: 'oklch(0.3 0.01 260)' }}>
+                          <strong style={{ color: 'oklch(0.45 0.12 25)' }}>Key Differences ({mismatches.length}):</strong>
+                          <ul style={{ marginBlockStart: '0.25rem', paddingInlineStart: '1rem', listStyleType: 'circle', display: 'flex', flexDirection: 'column', gap: '0.1875rem' }}>
+                            {mismatches.map(v => (
+                              <li key={v.field} style={{ fontSize: '0.6875rem', color: 'oklch(0.35 0.01 260)' }}>
+                                <span style={{ fontWeight: 600 }}>{v.field}:</span>{' '}
+                                <span style={{ padding: '0 0.1875rem', borderRadius: '0.125rem', backgroundColor: 'oklch(0.94 0.04 25)', color: 'oklch(0.45 0.14 25)' }}>
+                                  {v.valueA}
+                                </span>
+                                {' '}&rarr;{' '}
+                                <span style={{ padding: '0 0.1875rem', borderRadius: '0.125rem', backgroundColor: 'oklch(0.94 0.04 145)', color: 'oklch(0.35 0.12 145)' }}>
+                                  {v.valueB}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        </li>
+                      )}
+                    </ul>
+                  </div>
+                )}
+              </div>
             )
           })()}
 
-          {/* ── Field Comparison strip (collapsible) ── */}
+          {/* ═══════════════════════════════════════════════════════════
+              PANEL 3: Field Comparison (collapsible)
+              ═══════════════════════════════════════════════════════════ */}
           {comparedValues.length > 0 && (
-            <details style={{
-              borderBlockEnd: '0.0625rem solid oklch(0.91 0.005 260)',
-            }}>
-              <summary style={{
-                display: 'flex', alignItems: 'center', gap: '0.5rem',
-                padding: '0.375rem 0.75rem',
-                fontSize: '0.6875rem', fontWeight: 700,
-                color: 'oklch(0.35 0.01 260)',
-                backgroundColor: 'oklch(0.97 0.003 260)',
-                cursor: 'pointer', listStyle: 'none',
-                textTransform: 'uppercase', letterSpacing: '0.04em',
-              }}>
-                <ChevronRight style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.5 0.01 260)' }} />
+            <div style={{ borderBlockEnd: '0.0625rem solid oklch(0.91 0.005 260)' }}>
+              <button
+                type="button"
+                onClick={() => togglePanel('fieldComparison')}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '0.5rem',
+                  inlineSize: '100%', padding: '0.5rem 0.75rem',
+                  border: 'none', cursor: 'pointer', textAlign: 'start',
+                  fontSize: '0.75rem', fontWeight: 700,
+                  color: 'oklch(0.35 0.01 260)',
+                  backgroundColor: 'oklch(0.97 0.003 260)',
+                  textTransform: 'uppercase', letterSpacing: '0.04em',
+                }}
+              >
+                {expandedPanels.has('fieldComparison')
+                  ? <ChevronDown style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.5 0.01 260)' }} />
+                  : <ChevronRight style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.5 0.01 260)' }} />
+                }
+                <Columns2 style={{ inlineSize: '0.875rem', blockSize: '0.875rem', color: 'oklch(0.45 0.12 240)' }} />
                 Field Comparison
-                <span style={{
-                  fontSize: '0.625rem', fontWeight: 600, color: 'oklch(0.5 0.01 260)',
-                }}>
+                <span style={{ fontSize: '0.625rem', fontWeight: 600, color: 'oklch(0.5 0.01 260)', textTransform: 'none', letterSpacing: 'normal' }}>
                   {comparedValues.filter(v => !v.match).length} of {comparedValues.length} differ
                 </span>
-              </summary>
-              <div style={{ padding: '0.5rem 0.75rem', backgroundColor: 'oklch(0.99 0.002 260)' }}>
-                <FieldComparison
-                  values={comparedValues}
-                  labelA={leftDoc?.documentRef?.formLabel ?? 'Superseded'}
-                  labelB={rightDoc?.documentRef?.formLabel ?? 'Original'}
-                />
-              </div>
-            </details>
+              </button>
+
+              {expandedPanels.has('fieldComparison') && (
+                <div style={{ padding: '0.5rem 0.75rem', backgroundColor: 'oklch(0.99 0.002 260)' }}>
+                  <FieldComparison
+                    values={comparedValues}
+                    labelA={leftDoc?.documentRef?.formLabel ?? 'Superseded'}
+                    labelB={rightDoc?.documentRef?.formLabel ?? 'Original'}
+                  />
+                </div>
+              )}
+            </div>
           )}
-
-          {/* Dual PDF viewers with center toolbar */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr auto 1fr',
-            flex: '1 1 auto',
-            minBlockSize: 0,
-          }}>
-            {/* Left PDF viewer (Superseded / flipped to Original) */}
-            <div style={{ overflow: 'auto', padding: '0.5rem' }}>
-              {leftDoc?.documentRef ? (
-                <PdfPageViewer
-                  documentRef={leftDoc.documentRef}
-                  stamp={activeGroup && flippedGroups.has(activeGroup.formType) ? 'ORIGINAL' : 'SUPERSEDED'}
-                  height="30rem"
-                />
-              ) : (
-                <div style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  blockSize: '100%', color: 'oklch(0.55 0.01 260)', fontSize: '0.8125rem',
-                }}>
-                  No superseded document
-                </div>
-              )}
-            </div>
-
-            {/* Center vertical toolbar */}
-            <div style={{
-              display: 'flex', flexDirection: 'column', alignItems: 'center',
-              gap: '0.25rem', padding: '0.5rem 0.25rem',
-              borderInlineStart: '0.0625rem solid oklch(0.91 0.005 260)',
-              borderInlineEnd: '0.0625rem solid oklch(0.91 0.005 260)',
-              backgroundColor: 'oklch(0.97 0.003 260)',
-            }}>
-              {[
-                { icon: ZoomIn, label: 'Zoom in' },
-                { icon: ZoomOut, label: 'Zoom out' },
-                { icon: Maximize, label: 'Fit to view' },
-                { icon: RotateCw, label: 'Rotate' },
-                { icon: FlipHorizontal, label: 'Flip horizontal' },
-                { icon: FlipVertical, label: 'Flip vertical' },
-              ].map(({ icon: Icon, label }) => (
-                <button
-                  key={label}
-                  type="button"
-                  aria-label={label}
-                  title={label}
-                  style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    inlineSize: '2rem', blockSize: '2rem',
-                    border: '0.0625rem solid oklch(0.88 0.01 260)',
-                    borderRadius: '0.25rem',
-                    backgroundColor: 'oklch(1 0 0)', color: 'oklch(0.35 0.01 260)',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <Icon style={{ inlineSize: '0.875rem', blockSize: '0.875rem' }} />
-                </button>
-              ))}
-            </div>
-
-            {/* Right PDF viewer (Original / flipped to Superseded) */}
-            <div style={{ overflow: 'auto', padding: '0.5rem' }}>
-              {rightDoc?.documentRef ? (
-                <PdfPageViewer
-                  documentRef={rightDoc.documentRef}
-                  stamp={activeGroup && flippedGroups.has(activeGroup.formType) ? 'SUPERSEDED' : 'ORIGINAL'}
-                  height="30rem"
-                />
-              ) : (
-                <div style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  blockSize: '100%', color: 'oklch(0.55 0.01 260)', fontSize: '0.8125rem',
-                }}>
-                  No original document
-                </div>
-              )}
-            </div>
-          </div>
         </div>
       </div>
     </div>
