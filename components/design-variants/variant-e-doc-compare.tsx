@@ -11,6 +11,7 @@ import { useState, useMemo } from 'react'
 import { PdfPageViewer } from '@/components/pdf-page-viewer'
 import { FieldComparison } from '@/components/field-comparison'
 import { useDecisions } from '@/contexts/decision-context'
+import { useLearnedRules } from '@/contexts/learned-rules-context'
 import {
   ChevronDown,
   ChevronRight,
@@ -67,6 +68,7 @@ function groupByFormType(data: SupersededRecord[]): FormGroup[] {
 
 export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
   const { decisions, overrides, accept, undo, override, isOverridden } = useDecisions()
+  const { addRuleFromOverride } = useLearnedRules()
   const groups = useMemo(() => groupByFormType(data), [data])
 
   /* Track local flipped labels per group (key = formType) */
@@ -110,10 +112,27 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
 
   const handleAcceptGroup = () => {
     if (!activeGroup) return
+    const isFlipped = flippedGroups.has(activeGroup.formType)
+
     for (const r of activeGroup.records) {
       const key = `sup-pg${r.engagementPageId}`
       if (decisions[key] !== 'accepted') {
         accept(key, 'superseded', r.confidenceLevel, 'manual')
+      }
+    }
+
+    // If this group was overridden, feed the override into the learned rules pipeline
+    if (isFlipped) {
+      const supRecord = activeGroup.records.find(rec => rec.decisionType === 'Superseded')
+      if (supRecord) {
+        const detail: OverrideDetail = {
+          originalAIDecision: `Page ${supRecord.engagementPageId} = ${supRecord.decisionType}`,
+          userOverrideDecision: `Page ${supRecord.engagementPageId} = ${supRecord.decisionType === 'Superseded' ? 'Original' : 'Superseded'}`,
+          overrideReason: null,
+          formType: supRecord.documentRef?.formType ?? activeGroup.formType,
+          fieldContext: supRecord.comparedValues ?? [],
+        }
+        addRuleFromOverride(detail, 'superseded')
       }
     }
   }

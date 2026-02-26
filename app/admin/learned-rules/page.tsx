@@ -19,7 +19,8 @@ import {
   History,
   BarChart3,
 } from 'lucide-react'
-import { learnedRules, type LearnedRule } from '@/lib/mock-data/learned-rules'
+import type { LearnedRule } from '@/lib/mock-data/learned-rules'
+import { useLearnedRules } from '@/contexts/learned-rules-context'
 
 /* ── Helpers ── */
 function formatDate(iso: string) {
@@ -57,7 +58,7 @@ const CONF_STYLES: Record<string, { bg: string; color: string }> = {
 
 /* ── Main page ── */
 export default function LearnedRulesPage() {
-  const [rules, setRules] = useState<LearnedRule[]>(learnedRules)
+  const { rules, approveRule, rejectRule, deactivateRule, reactivateRule } = useLearnedRules()
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [confFilter, setConfFilter] = useState<ConfFilter>('all')
   const [searchQuery, setSearchQuery] = useState('')
@@ -93,57 +94,18 @@ export default function LearnedRulesPage() {
     totalTriggers: rules.reduce((s, r) => s + r.administration.triggerCount, 0),
   }), [rules])
 
-  /* Actions */
-  const handleApprove = (ruleId: string) => {
-    setRules(prev => prev.map(r => r.ruleId === ruleId ? {
-      ...r,
-      confidence: { ...r.confidence, ruleConfidence: 'high' as const, autoApply: true },
-      administration: {
-        ...r.administration,
-        status: 'active' as const,
-        approvedBy: 'Current Admin',
-        approvedDate: new Date().toISOString(),
-      },
-    } : r))
-  }
+  /* Actions -- delegated to shared context */
+  const handleApprove = (ruleId: string) => approveRule(ruleId)
 
   const handleReject = (ruleId: string) => {
-    setRules(prev => prev.map(r => r.ruleId === ruleId ? {
-      ...r,
-      administration: {
-        ...r.administration,
-        status: 'inactive' as const,
-        rejectedBy: 'Current Admin',
-        rejectedDate: new Date().toISOString(),
-        rejectionReason: rejectionReason || 'No reason provided',
-      },
-    } : r))
+    rejectRule(ruleId, rejectionReason || 'No reason provided')
     setRejectingRuleId(null)
     setRejectionReason('')
   }
 
-  const handleDeactivate = (ruleId: string) => {
-    setRules(prev => prev.map(r => r.ruleId === ruleId ? {
-      ...r,
-      administration: {
-        ...r.administration,
-        status: 'inactive' as const,
-      },
-    } : r))
-  }
+  const handleDeactivate = (ruleId: string) => deactivateRule(ruleId)
 
-  const handleReactivate = (ruleId: string) => {
-    setRules(prev => prev.map(r => r.ruleId === ruleId ? {
-      ...r,
-      administration: {
-        ...r.administration,
-        status: 'active' as const,
-        rejectedBy: null,
-        rejectedDate: null,
-        rejectionReason: null,
-      },
-    } : r))
-  }
+  const handleReactivate = (ruleId: string) => reactivateRule(ruleId)
 
   return (
     <div style={{
