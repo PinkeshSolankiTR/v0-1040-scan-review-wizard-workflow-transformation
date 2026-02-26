@@ -216,15 +216,22 @@ export function FieldComparison({
             </div>
           ) : (
             <div style={{
-              overflow: 'hidden', borderRadius: '0.375rem',
+              borderRadius: '0.375rem',
               border: '0.0625rem solid oklch(0.91 0.005 250)',
+              overflow: 'hidden',
             }}>
+              {/* Sticky header */}
               <table style={{ inlineSize: '100%', borderCollapse: 'collapse' }}>
                 {tableHeader}
-                <tbody>
-                  {mismatches.map(renderRow)}
-                </tbody>
               </table>
+              {/* Scrollable body */}
+              <div style={{ maxBlockSize: '18rem', overflowY: 'auto' }}>
+                <table style={{ inlineSize: '100%', borderCollapse: 'collapse' }}>
+                  <tbody>
+                    {mismatches.map(renderRow)}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </>
@@ -248,15 +255,22 @@ export function FieldComparison({
             </div>
           ) : (
             <div style={{
-              overflow: 'hidden', borderRadius: '0.375rem',
+              borderRadius: '0.375rem',
               border: '0.0625rem solid oklch(0.91 0.005 250)',
+              overflow: 'hidden',
             }}>
+              {/* Sticky header */}
               <table style={{ inlineSize: '100%', borderCollapse: 'collapse' }}>
                 {tableHeader}
-                <tbody>
-                  {matchedFields.map(renderRow)}
-                </tbody>
               </table>
+              {/* Scrollable body */}
+              <div style={{ maxBlockSize: '18rem', overflowY: 'auto' }}>
+                <table style={{ inlineSize: '100%', borderCollapse: 'collapse' }}>
+                  <tbody>
+                    {matchedFields.map(renderRow)}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </>
