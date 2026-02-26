@@ -142,6 +142,17 @@ export interface ComparedValue {
   valueA: string
   valueB: string
   match: boolean
+  /** Bounding-box regions on the source PDFs for snip previews (optional) */
+  cropA?: CropRegion
+  cropB?: CropRegion
+}
+
+/** Normalised bounding-box (0-1 range) relative to the PDF page dimensions */
+export interface CropRegion {
+  x: number
+  y: number
+  width: number
+  height: number
 }
 
 // ── Document Reference ──
