@@ -86,9 +86,21 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
   )
   const togglePanel = useCallback((panel: PanelId) => {
     setExpandedPanels(prev => {
+      if (prev.has(panel)) {
+        /* Collapsing this panel -- just remove it */
+        const next = new Set(prev)
+        next.delete(panel)
+        return next
+      }
+      /* Expanding: if Document Viewer is being opened, collapse the others.
+         If AI Analysis or Field Comparison is opened, collapse Document Viewer
+         but keep the other analysis panel open. */
+      if (panel === 'documents') {
+        return new Set<PanelId>(['documents'])
+      }
       const next = new Set(prev)
-      if (next.has(panel)) next.delete(panel)
-      else next.add(panel)
+      next.add(panel)
+      next.delete('documents')
       return next
     })
   }, [])
