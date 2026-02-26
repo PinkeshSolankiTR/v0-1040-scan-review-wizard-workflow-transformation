@@ -200,7 +200,7 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
         return next
       }
       if (panel === 'documents') {
-        return new Set<PanelId>(['documents'])
+        return new Set<PanelId>(['documents', 'fieldComparison'])
       }
       const next = new Set(prev)
       next.add(panel)
