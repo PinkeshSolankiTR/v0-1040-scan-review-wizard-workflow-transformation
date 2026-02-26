@@ -653,8 +653,6 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                     values={comparedValues}
                     labelA={leftDoc?.documentRef?.formLabel ?? 'Superseded'}
                     labelB={rightDoc?.documentRef?.formLabel ?? 'Original'}
-                    docRefA={leftDoc?.documentRef}
-                    docRefB={rightDoc?.documentRef}
                   />
                 </div>
               )}

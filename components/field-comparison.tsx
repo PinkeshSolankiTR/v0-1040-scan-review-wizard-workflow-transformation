@@ -4,110 +4,12 @@ import { useState, useMemo, useCallback } from 'react'
 import {
   CheckCircle2,
   XCircle,
-  ScanSearch,
   ChevronDown,
   ChevronRight,
   Filter,
   Layers,
 } from 'lucide-react'
-import type { ComparedValue, DocumentRef, CropRegion } from '@/lib/types'
-
-/* ════════════════════════════════════════════════════════════
-   Source Snip -- fixed strip at the bottom (Option A)
-   ════════════════════════════════════════════════════════════ */
-function SourceSnipStrip({
-  field,
-  value,
-  label,
-  docRef,
-  crop,
-}: {
-  field: string
-  value: string
-  label: string
-  docRef: DocumentRef | undefined
-  crop: CropRegion | undefined
-}) {
-  if (!docRef || !crop) {
-    return (
-      <div style={{
-        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-        blockSize: '5rem', borderRadius: '0.25rem',
-        backgroundColor: 'oklch(0.97 0.003 260)',
-        border: '0.0625rem dashed oklch(0.85 0.01 260)',
-      }}>
-        <span style={{ fontSize: '0.6875rem', color: 'oklch(0.55 0.01 260)' }}>
-          No source region available
-        </span>
-      </div>
-    )
-  }
-
-  return (
-    <figure style={{ margin: 0, display: 'flex', flexDirection: 'column', gap: 0 }}>
-      {/* Header bar */}
-      <figcaption style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '0.1875rem 0.5rem',
-        borderRadius: '0.25rem 0.25rem 0 0',
-        backgroundColor: 'oklch(0.2 0.01 260)',
-        color: 'oklch(0.88 0 0)',
-        fontSize: '0.5625rem', fontWeight: 600,
-      }}>
-        <span>{label}</span>
-        <span style={{ color: 'oklch(0.6 0 0)' }}>Pg {docRef.pageNumber}</span>
-      </figcaption>
-
-      {/* Cropped region simulation */}
-      <div style={{
-        position: 'relative',
-        blockSize: '4rem',
-        overflow: 'hidden',
-        borderRadius: '0 0 0.25rem 0.25rem',
-        border: '0.0625rem solid oklch(0.88 0.01 260)',
-        borderBlockStart: 'none',
-        backgroundColor: 'oklch(0.98 0.003 260)',
-      }}>
-        <iframe
-          src={`${docRef.pdfPath}#page=${docRef.pageNumber}&toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
-          title={`Source: ${field} in ${label}`}
-          style={{
-            position: 'absolute',
-            insetBlockStart: `-${crop.y * 600}px`,
-            insetInlineStart: `-${crop.x * 800}px`,
-            inlineSize: '800px',
-            blockSize: '600px',
-            border: 'none',
-            pointerEvents: 'none',
-            transform: 'scale(0.75)',
-            transformOrigin: `${crop.x * 100}% ${crop.y * 100}%`,
-          }}
-          tabIndex={-1}
-        />
-        {/* Value highlight overlay */}
-        <div
-          aria-hidden="true"
-          style={{
-            position: 'absolute',
-            insetBlockStart: '50%', insetInlineStart: '50%',
-            transform: 'translate(-50%, -50%)',
-            padding: '0.125rem 0.375rem',
-            borderRadius: '0.125rem',
-            backgroundColor: 'oklch(0.95 0.08 80 / 0.9)',
-            border: '0.0625rem solid oklch(0.75 0.12 80)',
-            fontSize: '0.6875rem', fontWeight: 700,
-            fontFamily: 'var(--font-mono)',
-            color: 'oklch(0.25 0.01 260)',
-            whiteSpace: 'nowrap',
-            zIndex: 2,
-          }}
-        >
-          {value}
-        </div>
-      </div>
-    </figure>
-  )
-}
+import type { ComparedValue } from '@/lib/types'
 
 /* ════════════════════════════════════════════════════════════
    Category grouping helper
@@ -140,39 +42,27 @@ function groupByCategory(values: ComparedValue[]): FieldGroup[] {
 type ViewMode = 'differences' | 'all'
 
 /* ════════════════════════════════════════════════════════════
-   FieldComparison (B + C + A combined)
+   FieldComparison (B: Differences-Only + C: Grouped Categories)
    ════════════════════════════════════════════════════════════ */
 export function FieldComparison({
   values,
   labelA = 'Source',
   labelB = 'Comparison',
-  docRefA,
-  docRefB,
 }: {
   values: ComparedValue[]
   labelA?: string
   labelB?: string
-  docRefA?: DocumentRef
-  docRefB?: DocumentRef
 }) {
   const [viewMode, setViewMode] = useState<ViewMode>('differences')
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
-  const [selectedField, setSelectedField] = useState<string | null>(null)
 
   const totalFields = values.length
   const mismatches = useMemo(() => values.filter(v => !v.match), [values])
   const matched = totalFields - mismatches.length
-  const hasCrops = values.some(v => v.cropA || v.cropB)
   const hasCategories = values.some(v => v.category)
 
   /* Grouped view data */
   const groups = useMemo(() => groupByCategory(values), [values])
-
-  /* Currently selected field data for source strip */
-  const selectedValue = useMemo(
-    () => values.find(v => v.field === selectedField),
-    [values, selectedField],
-  )
 
   const toggleGroup = useCallback((cat: string) => {
     setCollapsedGroups(prev => {
@@ -183,86 +73,47 @@ export function FieldComparison({
     })
   }, [])
 
-  const handleFieldClick = useCallback((field: string) => {
-    setSelectedField(prev => prev === field ? null : field)
-  }, [])
-
   /* ── Shared row renderer ── */
-  const renderRow = (v: ComparedValue) => {
-    const isSelected = selectedField === v.field
-    const hasSnip = !!(v.cropA || v.cropB)
-
-    return (
-      <tr
-        key={v.field}
-        onClick={hasSnip ? () => handleFieldClick(v.field) : undefined}
-        style={{
-          cursor: hasSnip ? 'pointer' : 'default',
-          backgroundColor: isSelected
-            ? 'oklch(0.95 0.04 240 / 0.35)'
-            : v.match
-              ? 'oklch(1 0 0)'
-              : 'oklch(0.97 0.015 25 / 0.35)',
-          borderBlockStart: '0.0625rem solid oklch(0.93 0.003 250)',
-          outline: isSelected ? '0.125rem solid oklch(0.6 0.14 240)' : 'none',
-          outlineOffset: '-0.125rem',
-          borderRadius: isSelected ? '0.1875rem' : 0,
-        }}
-        aria-selected={isSelected}
-        role={hasSnip ? 'button' : undefined}
-        tabIndex={hasSnip ? 0 : undefined}
-        onKeyDown={hasSnip ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleFieldClick(v.field) } } : undefined}
-      >
-        <td style={{ padding: '0.375rem 0.625rem', fontSize: '0.75rem', fontWeight: 500, color: 'oklch(0.3 0.01 250)' }}>
-          {v.field}
-        </td>
-        <td style={{
-          padding: '0.375rem 0.625rem', fontSize: '0.75rem',
-          fontFamily: 'var(--font-mono)', color: 'oklch(0.25 0.01 250)',
-          borderInlineStart: '0.0625rem solid oklch(0.93 0.003 250)',
-        }}>
-          {v.valueA}
-        </td>
-        <td style={{
-          padding: '0.375rem 0.625rem', fontSize: '0.75rem',
-          fontFamily: 'var(--font-mono)',
-          color: v.match ? 'oklch(0.25 0.01 250)' : 'oklch(0.45 0.18 25)',
-          fontWeight: v.match ? 400 : 600,
-          borderInlineStart: '0.0625rem solid oklch(0.93 0.003 250)',
-        }}>
-          {v.valueB}
-        </td>
-        <td style={{
-          padding: '0.375rem 0.25rem', textAlign: 'center',
-          borderInlineStart: '0.0625rem solid oklch(0.93 0.003 250)',
-          inlineSize: '2rem',
-        }}>
-          {v.match ? (
-            <CheckCircle2 style={{ inlineSize: '0.875rem', blockSize: '0.875rem', color: 'oklch(0.55 0.17 145)', margin: '0 auto' }} aria-label="Match" />
-          ) : (
-            <XCircle style={{ inlineSize: '0.875rem', blockSize: '0.875rem', color: 'oklch(0.55 0.22 25)', margin: '0 auto' }} aria-label="Mismatch" />
-          )}
-        </td>
-        {hasCrops && (
-          <td style={{
-            padding: '0.375rem 0.25rem', textAlign: 'center',
-            borderInlineStart: '0.0625rem solid oklch(0.93 0.003 250)',
-            inlineSize: '2rem',
-          }}>
-            {hasSnip && (
-              <ScanSearch
-                style={{
-                  inlineSize: '0.8125rem', blockSize: '0.8125rem', margin: '0 auto',
-                  color: isSelected ? 'oklch(0.4 0.15 240)' : 'oklch(0.55 0.01 260)',
-                }}
-                aria-hidden="true"
-              />
-            )}
-          </td>
+  const renderRow = (v: ComparedValue) => (
+    <tr
+      key={v.field}
+      style={{
+        backgroundColor: v.match ? 'oklch(1 0 0)' : 'oklch(0.97 0.015 25 / 0.35)',
+        borderBlockStart: '0.0625rem solid oklch(0.93 0.003 250)',
+      }}
+    >
+      <td style={{ padding: '0.375rem 0.625rem', fontSize: '0.75rem', fontWeight: 500, color: 'oklch(0.3 0.01 250)' }}>
+        {v.field}
+      </td>
+      <td style={{
+        padding: '0.375rem 0.625rem', fontSize: '0.75rem',
+        fontFamily: 'var(--font-mono)', color: 'oklch(0.25 0.01 250)',
+        borderInlineStart: '0.0625rem solid oklch(0.93 0.003 250)',
+      }}>
+        {v.valueA}
+      </td>
+      <td style={{
+        padding: '0.375rem 0.625rem', fontSize: '0.75rem',
+        fontFamily: 'var(--font-mono)',
+        color: v.match ? 'oklch(0.25 0.01 250)' : 'oklch(0.45 0.18 25)',
+        fontWeight: v.match ? 400 : 600,
+        borderInlineStart: '0.0625rem solid oklch(0.93 0.003 250)',
+      }}>
+        {v.valueB}
+      </td>
+      <td style={{
+        padding: '0.375rem 0.25rem', textAlign: 'center',
+        borderInlineStart: '0.0625rem solid oklch(0.93 0.003 250)',
+        inlineSize: '2rem',
+      }}>
+        {v.match ? (
+          <CheckCircle2 style={{ inlineSize: '0.875rem', blockSize: '0.875rem', color: 'oklch(0.55 0.17 145)', margin: '0 auto' }} aria-label="Match" />
+        ) : (
+          <XCircle style={{ inlineSize: '0.875rem', blockSize: '0.875rem', color: 'oklch(0.55 0.22 25)', margin: '0 auto' }} aria-label="Mismatch" />
         )}
-      </tr>
-    )
-  }
+      </td>
+    </tr>
+  )
 
   /* ── Table header ── */
   const tableHeader = (
@@ -280,11 +131,6 @@ export function FieldComparison({
         <th style={{ padding: '0.375rem 0.25rem', fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.45 0.01 250)', textAlign: 'center', inlineSize: '2rem', borderInlineStart: '0.0625rem solid oklch(0.91 0.005 250)' }} aria-label="Status">
           {''}
         </th>
-        {hasCrops && (
-          <th style={{ padding: '0.375rem 0.25rem', fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.45 0.01 250)', textAlign: 'center', inlineSize: '2rem', borderInlineStart: '0.0625rem solid oklch(0.91 0.005 250)' }} aria-label="Source">
-            {''}
-          </th>
-        )}
       </tr>
     </thead>
   )
@@ -320,7 +166,7 @@ export function FieldComparison({
         </div>
 
         {/* View toggle */}
-        <div style={{
+        <div role="group" aria-label="View mode" style={{
           display: 'flex',
           borderRadius: '0.25rem',
           overflow: 'hidden',
@@ -399,14 +245,12 @@ export function FieldComparison({
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
           {hasCategories ? (
             groups.map(group => {
-              const isCollapsed = group.allMatch && !collapsedGroups.has(group.category)
-                ? true
-                : collapsedGroups.has(group.category)
+              /* all-match groups: default collapsed, toggle opens
+                 mismatch groups: default open, toggle collapses */
               const isManuallyToggled = collapsedGroups.has(group.category)
-              /* For all-match groups: default collapsed, toggle opens. For mismatch groups: default open, toggle collapses. */
               const shouldShow = group.allMatch
-                ? isManuallyToggled /* toggled = open for all-match */
-                : !isManuallyToggled /* toggled = collapsed for mismatch */
+                ? isManuallyToggled
+                : !isManuallyToggled
 
               return (
                 <div
@@ -485,69 +329,6 @@ export function FieldComparison({
               </table>
             </div>
           )}
-        </div>
-      )}
-
-      {/* ── Fixed source snip strip at the bottom (Option A) ── */}
-      {selectedField && selectedValue && hasCrops && (selectedValue.cropA || selectedValue.cropB) && (
-        <div style={{
-          display: 'flex', flexDirection: 'column', gap: '0.25rem',
-          padding: '0.5rem',
-          borderRadius: '0.375rem',
-          border: '0.0625rem solid oklch(0.82 0.06 240)',
-          backgroundColor: 'oklch(0.97 0.02 240 / 0.3)',
-        }}>
-          {/* Strip header */}
-          <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          }}>
-            <span style={{
-              display: 'flex', alignItems: 'center', gap: '0.375rem',
-              fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.35 0.1 240)',
-            }}>
-              <ScanSearch style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem' }} />
-              Source: {selectedValue.field}
-            </span>
-            <button
-              type="button"
-              onClick={() => setSelectedField(null)}
-              aria-label="Close source preview"
-              style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                inlineSize: '1.25rem', blockSize: '1.25rem',
-                border: '0.0625rem solid oklch(0.82 0.04 240)',
-                borderRadius: '0.1875rem',
-                backgroundColor: 'oklch(0.94 0.03 240)',
-                color: 'oklch(0.4 0.1 240)',
-                cursor: 'pointer',
-                fontSize: '0.75rem', fontWeight: 700, lineHeight: 1,
-              }}
-            >
-              &times;
-            </button>
-          </div>
-
-          {/* Side-by-side crops */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '0.5rem',
-          }}>
-            <SourceSnipStrip
-              field={selectedValue.field}
-              value={selectedValue.valueA}
-              label={labelA}
-              docRef={docRefA}
-              crop={selectedValue.cropA}
-            />
-            <SourceSnipStrip
-              field={selectedValue.field}
-              value={selectedValue.valueB}
-              label={labelB}
-              docRef={docRefB}
-              crop={selectedValue.cropB}
-            />
-          </div>
         </div>
       )}
     </div>
