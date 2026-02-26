@@ -103,24 +103,39 @@ export function FieldComparison({
     )
   }
 
-  /* ── Table header ── */
-  const tableHeader = (
+  /* ── Shared th style for sticky header ── */
+  const thBase: React.CSSProperties = {
+    padding: '0.375rem 0.625rem',
+    fontSize: '0.6875rem',
+    fontWeight: 700,
+    color: 'oklch(0.45 0.01 250)',
+    textAlign: 'start',
+    textTransform: 'uppercase',
+    letterSpacing: '0.04em',
+    backgroundColor: 'oklch(0.96 0.005 250)',
+    position: 'sticky',
+    insetBlockStart: 0,
+    zIndex: 1,
+  }
+
+  /* ── Table header (sticky within scrollable container) ── */
+  const stickyHeader = (
     <thead>
-      <tr style={{ backgroundColor: 'oklch(0.96 0.005 250)' }}>
-        <th style={{ padding: '0.375rem 0.625rem', fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.45 0.01 250)', textAlign: 'start', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+      <tr>
+        <th style={{ ...thBase }}>
           Field
         </th>
-        <th style={{ padding: '0.375rem 0.625rem', fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.45 0.01 250)', textAlign: 'start', textTransform: 'uppercase', letterSpacing: '0.04em', borderInlineStart: '0.0625rem solid oklch(0.91 0.005 250)' }}>
+        <th style={{ ...thBase, borderInlineStart: '0.0625rem solid oklch(0.91 0.005 250)' }}>
           {labelA}
         </th>
-        <th style={{ padding: '0.375rem 0.625rem', fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.45 0.01 250)', textAlign: 'start', textTransform: 'uppercase', letterSpacing: '0.04em', borderInlineStart: '0.0625rem solid oklch(0.91 0.005 250)' }}>
+        <th style={{ ...thBase, borderInlineStart: '0.0625rem solid oklch(0.91 0.005 250)' }}>
           {labelB}
         </th>
-        <th style={{ padding: '0.375rem 0.25rem', fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.45 0.01 250)', textAlign: 'center', inlineSize: '2rem', borderInlineStart: '0.0625rem solid oklch(0.91 0.005 250)' }} aria-label="Status">
+        <th style={{ ...thBase, padding: '0.375rem 0.25rem', textAlign: 'center', inlineSize: '2rem', borderInlineStart: '0.0625rem solid oklch(0.91 0.005 250)' }} aria-label="Status">
           {''}
         </th>
         {hasCrops && (
-          <th style={{ padding: '0.375rem 0.25rem', fontSize: '0.5625rem', fontWeight: 700, color: 'oklch(0.5 0.01 250)', textAlign: 'center', inlineSize: '2rem', borderInlineStart: '0.0625rem solid oklch(0.91 0.005 250)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+          <th style={{ ...thBase, padding: '0.375rem 0.25rem', fontSize: '0.5625rem', textAlign: 'center', inlineSize: '2rem', borderInlineStart: '0.0625rem solid oklch(0.91 0.005 250)' }}>
             Src
           </th>
         )}
@@ -219,19 +234,15 @@ export function FieldComparison({
               borderRadius: '0.375rem',
               border: '0.0625rem solid oklch(0.91 0.005 250)',
               overflow: 'hidden',
+              maxBlockSize: '18rem',
+              overflowY: 'auto',
             }}>
-              {/* Sticky header */}
               <table style={{ inlineSize: '100%', borderCollapse: 'collapse' }}>
-                {tableHeader}
+                {stickyHeader}
+                <tbody>
+                  {mismatches.map(renderRow)}
+                </tbody>
               </table>
-              {/* Scrollable body */}
-              <div style={{ maxBlockSize: '18rem', overflowY: 'auto' }}>
-                <table style={{ inlineSize: '100%', borderCollapse: 'collapse' }}>
-                  <tbody>
-                    {mismatches.map(renderRow)}
-                  </tbody>
-                </table>
-              </div>
             </div>
           )}
         </>
@@ -258,19 +269,15 @@ export function FieldComparison({
               borderRadius: '0.375rem',
               border: '0.0625rem solid oklch(0.91 0.005 250)',
               overflow: 'hidden',
+              maxBlockSize: '18rem',
+              overflowY: 'auto',
             }}>
-              {/* Sticky header */}
               <table style={{ inlineSize: '100%', borderCollapse: 'collapse' }}>
-                {tableHeader}
+                {stickyHeader}
+                <tbody>
+                  {matchedFields.map(renderRow)}
+                </tbody>
               </table>
-              {/* Scrollable body */}
-              <div style={{ maxBlockSize: '18rem', overflowY: 'auto' }}>
-                <table style={{ inlineSize: '100%', borderCollapse: 'collapse' }}>
-                  <tbody>
-                    {matchedFields.map(renderRow)}
-                  </tbody>
-                </table>
-              </div>
             </div>
           )}
         </>
