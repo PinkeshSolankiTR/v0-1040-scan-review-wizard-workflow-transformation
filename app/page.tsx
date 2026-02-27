@@ -8,6 +8,7 @@ import {
   Clock,
   Target,
   Zap,
+  FileText,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -31,6 +32,7 @@ const PHASES = [
       { label: 'AI Rule Sets', value: '4', icon: Zap },
     ],
     href: '/phase-1',
+    prdHref: '/prd/phase-1',
     actionLabel: 'Explore Phase 1',
     available: true,
   },
@@ -51,6 +53,7 @@ const PHASES = [
       { label: 'Team', value: 'Other', icon: Zap },
     ],
     href: '#',
+    prdHref: '/prd/phase-2',
     actionLabel: 'Coming Soon',
     available: false,
   },
@@ -71,6 +74,7 @@ const PHASES = [
       { label: 'Status', value: 'Future', icon: Zap },
     ],
     href: '#',
+    prdHref: '/prd/phase-3',
     actionLabel: 'Coming Soon',
     available: false,
   },
@@ -124,7 +128,13 @@ function PhaseCard({
           ))}
         </div>
 
-        <div className="mt-auto pt-2">
+        <div className="mt-auto flex flex-col gap-2 pt-2">
+          <Button variant="outline" size="sm" asChild className="w-full">
+            <Link href={phase.prdHref}>
+              <FileText className="size-3.5" />
+              PRD Context
+            </Link>
+          </Button>
           {phase.available ? (
             <Button asChild className="w-full">
               <Link href={phase.href}>

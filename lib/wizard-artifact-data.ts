@@ -1,72 +1,5 @@
 import { FileStack, Copy, Link2, FileSearch } from 'lucide-react'
-import type { WizardArtifactData, WizardSection } from '@/components/wizard-artifact-page'
-
-/*
- * PRD content reproduced verbatim from the finalized and leadership-reviewed
- * Product Requirements Document. No edits, no summarization.
- */
-const PHASE_1_PRD_SECTIONS: WizardSection[] = [
-  {
-    title: 'Background & Problem Statement',
-    content: [
-      'Currently, users navigate seven dynamic wizards, each with multiple steps, to complete verification. This process is time-consuming (minutes approx. for 150 pg. binder), repetitive, and leads to user unproductive time. Many steps are triggered dynamically based on document data, making the workflow unpredictable and lengthy.',
-      'The existing wizard experience is not significantly changing, but it remains page-by-page and requires excessive clicks. Users want a more efficient, intuitive, and less repetitive process. There are also issues with unclear actions, slow performance, and missing guidance.',
-    ],
-  },
-  {
-    title: 'Objectives',
-    content: [
-      'Remove at least four of the seven wizard steps, streamlining the workflow.',
-      'Refine the wizard to minimize clicks and improve usability.',
-      'Integrate business rules and manual steps into an AI module for automation.',
-      'Reduce verification time by 50% or less for the remaining wizards.',
-      'Create a test harness to validate integrated rules.',
-    ],
-  },
-  {
-    title: 'Functional Requirements',
-    content: [
-      'Redundant Wizard Identification: Analyse usage frequency and necessity for each wizard step across binder types. Catalog all existing wizards (e.g., Pre-Verification, Verification, Superseded, CFA, Duplicate Data, NFR, Finalization). Identify wizards that can be eliminated without impacting compliance or data integrity. Document manual steps currently performed in these wizards.',
-      'Streamlined Wizard: Fewer clicks, introduce the drag & drop in verification wizard, improved navigation, and clearer instructions.',
-      'Change view: Document on left and fields or split view.',
-      'AI Integration: Automate business rules and manual steps.',
-      'Bulk Actions: Enable bulk review or Page and Field delete.',
-      'Legend & Guidance: Display legend icons and tooltips for field types and statuses.',
-      'Test Harness: Validate the effectiveness of integrated rules.',
-    ],
-  },
-  {
-    title: 'Workflow Redesign',
-    content: [
-      'Remove at least four redundant wizard steps in Phase 1. (Pre-verification, Superseded, Duplicate data & Finalization wizard)',
-      'AI automates tasks, presents the results to the customer with a confidence indicator or %, and requests human validation for actions when AI confidence is low.',
-      'Make sure export occurs once the final required action has been completed, according to admin settings.',
-      'Update UI as necessary to reflect the new streamlined workflow.',
-    ],
-  },
-  {
-    title: 'Change Management',
-    content: [
-      'Provide training materials and documentation for users on the new workflow.',
-      'Implement in-app notifications to guide users through the updated process.',
-    ],
-  },
-  {
-    title: 'Audit & Compliance',
-    content: [
-      'Maintain audit logs for wizard step completion and skipped steps.',
-      'Ensure regulatory compliance for any eliminated steps.',
-    ],
-  },
-  {
-    title: 'Success Metrics',
-    content: [
-      'Wizard Steps Eliminated: \u2265 4 steps in Phase 1.',
-      'Verification Time Reduction: \u2265 50% in Phase 2.',
-      'User Satisfaction: \u2265 80% positive feedback post-implementation.',
-    ],
-  },
-]
+import type { WizardArtifactData } from '@/components/wizard-artifact-page'
 
 export const supersededData: WizardArtifactData = {
   id: 'superseded',
@@ -74,9 +7,6 @@ export const supersededData: WizardArtifactData = {
   accentColor: 'oklch(0.55 0.18 290)',
   icon: FileStack,
   prototypeRoute: '/binder/demo-a/superseded',
-  prd: {
-    sections: PHASE_1_PRD_SECTIONS,
-  },
   decisionSpec: {
     version: 'v1.0',
     sections: [
@@ -311,9 +241,6 @@ export const duplicateData: WizardArtifactData = {
   accentColor: 'oklch(0.55 0.15 250)',
   icon: Copy,
   prototypeRoute: '/binder/demo-a/duplicate',
-  prd: {
-    sections: PHASE_1_PRD_SECTIONS,
-  },
   decisionSpec: {
     version: 'v1.0',
     sections: [
@@ -497,9 +424,6 @@ export const cfaData: WizardArtifactData = {
   accentColor: 'oklch(0.55 0.17 165)',
   icon: Link2,
   prototypeRoute: '/binder/demo-a/cfa',
-  prd: {
-    sections: PHASE_1_PRD_SECTIONS,
-  },
   decisionSpec: {
   version: 'v1.0',
     sections: [
@@ -638,9 +562,6 @@ export const nfrData: WizardArtifactData = {
   accentColor: 'oklch(0.6 0.15 60)',
   icon: FileSearch,
   prototypeRoute: '/binder/demo-a/nfr',
-  prd: {
-    sections: PHASE_1_PRD_SECTIONS,
-  },
   decisionSpec: {
   version: 'v1.0',
     sections: [

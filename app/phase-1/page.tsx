@@ -7,7 +7,6 @@ import {
   Copy,
   Link2,
   FileSearch,
-  FileText,
   BookOpen,
   Brain,
   RefreshCw,
@@ -30,7 +29,6 @@ const WIZARDS = [
     decisionTypes: 'Original / Superseded / RetainBoth',
     confidenceBands: '4 bands',
     artifacts: [
-      { label: 'PRD Context', icon: FileText, type: 'prd' },
       { label: 'AI Decision Spec', icon: Brain, type: 'decision-spec' },
       { label: 'LLM Prompts', icon: BookOpen, type: 'prompts' },
       { label: 'Feedback Loop', icon: RefreshCw, type: 'feedback-loop' },
@@ -49,7 +47,6 @@ const WIZARDS = [
     decisionTypes: 'Duplicate / NotDuplicate',
     confidenceBands: '3 bands',
     artifacts: [
-      { label: 'PRD Context', icon: FileText, type: 'prd' },
       { label: 'AI Decision Spec', icon: Brain, type: 'decision-spec' },
       { label: 'LLM Prompts', icon: BookOpen, type: 'prompts' },
       { label: 'Feedback Loop', icon: RefreshCw, type: 'feedback-loop' },
@@ -68,7 +65,6 @@ const WIZARDS = [
     decisionTypes: 'Associate / AddForm / Unmatched',
     confidenceBands: '4 bands',
     artifacts: [
-      { label: 'PRD Context', icon: FileText, type: 'prd' },
       { label: 'AI Decision Spec', icon: Brain, type: 'decision-spec' },
       { label: 'LLM Prompts', icon: BookOpen, type: 'prompts' },
       { label: 'Feedback Loop', icon: RefreshCw, type: 'feedback-loop' },
@@ -87,7 +83,6 @@ const WIZARDS = [
     decisionTypes: 'Match / Unmatched / Supersede / Merge',
     confidenceBands: '4 bands',
     artifacts: [
-      { label: 'PRD Context', icon: FileText, type: 'prd' },
       { label: 'AI Decision Spec', icon: Brain, type: 'decision-spec' },
       { label: 'LLM Prompts', icon: BookOpen, type: 'prompts' },
       { label: 'Feedback Loop', icon: RefreshCw, type: 'feedback-loop' },
