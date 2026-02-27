@@ -8,8 +8,8 @@ const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: '1040Scan Post-Verification AI Review',
-  description: 'AI-assisted post-verification review for 1040Scan tax document processing',
+  title: '1040SCAN — Review Wizard Web Workflow Transformation',
+  description: 'AI-powered transformation of the 1040SCAN post-verification review process — Product Strategy & Prototypes',
   generator: 'v0.app',
   icons: {
     icon: [

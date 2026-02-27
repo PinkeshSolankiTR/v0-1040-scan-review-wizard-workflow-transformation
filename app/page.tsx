@@ -1,98 +1,198 @@
 import Link from 'next/link'
-import { Sparkles, ArrowRight, FileStack, Copy, Link2, FileSearch } from 'lucide-react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Sparkles,
+  ArrowRight,
+  Layers,
+  CheckCircle2,
+  BarChart3,
+  Clock,
+  Target,
+  Zap,
+} from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { binderA } from '@/lib/mock-data/demo-a'
 
-const WIZARD_ICONS: Record<string, React.ElementType> = {
-  superseded: FileStack,
-  duplicate: Copy,
-  cfa: Link2,
-  nfr: FileSearch,
-}
+const PHASES = [
+  {
+    id: 'phase-1',
+    phase: 'Phase 1',
+    title: 'Elimination of Wizard',
+    epic: 'Epic 4651627',
+    status: 'Active',
+    statusColor: 'bg-[var(--confidence-high)] text-white',
+    borderColor: 'border-l-[var(--confidence-high)]',
+    icon: Layers,
+    description:
+      'Remove 4 of 7 wizard steps through AI-automated business rules. AI analyzes documents and presents results with confidence indicators for reviewer validation.',
+    metrics: [
+      { label: 'Target Time Reduction', value: '50%', icon: Clock },
+      { label: 'Wizards Prototyped', value: '4/4', icon: Target },
+      { label: 'AI Rule Sets', value: '4', icon: Zap },
+    ],
+    href: '/phase-1',
+    actionLabel: 'Explore Phase 1',
+    available: true,
+  },
+  {
+    id: 'phase-2',
+    phase: 'Phase 2',
+    title: 'Quick Validation',
+    epic: 'Epic 4656656',
+    status: 'In Progress',
+    statusColor: 'bg-[var(--confidence-medium)] text-foreground',
+    borderColor: 'border-l-[var(--confidence-medium)]',
+    icon: CheckCircle2,
+    description:
+      'Unified validation view replacing the wizard-driven flow. Dashboard with field-level validation, AI confidence scores, and page-level review.',
+    metrics: [
+      { label: 'Target Time Savings', value: '20%', icon: Clock },
+      { label: 'AI Accuracy Target', value: '95%', icon: Target },
+      { label: 'Team', value: 'Other', icon: Zap },
+    ],
+    href: '#',
+    actionLabel: 'Coming Soon',
+    available: false,
+  },
+  {
+    id: 'phase-3',
+    phase: 'Phase 3',
+    title: 'Dashboard & Gamification',
+    epic: 'Epic 4651646',
+    status: 'Planned',
+    statusColor: 'bg-muted text-muted-foreground',
+    borderColor: 'border-l-border',
+    icon: BarChart3,
+    description:
+      'Analytics dashboard with badges, leaderboards, progress bars, streak counters, and actionable insights. Built-in feedback mechanism for continuous improvement.',
+    metrics: [
+      { label: 'Engagement Target', value: '60%', icon: Clock },
+      { label: 'Efficiency Increase', value: '15%', icon: Target },
+      { label: 'Status', value: 'Future', icon: Zap },
+    ],
+    href: '#',
+    actionLabel: 'Coming Soon',
+    available: false,
+  },
+]
 
-function BinderCard({ binder }: { binder: typeof binderA }) {
-  const reviewNeeded = binder.summary.reduce((s, w) => s + w.mediumConfidence + w.lowConfidence, 0)
-  const autoApplied = binder.summary.reduce((s, w) => s + w.highConfidence, 0)
-  const total = binder.summary.reduce((s, w) => s + w.totalItems, 0)
-
+function PhaseCard({
+  phase,
+}: {
+  phase: (typeof PHASES)[number]
+}) {
+  const Icon = phase.icon
   return (
-    <Card className="flex flex-col">
-      <CardHeader>
-        <CardTitle className="text-lg">{binder.label}</CardTitle>
-        <CardDescription>
-          {binder.taxpayerName}{' | TY '}{binder.taxYear}
-        </CardDescription>
+    <Card
+      className={`flex flex-col border-l-4 ${phase.borderColor} ${
+        phase.available
+          ? 'hover:shadow-lg transition-shadow'
+          : 'opacity-75'
+      }`}
+    >
+      <CardHeader className="flex-row items-start gap-4">
+        <div className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-[var(--ai-accent)]/10">
+          <Icon className="size-5 text-[var(--ai-accent)]" />
+        </div>
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+              {phase.phase}
+            </span>
+            <Badge className={phase.statusColor}>{phase.status}</Badge>
+          </div>
+          <CardTitle className="text-lg leading-snug">{phase.title}</CardTitle>
+          <p className="text-xs text-muted-foreground mt-0.5">{phase.epic}</p>
+        </div>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col gap-4">
-        <div className="grid grid-cols-3 gap-3">
-          <div className="rounded-md bg-muted px-3 py-2 text-center">
-            <p className="text-2xl font-bold text-foreground">{total}</p>
-            <p className="text-xs text-muted-foreground">Total Items</p>
-          </div>
-          <div className="rounded-md bg-[var(--confidence-high)]/10 px-3 py-2 text-center">
-            <p className="text-2xl font-bold text-[var(--confidence-high)]">{autoApplied}</p>
-            <p className="text-xs text-muted-foreground">Auto-applied</p>
-          </div>
-          <div className="rounded-md bg-[var(--confidence-medium)]/10 px-3 py-2 text-center">
-            <p className="text-2xl font-bold text-[var(--confidence-low)]">{reviewNeeded}</p>
-            <p className="text-xs text-muted-foreground">Review Needed</p>
-          </div>
-        </div>
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          {phase.description}
+        </p>
 
-        <div className="flex flex-col gap-2">
-          {binder.summary.map((s) => {
-            const Icon = WIZARD_ICONS[s.wizardType]
-            return (
-              <div key={s.wizardType} className="flex items-center gap-3 text-sm">
-                {Icon && <Icon className="size-4 text-muted-foreground" />}
-                <span className="flex-1 capitalize">{s.wizardType}</span>
-                <Badge variant="secondary" className="text-xs">
-                  {s.totalItems}
-                </Badge>
-              </div>
-            )
-          })}
+        <div className="grid grid-cols-3 gap-3">
+          {phase.metrics.map((m) => (
+            <div
+              key={m.label}
+              className="flex flex-col items-center rounded-md bg-muted/50 px-2 py-3 text-center"
+            >
+              <p className="text-lg font-bold text-foreground">{m.value}</p>
+              <p className="text-xs text-muted-foreground leading-tight mt-0.5">
+                {m.label}
+              </p>
+            </div>
+          ))}
         </div>
 
         <div className="mt-auto pt-2">
-          <Button asChild className="w-full">
-            <Link href={`/binder/${binder.id}`}>
-              Start Demo
-              <ArrowRight className="size-4" />
-            </Link>
-          </Button>
+          {phase.available ? (
+            <Button asChild className="w-full">
+              <Link href={phase.href}>
+                {phase.actionLabel}
+                <ArrowRight className="size-4" />
+              </Link>
+            </Button>
+          ) : (
+            <Button variant="secondary" disabled className="w-full">
+              {phase.actionLabel}
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>
   )
 }
 
-export default function LandingPage() {
+export default function HomePage() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-12">
-      <div className="flex flex-col items-center gap-2 text-center">
-        <div className="flex items-center gap-2">
-          <Sparkles className="size-8 text-[var(--ai-accent)]" />
-          <h1 className="text-3xl font-bold tracking-tight text-foreground text-balance">
-            1040Scan Post-Verification AI Review
-          </h1>
+    <div className="flex min-h-screen flex-col bg-background">
+      {/* Header */}
+      <header className="border-b border-border bg-card">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+          <div className="flex items-center gap-3">
+            <Sparkles className="size-7 text-[var(--ai-accent)]" />
+            <span className="text-lg font-bold text-foreground">
+              1040SCAN
+            </span>
+          </div>
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/binder/demo-a">
+              View Prototype Demo
+              <ArrowRight className="size-3.5" />
+            </Link>
+          </Button>
         </div>
-        <p className="max-w-lg text-base text-muted-foreground leading-relaxed text-pretty">
-          AI-assisted review of Superseded, Duplicate, CFA, and NFR decisions.
-          Select a binder to explore AI-driven recommendations with
-          confidence scoring.
-        </p>
-      </div>
+      </header>
 
-      <div className="mt-10 w-full max-w-sm">
-        <BinderCard binder={binderA} />
-      </div>
+      {/* Hero */}
+      <main className="flex-1">
+        <div className="mx-auto max-w-6xl px-6 py-12">
+          <div className="flex flex-col gap-2 mb-10">
+            <h1 className="text-3xl font-bold tracking-tight text-foreground text-balance">
+              Review Wizard Web Workflow Transformation
+            </h1>
+            <p className="max-w-2xl text-base text-muted-foreground leading-relaxed text-pretty">
+              AI-powered transformation of the 1040SCAN post-verification
+              review process. Eliminating manual wizard steps, introducing
+              intelligent validation, and driving engagement through
+              analytics.
+            </p>
+          </div>
 
-      <p className="mt-10 text-xs text-muted-foreground/60">
-        Prototype — All data is mocked. No external services required.
-      </p>
+          {/* Phase Cards */}
+          <div className="grid gap-6 md:grid-cols-3">
+            {PHASES.map((phase) => (
+              <PhaseCard key={phase.id} phase={phase} />
+            ))}
+          </div>
+
+          {/* Footer note */}
+          <p className="mt-10 text-center text-xs text-muted-foreground/60">
+            Product Strategy Presentation — Prototype data is mocked for
+            demonstration purposes.
+          </p>
+        </div>
+      </main>
     </div>
   )
 }
