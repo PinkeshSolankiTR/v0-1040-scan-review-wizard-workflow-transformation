@@ -23,9 +23,10 @@ const WIZARDS = [
     icon: FileStack,
     accentColor: 'oklch(0.55 0.18 290)',
     description:
-      'Identifies superseded source documents using payer matching, EIN comparison, corrected indicator analysis, and date-based retention logic.',
-    ruleSets: ['Rule Set A (Source Documents)', 'Rule Set B (Consolidated Statements)'],
-    decisionTypes: 'Original / Superseded',
+      'Identifies superseded source documents (W-2, 1099, 1098, K-1, Consolidated Statements) using payer matching, EIN comparison, corrected indicator analysis, and date-based retention logic.',
+    ruleSets: ['Rule Set A (Source Docs): A1-A9', 'Rule Set B (Consolidated): B1-B10'],
+    ruleCount: 19,
+    decisionTypes: 'Original / Superseded / RetainBoth',
     confidenceBands: '4 bands',
     artifacts: [
       { label: 'AI Decision Spec', icon: Brain, type: 'decision-spec' },
@@ -41,8 +42,9 @@ const WIZARDS = [
     accentColor: 'oklch(0.55 0.15 250)',
     description:
       'Three determination areas: Duplicate Data (amounts matching), Duplicate Source Documents (payer/jurisdiction matching), and Duplicate Consolidated Statements (broker/account matching).',
-    ruleSets: ['DUP-DATA (Amount Matching)', 'DUP-SRC (Source Documents)', 'DUP-CS (Consolidated Statements)'],
-    decisionTypes: 'Duplicate / Original',
+    ruleSets: ['DUP-DATA: 1-3', 'DUP-SRC: 1-9', 'DUP-CS: 1-5'],
+    ruleCount: 17,
+    decisionTypes: 'Duplicate / NotDuplicate',
     confidenceBands: '3 bands',
     artifacts: [
       { label: 'AI Decision Spec', icon: Brain, type: 'decision-spec' },
@@ -58,7 +60,8 @@ const WIZARDS = [
     accentColor: 'oklch(0.55 0.17 165)',
     description:
       'Associates unassociated child documents to the most appropriate parent form. Enforces mandatory compatibility checks, name/identifier matching, placeholder avoidance, and AddForm creation.',
-    ruleSets: ['CFA (Association Rules)'],
+    ruleSets: ['CFA-1 to CFA-5'],
+    ruleCount: 5,
     decisionTypes: 'Associate / AddForm / Unmatched',
     confidenceBands: '4 bands',
     artifacts: [
@@ -74,8 +77,9 @@ const WIZARDS = [
     icon: FileSearch,
     accentColor: 'oklch(0.6 0.15 60)',
     description:
-      'Matches unmatched documents to existing proforma input forms. Enforces form type compatibility, eligibility checks, accuracy threshold, and no forced matches.',
-    ruleSets: ['NFR (Matching Rules)'],
+      'Matches unmatched documents to existing proforma input forms. Enforces formTypeId compatibility, ImageIndex eligibility, 80% accuracy threshold, and no forced matches.',
+    ruleSets: ['NFR-1 to NFR-6'],
+    ruleCount: 6,
     decisionTypes: 'Match / Unmatched / Supersede / Merge',
     confidenceBands: '4 bands',
     artifacts: [
@@ -111,6 +115,9 @@ function WizardCard({ wizard }: { wizard: (typeof WIZARDS)[number] }) {
         <div className="flex-1">
           <CardTitle className="text-base">{wizard.title}</CardTitle>
           <div className="flex items-center gap-2 mt-1">
+            <Badge variant="secondary" className="text-xs">
+              {wizard.ruleCount} rules
+            </Badge>
             <Badge variant="outline" className="text-xs">
               {wizard.confidenceBands}
             </Badge>
