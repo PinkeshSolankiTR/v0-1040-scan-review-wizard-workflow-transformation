@@ -7,6 +7,7 @@ import {
   Copy,
   Link2,
   FileSearch,
+  FileText,
   BookOpen,
   Brain,
   RefreshCw,
@@ -29,6 +30,7 @@ const WIZARDS = [
     decisionTypes: 'Original / Superseded / RetainBoth',
     confidenceBands: '4 bands',
     artifacts: [
+      { label: 'PRD Context', icon: FileText, type: 'prd' },
       { label: 'AI Decision Spec', icon: Brain, type: 'decision-spec' },
       { label: 'LLM Prompts', icon: BookOpen, type: 'prompts' },
       { label: 'Feedback Loop', icon: RefreshCw, type: 'feedback-loop' },
@@ -47,6 +49,7 @@ const WIZARDS = [
     decisionTypes: 'Duplicate / NotDuplicate',
     confidenceBands: '3 bands',
     artifacts: [
+      { label: 'PRD Context', icon: FileText, type: 'prd' },
       { label: 'AI Decision Spec', icon: Brain, type: 'decision-spec' },
       { label: 'LLM Prompts', icon: BookOpen, type: 'prompts' },
       { label: 'Feedback Loop', icon: RefreshCw, type: 'feedback-loop' },
@@ -65,6 +68,7 @@ const WIZARDS = [
     decisionTypes: 'Associate / AddForm / Unmatched',
     confidenceBands: '4 bands',
     artifacts: [
+      { label: 'PRD Context', icon: FileText, type: 'prd' },
       { label: 'AI Decision Spec', icon: Brain, type: 'decision-spec' },
       { label: 'LLM Prompts', icon: BookOpen, type: 'prompts' },
       { label: 'Feedback Loop', icon: RefreshCw, type: 'feedback-loop' },
@@ -83,6 +87,7 @@ const WIZARDS = [
     decisionTypes: 'Match / Unmatched / Supersede / Merge',
     confidenceBands: '4 bands',
     artifacts: [
+      { label: 'PRD Context', icon: FileText, type: 'prd' },
       { label: 'AI Decision Spec', icon: Brain, type: 'decision-spec' },
       { label: 'LLM Prompts', icon: BookOpen, type: 'prompts' },
       { label: 'Feedback Loop', icon: RefreshCw, type: 'feedback-loop' },
@@ -147,7 +152,7 @@ function WizardCard({ wizard }: { wizard: (typeof WIZARDS)[number] }) {
           <span className="text-muted-foreground">{wizard.decisionTypes}</span>
         </div>
 
-        <div className="mt-auto grid grid-cols-2 gap-2 pt-2">
+        <div className="mt-auto flex flex-wrap gap-2 pt-2">
           {wizard.artifacts.map((artifact) => {
             const AIcon = artifact.icon
             if (artifact.type === 'prototype') {
