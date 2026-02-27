@@ -145,17 +145,11 @@ export default function Phase3PrdPage() {
                     <CardTitle className="text-sm">Target Users</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="flex flex-col gap-3">
-                      <p className="text-sm text-muted-foreground leading-relaxed">
-                        Tax professionals tracking their own efficiency, accuracy, and progress over time.
-                      </p>
-                      <p className="text-sm text-muted-foreground leading-relaxed">
-                        Team leads and managers monitoring team performance and identifying top performers.
-                      </p>
-                      <p className="text-sm text-muted-foreground leading-relaxed">
-                        Product teams needing actionable analytics to drive workflow improvements.
-                      </p>
-                    </div>
+                    <ul className="flex flex-col gap-3 text-sm text-muted-foreground leading-relaxed list-disc list-inside">
+                      <li>Tax professionals tracking their own efficiency, accuracy, and progress over time.</li>
+                      <li>Team leads and managers monitoring team performance and identifying top performers.</li>
+                      <li>Product teams needing actionable analytics to drive workflow improvements.</li>
+                    </ul>
                   </CardContent>
                 </Card>
               </div>
@@ -170,19 +164,19 @@ export default function Phase3PrdPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Card className="border-l-4 border-l-[var(--confidence-high)]">
                   <CardContent className="pt-6">
-                    <p className="text-2xl font-bold text-foreground mb-1">{'\\u2265'} 60%</p>
+                    <p className="text-2xl font-bold text-foreground mb-1">{'\u2265'} 60%</p>
                     <p className="text-xs text-muted-foreground">Users Engage with Dashboard Features</p>
                   </CardContent>
                 </Card>
                 <Card className="border-l-4 border-l-[var(--ai-accent)]">
                   <CardContent className="pt-6">
-                    <p className="text-2xl font-bold text-foreground mb-1">{'\\u2265'} 15%</p>
+                    <p className="text-2xl font-bold text-foreground mb-1">{'\u2265'} 15%</p>
                     <p className="text-xs text-muted-foreground">Workflow Efficiency Increase (Top Performers)</p>
                   </CardContent>
                 </Card>
                 <Card className="border-l-4 border-l-[oklch(0.65_0.15_170)]">
                   <CardContent className="pt-6">
-                    <p className="text-2xl font-bold text-foreground mb-1">{'\\u2265'} 80%</p>
+                    <p className="text-2xl font-bold text-foreground mb-1">{'\u2265'} 80%</p>
                     <p className="text-xs text-muted-foreground">Positive Feedback on Dashboard &amp; Gamification</p>
                   </CardContent>
                 </Card>
@@ -196,7 +190,7 @@ export default function Phase3PrdPage() {
                 <h2 className="text-lg font-semibold text-foreground">5. How It Works</h2>
               </div>
               <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
-                The Dashboard &amp; Gamification system aggregates data from all verification activities and transforms it into actionable insights and motivational elements.
+                The Dashboard &amp; Gamification system collects data from all verification activities and turns it into visual insights and motivational elements that drive adoption and continuous improvement.
               </p>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Card className="border-t-2 border-t-[var(--ai-accent)]">
@@ -207,30 +201,22 @@ export default function Phase3PrdPage() {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <ul className="flex flex-col gap-1.5 text-xs text-muted-foreground">
-                      <li>User activity data (binders completed, fields reviewed)</li>
-                      <li>AI action logs (auto-applied, suggested, escalated)</li>
-                      <li>Time spent per binder and per wizard step</li>
-                      <li>Override and edit history</li>
-                      <li>User feedback submissions</li>
-                    </ul>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      User activity from every verification session -- binders completed, fields reviewed, time spent, AI actions taken, overrides made, and direct user feedback submissions.
+                    </p>
                   </CardContent>
                 </Card>
                 <Card className="border-t-2 border-t-[oklch(0.65_0.15_300)]">
                   <CardHeader className="pb-2">
                     <div className="flex items-center gap-2">
                       <Cpu className="size-4 text-[oklch(0.65_0.15_300)]" />
-                      <CardTitle className="text-sm">How It Processes</CardTitle>
+                      <CardTitle className="text-sm">How AI Decides</CardTitle>
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <ul className="flex flex-col gap-1.5 text-xs text-muted-foreground">
-                      <li>Aggregate metrics: total fields extracted, time saved, AI actions</li>
-                      <li>Compute gamification: badges, streaks, leaderboard rankings</li>
-                      <li>Generate actionable recommendations for workflow improvement</li>
-                      <li>Focus on metrics that drive improvements, not vanity stats</li>
-                      <li>Process user feedback for product team visibility</li>
-                    </ul>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      The system aggregates activity data into meaningful metrics (time saved, fields processed, AI accuracy), computes gamification elements like badges and streaks, and generates personalized workflow improvement recommendations -- focusing on actionable insights, not vanity stats.
+                    </p>
                   </CardContent>
                 </Card>
                 <Card className="border-t-2 border-t-[var(--confidence-high)]">
@@ -241,15 +227,9 @@ export default function Phase3PrdPage() {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <ul className="flex flex-col gap-1.5 text-xs text-muted-foreground">
-                      <li>Visual analytics dashboard with user and engagement metrics</li>
-                      <li>
-                        <Award className="inline size-3" /> Badges for milestones (fastest review, most binders)
-                      </li>
-                      <li>Leaderboards for top performers</li>
-                      <li>Progress bars and streak counters</li>
-                      <li>Personalized workflow improvement recommendations</li>
-                    </ul>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      A visual analytics dashboard showing user and engagement metrics, milestone badges, leaderboards for top performers, progress bars, streak counters, and personalized recommendations to help each user improve their workflow efficiency.
+                    </p>
                   </CardContent>
                 </Card>
               </div>

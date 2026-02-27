@@ -146,17 +146,11 @@ export default function Phase2PrdPage() {
                     <CardTitle className="text-sm">Target Users</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="flex flex-col gap-3">
-                      <p className="text-sm text-muted-foreground leading-relaxed">
-                        Tax professionals launching RW from SCD, FR, TC, and other platforms.
-                      </p>
-                      <p className="text-sm text-muted-foreground leading-relaxed">
-                        Users navigating to the Quick Validation dashboard for rapid field-level review.
-                      </p>
-                      <p className="text-sm text-muted-foreground leading-relaxed">
-                        Reviewers who need page view, duplicate page view, and review/association views.
-                      </p>
-                    </div>
+                    <ul className="flex flex-col gap-3 text-sm text-muted-foreground leading-relaxed list-disc list-inside">
+                      <li>Tax professionals launching RW from SCD, FR, TC, and other platforms.</li>
+                      <li>Users navigating to the Quick Validation dashboard for rapid field-level review.</li>
+                      <li>Reviewers who need page view, duplicate page view, and review/association views.</li>
+                    </ul>
                   </CardContent>
                 </Card>
               </div>
@@ -171,19 +165,19 @@ export default function Phase2PrdPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Card className="border-l-4 border-l-[var(--confidence-high)]">
                   <CardContent className="pt-6">
-                    <p className="text-2xl font-bold text-foreground mb-1">{'\\u2265'} 70%</p>
+                    <p className="text-2xl font-bold text-foreground mb-1">{'\u2265'} 70%</p>
                     <p className="text-xs text-muted-foreground">Adoption Rate within 3 Months</p>
                   </CardContent>
                 </Card>
                 <Card className="border-l-4 border-l-[var(--ai-accent)]">
                   <CardContent className="pt-6">
-                    <p className="text-2xl font-bold text-foreground mb-1">{'\\u2265'} 20%</p>
+                    <p className="text-2xl font-bold text-foreground mb-1">{'\u2265'} 20%</p>
                     <p className="text-xs text-muted-foreground">Reduction in Validation Time Per Binder</p>
                   </CardContent>
                 </Card>
                 <Card className="border-l-4 border-l-[oklch(0.65_0.15_170)]">
                   <CardContent className="pt-6">
-                    <p className="text-2xl font-bold text-foreground mb-1">{'\\u2265'} 95%</p>
+                    <p className="text-2xl font-bold text-foreground mb-1">{'\u2265'} 95%</p>
                     <p className="text-xs text-muted-foreground">AI-Validated Fields Require No Manual Correction</p>
                   </CardContent>
                 </Card>
@@ -197,7 +191,7 @@ export default function Phase2PrdPage() {
                 <h2 className="text-lg font-semibold text-foreground">5. How It Works</h2>
               </div>
               <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
-                Quick Validation replaces the traditional wizard navigation with a single unified interface. Below is the high-level data flow based on the PRD functional requirements.
+                Quick Validation replaces the traditional wizard navigation with a single unified interface. Instead of stepping through multiple screens, reviewers see all fields and documents in one view, with AI highlighting where to focus.
               </p>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Card className="border-t-2 border-t-[var(--ai-accent)]">
@@ -208,30 +202,22 @@ export default function Phase2PrdPage() {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <ul className="flex flex-col gap-1.5 text-xs text-muted-foreground">
-                      <li>RW launch context from SCD, FR, TC platforms</li>
-                      <li>All extracted fields and snapshots per binder</li>
-                      <li>User statistics and engagement statistics</li>
-                      <li>AI-assigned confidence scores per field</li>
-                      <li>Existing form structure and field metadata</li>
-                    </ul>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      All extracted fields, document snapshots, and AI confidence scores from the binder are loaded into a single unified view. User and engagement statistics provide context for the review session.
+                    </p>
                   </CardContent>
                 </Card>
                 <Card className="border-t-2 border-t-[oklch(0.65_0.15_300)]">
                   <CardHeader className="pb-2">
                     <div className="flex items-center gap-2">
                       <Cpu className="size-4 text-[oklch(0.65_0.15_300)]" />
-                      <CardTitle className="text-sm">How It Processes</CardTitle>
+                      <CardTitle className="text-sm">How AI Decides</CardTitle>
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <ul className="flex flex-col gap-1.5 text-xs text-muted-foreground">
-                      <li>Unified Validation View: all fields in single scrollable interface</li>
-                      <li>AI highlights high-confidence fields for rapid review</li>
-                      <li>Low-confidence fields flagged for manual attention</li>
-                      <li>Override &amp; Edit: add, edit, delete fields with undo capability</li>
-                      <li>Performance target: validation view loads in {'\\u2264'} 3 seconds</li>
-                    </ul>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      AI highlights high-confidence fields that need no manual review, while flagging low-confidence items for human attention. Reviewers can add, edit, or delete fields with full undo capability -- all within the same screen.
+                    </p>
                   </CardContent>
                 </Card>
                 <Card className="border-t-2 border-t-[var(--confidence-high)]">
@@ -242,13 +228,9 @@ export default function Phase2PrdPage() {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <ul className="flex flex-col gap-1.5 text-xs text-muted-foreground">
-                      <li>Validated fields with user confirmations</li>
-                      <li>Override audit trail for compliance</li>
-                      <li>Engagement-level completion status</li>
-                      <li>New forms and fields added by user</li>
-                      <li>Analytics data for dashboard consumption</li>
-                    </ul>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      Validated fields with user confirmations, a complete override audit trail for compliance, and engagement-level completion status. All activity feeds into the analytics dashboard for continuous improvement.
+                    </p>
                   </CardContent>
                 </Card>
               </div>
