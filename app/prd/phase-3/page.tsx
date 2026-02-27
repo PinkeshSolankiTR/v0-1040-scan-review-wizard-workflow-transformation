@@ -100,14 +100,10 @@ export default function Phase3PrdPage() {
               </div>
               <Card>
                 <CardContent className="pt-6">
-                  <div className="flex flex-col gap-4">
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      Develop a dashboard to monitor time savings, AI actions, and overall workflow metrics.
-                    </p>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      Introduce gamification elements to encourage adoption and continuous improvement.
-                    </p>
-                  </div>
+                  <ul className="flex flex-col gap-3 text-sm text-muted-foreground leading-relaxed list-disc list-inside">
+                    <li>Develop a dashboard to monitor time savings, AI actions, and overall workflow metrics.</li>
+                    <li>Introduce gamification elements to encourage adoption and continuous improvement.</li>
+                  </ul>
                 </CardContent>
               </Card>
             </section>

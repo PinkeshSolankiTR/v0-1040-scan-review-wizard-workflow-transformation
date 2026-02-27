@@ -100,17 +100,11 @@ export default function Phase2PrdPage() {
               </div>
               <Card>
                 <CardContent className="pt-6">
-                  <div className="flex flex-col gap-4">
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      {'Introduce a "Quick Validate" feature that displays snapshots and extracted fields for validation, independent of form structure.'}
-                    </p>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      Integrate AI to highlight fields with high confidence, reducing manual verification.
-                    </p>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      Display confidence levels for each extracted field, allowing users to focus only on items that require attention.
-                    </p>
-                  </div>
+                  <ul className="flex flex-col gap-3 text-sm text-muted-foreground leading-relaxed list-disc list-inside">
+                    <li>{'Introduce a "Quick Validate" feature that displays snapshots and extracted fields for validation, independent of form structure.'}</li>
+                    <li>Integrate AI to highlight fields with high confidence, reducing manual verification.</li>
+                    <li>Display confidence levels for each extracted field, allowing users to focus only on items that require attention.</li>
+                  </ul>
                 </CardContent>
               </Card>
             </section>

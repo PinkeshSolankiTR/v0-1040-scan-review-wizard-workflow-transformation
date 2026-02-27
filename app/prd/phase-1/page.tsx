@@ -103,20 +103,12 @@ export default function Phase1PrdPage() {
               </div>
               <Card>
                 <CardContent className="pt-6">
-                  <div className="flex flex-col gap-4">
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      Remove at least four redundant wizard steps in Phase 1. (Pre-verification, Superseded, Duplicate data &amp; Finalization wizard)
-                    </p>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      AI automates tasks, presents the results to the customer with a confidence indicator or %, and requests human validation for actions when AI confidence is low.
-                    </p>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      Make sure export occurs once the final required action has been completed, according to admin settings.
-                    </p>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      Update UI as necessary to reflect the new streamlined workflow.
-                    </p>
-                  </div>
+                  <ul className="flex flex-col gap-3 text-sm text-muted-foreground leading-relaxed list-disc list-inside">
+                    <li>Remove at least four redundant wizard steps in Phase 1. (Pre-verification, Superseded, Duplicate data &amp; Finalization wizard)</li>
+                    <li>AI automates tasks, presents the results to the customer with a confidence indicator or %, and requests human validation for actions when AI confidence is low.</li>
+                    <li>Make sure export occurs once the final required action has been completed, according to admin settings.</li>
+                    <li>Update UI as necessary to reflect the new streamlined workflow.</li>
+                  </ul>
                 </CardContent>
               </Card>
             </section>
