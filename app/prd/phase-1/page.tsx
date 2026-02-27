@@ -213,19 +213,19 @@ export default function Phase1PrdPage() {
                       <div>
                         <p className="text-xs font-semibold text-foreground mb-2">What Goes In</p>
                         <p className="text-sm text-muted-foreground leading-relaxed">
-                          Scanned tax documents (W-2, 1099, 1098, K-1, Consolidated Statements) with identifying details -- payer name, tax ID, recipient, account number, and corrected/amended indicators.
+                          Scanned tax documents with identifying details -- payer name, tax ID, recipient, account number, and corrected/amended indicators.
                         </p>
                       </div>
                       <div>
                         <p className="text-xs font-semibold text-foreground mb-2">How AI Decides</p>
                         <p className="text-sm text-muted-foreground leading-relaxed">
-                          Compares documents within the same group using 19 business rules. Identifies newer, corrected, or amended versions and determines which to retain. High-confidence decisions apply automatically; lower-confidence ones go to the reviewer.
+                          Compares documents within the same group using predefined business rules. Identifies newer, corrected, or amended versions and determines which to retain. High-confidence decisions apply automatically; lower-confidence ones go to the reviewer.
                         </p>
                       </div>
                       <div>
                         <p className="text-xs font-semibold text-foreground mb-2">What Comes Out</p>
                         <p className="text-sm text-muted-foreground leading-relaxed">
-                          Each document is classified as Original, Superseded, or Retain Both -- with a confidence score and plain-language explanation. Reviewers can accept, reject, or override any recommendation.
+                          Each document is classified as Original or Superseded -- with a confidence score and plain-language explanation. Reviewers can accept, reject, or override any recommendation.
                         </p>
                       </div>
                     </div>
@@ -251,13 +251,13 @@ export default function Phase1PrdPage() {
                       <div>
                         <p className="text-xs font-semibold text-foreground mb-2">How AI Decides</p>
                         <p className="text-sm text-muted-foreground leading-relaxed">
-                          Applies 17 rules across three areas: amount matching (within $1), duplicate source document detection by identifiers, and duplicate consolidated statement detection by broker and account. Jurisdiction mismatches are an automatic hard stop.
+                          Applies business rules across three areas: amount matching, duplicate source document detection by identifiers, and duplicate consolidated statement detection by broker and account. Jurisdiction mismatches are an automatic hard stop.
                         </p>
                       </div>
                       <div>
                         <p className="text-xs font-semibold text-foreground mb-2">What Comes Out</p>
                         <p className="text-sm text-muted-foreground leading-relaxed">
-                          Each comparison is marked Duplicate or Not Duplicate -- with match type, confidence score, and a clear explanation of which fields were compared and why.
+                          Each comparison is marked Duplicate or Original -- with match type, confidence score, and a clear explanation of which fields were compared and why.
                         </p>
                       </div>
                     </div>
@@ -315,7 +315,7 @@ export default function Phase1PrdPage() {
                       <div>
                         <p className="text-xs font-semibold text-foreground mb-2">How AI Decides</p>
                         <p className="text-sm text-muted-foreground leading-relaxed">
-                          Checks form type compatibility first (hard stop if mismatched), verifies eligibility, then matches by name and identifiers with an 80% accuracy threshold. Never forces a match -- uncertain documents stay unmatched for human review.
+                          Checks form type compatibility first (hard stop if mismatched), verifies eligibility, then matches by name and identifiers against an accuracy threshold. Never forces a match -- uncertain documents stay unmatched for human review.
                         </p>
                       </div>
                       <div>
