@@ -18,7 +18,7 @@ const PHASES = [
     id: 'phase-1',
     phase: 'Phase 1',
     title: 'Elimination of Wizard',
-    epic: 'Epic 4651627',
+    subtitle: 'AI-Automated Business Rules & Wizard Reduction',
     status: 'Active',
     statusColor: 'bg-[var(--confidence-high)] text-white',
     borderColor: 'border-l-[var(--confidence-high)]',
@@ -38,7 +38,7 @@ const PHASES = [
     id: 'phase-2',
     phase: 'Phase 2',
     title: 'Quick Validation',
-    epic: 'Epic 4656656',
+    subtitle: 'Unified Validation View & Field-Level AI Scoring',
     status: 'In Progress',
     statusColor: 'bg-[var(--confidence-medium)] text-foreground',
     borderColor: 'border-l-[var(--confidence-medium)]',
@@ -58,7 +58,7 @@ const PHASES = [
     id: 'phase-3',
     phase: 'Phase 3',
     title: 'Dashboard & Gamification',
-    epic: 'Epic 4651646',
+    subtitle: 'Analytics, Gamification & Continuous Feedback',
     status: 'Planned',
     statusColor: 'bg-muted text-muted-foreground',
     borderColor: 'border-l-border',
@@ -102,7 +102,7 @@ function PhaseCard({
             <Badge className={phase.statusColor}>{phase.status}</Badge>
           </div>
           <CardTitle className="text-lg leading-snug">{phase.title}</CardTitle>
-          <p className="text-xs text-muted-foreground mt-0.5">{phase.epic}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{phase.subtitle}</p>
         </div>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col gap-4">

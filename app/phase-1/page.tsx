@@ -208,13 +208,13 @@ export default function Phase1Page() {
               <Badge className="bg-[var(--confidence-high)] text-white">
                 Active
               </Badge>
-              <span className="text-xs text-muted-foreground">
-                Epic 4651627
-              </span>
             </div>
             <h1 className="text-2xl font-bold tracking-tight text-foreground text-balance">
               Phase 1: Elimination of Wizard
             </h1>
+            <p className="text-sm text-muted-foreground">
+              AI-Automated Business Rules & Wizard Reduction
+            </p>
           </div>
 
           {/* Summary strip */}
