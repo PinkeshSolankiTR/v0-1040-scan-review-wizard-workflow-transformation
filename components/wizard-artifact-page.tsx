@@ -12,6 +12,7 @@ import {
   Monitor,
   ChevronRight,
   ExternalLink,
+  FileText,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -28,6 +29,9 @@ export interface WizardArtifactData {
   accentColor: string
   icon: React.ElementType
   prototypeRoute: string
+  prd: {
+    sections: WizardSection[]
+  }
   decisionSpec: {
     version: string
     sections: WizardSection[]
@@ -43,9 +47,10 @@ export interface WizardArtifactData {
   }
 }
 
-type TabId = 'decision-spec' | 'prompts' | 'feedback-loop'
+type TabId = 'prd' | 'decision-spec' | 'prompts' | 'feedback-loop'
 
 const TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
+  { id: 'prd', label: 'PRD Context', icon: FileText },
   { id: 'decision-spec', label: 'AI Decision Spec', icon: Brain },
   { id: 'prompts', label: 'LLM Prompts', icon: BookOpen },
   { id: 'feedback-loop', label: 'Feedback Loop', icon: RefreshCw },
@@ -77,7 +82,7 @@ function PromptBlock({ label, prompt }: { label: string; prompt: string }) {
 
 export function WizardArtifactPage({ data }: { data: WizardArtifactData }) {
   const searchParams = useSearchParams()
-  const initialTab = (searchParams.get('tab') as TabId) || 'decision-spec'
+  const initialTab = (searchParams.get('tab') as TabId) || 'prd'
   const [activeTab, setActiveTab] = useState<TabId>(initialTab)
 
   const Icon = data.icon
@@ -175,6 +180,33 @@ export function WizardArtifactPage({ data }: { data: WizardArtifactData }) {
           </div>
 
           {/* Tab content */}
+          {activeTab === 'prd' && (
+            <div className="flex flex-col gap-6">
+              <div className="flex items-center gap-2 mb-2">
+                <Badge variant="secondary">Phase 1</Badge>
+                <span className="text-xs text-muted-foreground">
+                  Product Requirements Document -- Reviewed & Finalized
+                </span>
+              </div>
+              {data.prd.sections.map((section, i) => (
+                <Card key={i}>
+                  <CardHeader>
+                    <CardTitle className="text-base">{section.title}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-col gap-2">
+                      {section.content.map((line, j) => (
+                        <p key={j} className="text-sm text-muted-foreground leading-relaxed">
+                          {line}
+                        </p>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+
           {activeTab === 'decision-spec' && (
             <div className="flex flex-col gap-6">
               <div className="flex items-center gap-2 mb-2">
