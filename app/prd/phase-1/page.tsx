@@ -251,7 +251,7 @@ export default function Phase1PrdPage() {
                       <div>
                         <p className="text-xs font-semibold text-foreground mb-2">How AI Decides</p>
                         <p className="text-sm text-muted-foreground leading-relaxed">
-                          Applies business rules across three areas: amount matching, duplicate source document detection by identifiers, and duplicate consolidated statement detection by broker and account. Jurisdiction mismatches are an automatic hard stop.
+                          Applies business rules for duplicate identification: comparing amounts, payer/recipient identifiers, account numbers, jurisdictions, and document dates. Jurisdiction mismatches are an automatic hard stop.
                         </p>
                       </div>
                       <div>

@@ -39,8 +39,8 @@ const WIZARDS = [
     icon: Copy,
     accentColor: 'oklch(0.55 0.15 250)',
     description:
-      'Three determination areas: Duplicate Data (amounts matching), Duplicate Source Documents (payer/jurisdiction matching), and Duplicate Consolidated Statements (broker/account matching).',
-    ruleSets: ['DUP-DATA (Amount Matching)', 'DUP-SRC (Source Documents)', 'DUP-CS (Consolidated Statements)'],
+      'Detects duplicate entries by comparing amounts, payer/recipient identifiers, account numbers, jurisdictions, and document dates across organizer data, source documents, and consolidated statements.',
+    ruleSets: ['Duplicate Identification Rules'],
     decisionTypes: 'Duplicate / Original',
     confidenceBands: '3 bands',
     artifacts: [

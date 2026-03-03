@@ -247,55 +247,39 @@ export const duplicateData: WizardArtifactData = {
       {
         title: '1. Purpose & Scope',
         content: [
-          'Three determination areas: Duplicate Data (Amounts), Duplicate Source Documents, Duplicate Consolidated Statements.',
-          'In Scope: Identifying duplicate data between organizer and source, duplicate source documents within an engagement, duplicate consolidated statements.',
+          'Duplicate Data Identification -- detects duplicate entries across organizer data, source documents, and consolidated statements within an engagement.',
+          'In Scope: Identifying duplicate data by comparing amounts, payer/recipient identifiers, account numbers, jurisdictions, and document dates.',
           'Out of Scope: Data entry, OCR quality, form merging, superseded logic (handled by Superseded Wizard).',
         ],
       },
       {
         title: '2. Decision Definition',
         content: [
-          'Three decision names: (1) Duplicate Data Identification (organizer vs source amounts), (2) Duplicate Source Document Identification, (3) Duplicate Consolidated Statement Identification.',
+          'Duplicate Data Identification -- a unified determination that covers amount matching, source document comparison, and consolidated statement comparison.',
           'AI Role: Decision support with rule-driven recommendations. Human Role: Review, override, or approve depending on confidence.',
         ],
       },
       {
         title: '3. Decision Inputs',
         content: [
-          'Duplicate Data: Organizer fields (name, amount, type) vs Source fields (name, amount, type). Matching within $1 tolerance.',
-          'Duplicate Source: Payer/recipient identifiers, EIN/TIN, ownership, jurisdiction, corrected indicator, account number, tax year.',
-          'Duplicate Consolidated: Broker name, account number, taxpayer name, tax year, statement dates.',
+          'Organizer fields (name, amount, type) vs Source fields (name, amount, type) for amount matching.',
+          'Payer/recipient identifiers, EIN/TIN, ownership, jurisdiction, corrected indicator, account number, tax year for document comparison.',
+          'Broker name, account number, taxpayer name, tax year, statement dates for consolidated statement comparison.',
         ],
       },
       {
         title: '4. Decision Outputs',
         content: [
-          'DUPLICATE_DATA: decision (DuplicateData / Original), matchType (DirectAmount / SumMatch / Other), confidenceLevel, fieldsCompared.',
-          'DUPLICATE_SOURCE_DOC: decision (Duplicate / Original), retainDocId, confidenceLevel, appliedRuleSet, decisionRule, decisionReason.',
-          'DUPLICATE_CONSOLIDATED_STATEMENT: Same structure as source doc with broker/account context.',
+          'Each comparison produces: decision (Duplicate / Original), matchType, confidenceLevel, fieldsCompared, appliedRuleSet, decisionRule, decisionReason.',
+          'retainDocId identifies which document to keep when a duplicate is found.',
         ],
       },
       {
-        title: '5. Rule Set DUP-DATA',
+        title: '5. Decision Rules',
         content: [
-          'DUP-DATA-1: Name Match -- Organizer name must match source name (Hard Stop).',
-          'DUP-DATA-2: Direct Amount Match -- Amounts within $1 tolerance.',
-          'DUP-DATA-3: Sum-of-Amounts Match -- Sum of multiple source amounts matches organizer amount within $1.',
-        ],
-      },
-      {
-        title: '6. Rule Set DUP-SRC',
-        content: [
-          'DUP-SRC-1: Payer/Issuer Name Match. DUP-SRC-2: Payer/Issuer ID Match. DUP-SRC-3: Recipient/Taxpayer Match.',
-          'DUP-SRC-4: Account Number Match. DUP-SRC-5: Tax Year Match. DUP-SRC-6: Jurisdiction Hard Stop.',
-          'DUP-SRC-7: Corrected Precedence. DUP-SRC-8: Exact Duplicate Resolution. DUP-SRC-9: Ownership Match.',
-        ],
-      },
-      {
-        title: '7. Rule Set DUP-CS',
-        content: [
-          'DUP-CS-1: Broker/Payer Name Match. DUP-CS-2: Account Number Match. DUP-CS-3: Taxpayer Name Match.',
-          'DUP-CS-4: Tax Year Match. DUP-CS-5: Statement Date Retention Logic -- latest date takes precedence.',
+          'Amount Matching Rules: Name match (Hard Stop), direct amount match within tolerance, sum-of-amounts match within tolerance.',
+          'Source Document Rules: Payer/issuer name and ID match, recipient/taxpayer match, account number match, tax year match, jurisdiction hard stop, corrected precedence, exact duplicate resolution, ownership match.',
+          'Consolidated Statement Rules: Broker/payer name match, account number match, taxpayer name match, tax year match, statement date retention logic (latest date takes precedence).',
         ],
       },
       {
@@ -322,7 +306,7 @@ export const duplicateData: WizardArtifactData = {
         title: 'Key Mappings',
         content: [
           'JSON-only output: Return ONLY valid JSON array. No extra text.',
-          'Three item types: DUPLICATE_DATA, DUPLICATE_SOURCE_DOC, DUPLICATE_CONSOLIDATED_STATEMENT.',
+          'Unified duplicate identification: All comparisons produce a consistent decision structure.',
           'Mandatory explainability: Every item must include appliedRuleSet, decisionRule, decisionReason, fieldsCompared.',
           'Confidence semantics: >90% automation eligible, 70-90% recommend, <70% human review.',
         ],
@@ -330,21 +314,12 @@ export const duplicateData: WizardArtifactData = {
     ],
     outputContract: [
       {
-        title: 'DUPLICATE_DATA Fields',
+        title: 'Duplicate Decision Fields',
         content: [
-          'decision (DuplicateData | Original), matchType (DirectAmount | SumMatch | Other), confidenceLevel, fieldsCompared, decisionReason.',
-        ],
-      },
-      {
-        title: 'DUPLICATE_SOURCE_DOC Fields',
-        content: [
-          'decision (Duplicate | Original), retainDocId, confidenceLevel, appliedRuleSet, decisionRule, decisionReason.',
-        ],
-      },
-      {
-        title: 'DUPLICATE_CONSOLIDATED_STATEMENT Fields',
-        content: [
-          'decision (Duplicate | Original), retainDocId, confidenceLevel, appliedRuleSet, decisionRule, decisionReason.',
+          'decision (Duplicate / Original), matchType (DirectAmount / SumMatch / Other), confidenceLevel (number 0.0-1.0)',
+          'retainDocId (integer or null), fieldsCompared (array of field names), appliedRuleSet (string)',
+          'decisionRule (string), decisionReason (string, human-readable)',
+          'reviewRequired (boolean), escalationReason (string or null)',
         ],
       },
     ],
@@ -352,66 +327,55 @@ export const duplicateData: WizardArtifactData = {
 
 STRICT OUTPUT RULES
 - Output MUST be valid JSON only. No extra text, no markdown.
-- Return results for all three determination areas as applicable.
 
 DECISION REQUIREMENTS
-- Apply DUP-DATA rules sequentially.
-- Apply DUP-SRC rules sequentially.
-- Apply DUP-CS rules sequentially.
+- Apply duplicate identification rules sequentially across all comparison types.
 - Populate mandatory explainability fields for every item.
 - Assign confidenceLevel using defined ranges.
 
 GUARDRAILS
 - Do not validate correctness of tax amounts beyond matching rules.
 - Do not merge documents.
-- $1 tolerance for amount matching.
+- Amount tolerance applies per configured threshold.
 - If required identifiers are missing, mark for review.`,
     taskPrompt: `You are given engagement data containing organizer entries, source documents, and consolidated statements.
 
 GOAL
-Identify duplicates across three areas using the rule sets below.
+Identify duplicates using the decision rules below.
 
-RULE SET DUP-DATA (sequential)
-DUP-DATA-1: Name match (hard stop)
-DUP-DATA-2: Direct amount match within $1
-DUP-DATA-3: Sum-of-amounts match within $1
-
-RULE SET DUP-SRC (sequential)
-Apply DUP-SRC rules in order
-
-RULE SET DUP-CS (sequential)
-Apply DUP-CS rules in order
+DUPLICATE IDENTIFICATION RULES (sequential)
+- Amount matching: Name match (hard stop), direct amount match within tolerance, sum-of-amounts match within tolerance.
+- Source document comparison: Payer/issuer match, recipient match, account number, tax year, jurisdiction (hard stop), corrected precedence, exact duplicate resolution, ownership match.
+- Consolidated statement comparison: Broker/payer name, account number, taxpayer name, tax year, statement date retention.
 
 CONFIDENCE SEMANTICS
 - >90%: automation eligible
 - 70-90%: recommend + review
 - <70%: human review required
 
-OUTPUT: Return JSON with all required fields per item type.`,
+OUTPUT: Return JSON with all required fields per comparison.`,
   },
   feedbackLoop: {
     sections: [
       {
         title: 'Overview',
         content: [
-          'The Duplicate Wizard feedback loop captures user overrides on all three determination types (Data, Source Doc, Consolidated Statement).',
-          'Override patterns are tracked separately per determination type to enable targeted rule learning.',
+          'The Duplicate Wizard feedback loop captures user overrides on duplicate identification decisions.',
+          'Override patterns are tracked across all comparison types to enable targeted rule learning.',
         ],
       },
       {
         title: 'Override Capture',
         content: [
           'When a user changes a Duplicate decision to Original (or vice versa), the system records the full context: amounts compared, identifiers matched, confidence level, and user rationale.',
-          'Amount tolerance overrides are tracked separately to inform the $1 vs percentage tolerance decision.',
+          'Amount tolerance overrides are tracked to inform threshold configuration decisions.',
         ],
       },
       {
         title: 'Learned Rule Lifecycle',
         content: [
           'Same three-stage lifecycle as Superseded: Candidate, Active, Retired.',
-          'DUP-DATA learned rules focus on amount matching patterns.',
-          'DUP-SRC learned rules focus on identifier matching precedence.',
-          'DUP-CS learned rules focus on broker/account disambiguation.',
+          'Learned rules cover amount matching patterns, identifier matching precedence, and broker/account disambiguation.',
         ],
       },
     ],
