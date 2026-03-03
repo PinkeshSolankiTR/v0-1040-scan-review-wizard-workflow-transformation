@@ -251,13 +251,17 @@ export function WizardArtifactPage({ data }: { data: WizardArtifactData }) {
                     {data.prompts.outputContract.map((section, i) => {
                       const fields: { name: string; type: string }[] = []
                       section.content.forEach((line) => {
-                        const parts = line.split(/,\s*/)
-                        parts.forEach((part) => {
-                          const match = part.trim().match(/^([^\s(]+)\s*\((.+)\)\.?$/)
+                        // Split on "), " followed by a word char (start of next field name)
+                        // This preserves commas inside parentheses like (string, e.g. "A9", "B4")
+                        const parts = line.split(/\),\s*(?=[a-zA-Z])/)
+                        parts.forEach((part, idx) => {
+                          // Re-add the closing paren that was consumed by split, except for last part
+                          const cleaned = idx < parts.length - 1 ? part.trim() + ')' : part.trim()
+                          const match = cleaned.match(/^([^\s(]+)\s*\((.+)\)\.?$/)
                           if (match) {
                             fields.push({ name: match[1], type: match[2] })
-                          } else if (part.trim()) {
-                            const dotCleaned = part.trim().replace(/\.$/, '')
+                          } else if (cleaned) {
+                            const dotCleaned = cleaned.replace(/\.$/, '')
                             fields.push({ name: dotCleaned, type: '' })
                           }
                         })
