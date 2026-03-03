@@ -247,10 +247,45 @@ export function WizardArtifactPage({ data }: { data: WizardArtifactData }) {
                   <CardHeader>
                     <CardTitle className="text-base">Output Contract (JSON)</CardTitle>
                   </CardHeader>
-                  <CardContent className="flex flex-col gap-4">
-                    {data.prompts.outputContract.map((section, i) => (
-                      <SectionBlock key={i} section={section} />
-                    ))}
+                  <CardContent className="flex flex-col gap-6">
+                    {data.prompts.outputContract.map((section, i) => {
+                      const fields: { name: string; type: string }[] = []
+                      section.content.forEach((line) => {
+                        const parts = line.split(/,\s*/)
+                        parts.forEach((part) => {
+                          const match = part.trim().match(/^([^\s(]+)\s*\((.+)\)\.?$/)
+                          if (match) {
+                            fields.push({ name: match[1], type: match[2] })
+                          } else if (part.trim()) {
+                            const dotCleaned = part.trim().replace(/\.$/, '')
+                            fields.push({ name: dotCleaned, type: '' })
+                          }
+                        })
+                      })
+                      return (
+                        <div key={i} className="flex flex-col gap-2">
+                          <h3 className="text-sm font-semibold text-foreground mb-2">{section.title}</h3>
+                          <div className="overflow-x-auto rounded-lg border border-border">
+                            <table className="w-full text-sm">
+                              <thead>
+                                <tr className="border-b border-border bg-muted/50">
+                                  <th className="px-4 py-2.5 text-left font-semibold text-foreground w-[280px]">Field</th>
+                                  <th className="px-4 py-2.5 text-left font-semibold text-foreground">Type / Values</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {fields.map((field, j) => (
+                                  <tr key={j} className={j < fields.length - 1 ? 'border-b border-border' : ''}>
+                                    <td className="px-4 py-2.5 text-muted-foreground font-medium font-mono text-xs align-top">{field.name}</td>
+                                    <td className="px-4 py-2.5 text-muted-foreground leading-relaxed">{field.type}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )
+                    })}
                   </CardContent>
                 </Card>
               )}
