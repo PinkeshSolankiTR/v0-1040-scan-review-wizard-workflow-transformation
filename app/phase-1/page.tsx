@@ -157,6 +157,20 @@ function WizardCard({ wizard }: { wizard: (typeof WIZARDS)[number] }) {
                 </a>
               )
             }
+            if (artifact.type === 'feedback-loop') {
+              return (
+                <a
+                  key={artifact.type}
+                  href="/admin/learned-rules"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-medium text-foreground hover:bg-accent transition-colors"
+                >
+                  <AIcon className="size-3.5 text-muted-foreground" />
+                  {artifact.label}
+                </a>
+              )
+            }
             return (
               <Link
                 key={artifact.type}
