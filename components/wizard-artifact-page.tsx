@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import {
   Sparkles,
@@ -41,6 +42,14 @@ export interface WizardArtifactData {
   }
 }
 
+type TabId = 'decision-spec' | 'prompts' | 'feedback-loop'
+
+const TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
+  { id: 'decision-spec', label: 'AI Decision Spec', icon: Brain },
+  { id: 'prompts', label: 'LLM Prompts', icon: BookOpen },
+  { id: 'feedback-loop', label: 'Feedback Loop', icon: RefreshCw },
+]
+
 function PromptBlock({ label, prompt }: { label: string; prompt: string }) {
   return (
     <div className="flex flex-col gap-2">
@@ -53,6 +62,7 @@ function PromptBlock({ label, prompt }: { label: string; prompt: string }) {
 }
 
 export function WizardArtifactPage({ data }: { data: WizardArtifactData }) {
+  const [activeTab, setActiveTab] = useState<TabId>('decision-spec')
   const Icon = data.icon
 
   return (
@@ -95,7 +105,7 @@ export function WizardArtifactPage({ data }: { data: WizardArtifactData }) {
           </nav>
 
           {/* Wizard header */}
-          <div className="flex items-start gap-4 mb-10">
+          <div className="flex items-start gap-4 mb-8">
             <div
               className="flex size-12 shrink-0 items-center justify-center rounded-xl"
               style={{ backgroundColor: `color-mix(in oklch, ${data.accentColor} 12%, transparent)` }}
@@ -107,7 +117,7 @@ export function WizardArtifactPage({ data }: { data: WizardArtifactData }) {
                 {data.title} Wizard
               </h1>
               <p className="text-sm text-muted-foreground mt-1">
-                Complete documentation for the {data.title} wizard.
+                Documentation, specifications, and prototype for the {data.title} wizard.
               </p>
             </div>
             <Button variant="outline" asChild>
@@ -123,14 +133,39 @@ export function WizardArtifactPage({ data }: { data: WizardArtifactData }) {
             </Button>
           </div>
 
-          {/* Section 1: AI Decision Spec */}
-          <section className="mb-12">
-            <div className="flex items-center gap-2 mb-4 pb-2 border-b border-border">
-              <Brain className="size-5 text-[var(--ai-accent)]" />
-              <h2 className="text-lg font-bold text-foreground">AI Decision Spec</h2>
-              <Badge variant="secondary" className="ml-2">{data.decisionSpec.version}</Badge>
-            </div>
-            <div className="flex flex-col gap-4">
+          {/* Tab navigation */}
+          <div className="flex gap-1 border-b border-border mb-8" role="tablist">
+            {TABS.map((tab) => {
+              const TabIcon = tab.icon
+              const isActive = activeTab === tab.id
+              return (
+                <button
+                  key={tab.id}
+                  role="tab"
+                  aria-selected={isActive}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                    isActive
+                      ? 'border-[var(--ai-accent)] text-foreground'
+                      : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+                  }`}
+                >
+                  <TabIcon className="size-4" />
+                  {tab.label}
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Tab content */}
+          {activeTab === 'decision-spec' && (
+            <div className="flex flex-col gap-6">
+              <div className="flex items-center gap-2 mb-2">
+                <Badge variant="secondary">{data.decisionSpec.version}</Badge>
+                <span className="text-xs text-muted-foreground">
+                  Binding specification for AI decision-making
+                </span>
+              </div>
               {data.decisionSpec.sections.map((section, i) => (
                 <Card key={i}>
                   <CardHeader>
@@ -148,14 +183,9 @@ export function WizardArtifactPage({ data }: { data: WizardArtifactData }) {
                 </Card>
               ))}
             </div>
-          </section>
+          )}
 
-          {/* Section 2: LLM Prompts */}
-          <section className="mb-12">
-            <div className="flex items-center gap-2 mb-4 pb-2 border-b border-border">
-              <BookOpen className="size-5 text-[var(--ai-accent)]" />
-              <h2 className="text-lg font-bold text-foreground">LLM Prompts</h2>
-            </div>
+          {activeTab === 'prompts' && (
             <div className="flex flex-col gap-6">
               {data.prompts.mappingTable.length > 0 && (
                 <Card>
@@ -262,15 +292,10 @@ export function WizardArtifactPage({ data }: { data: WizardArtifactData }) {
                 </CardContent>
               </Card>
             </div>
-          </section>
+          )}
 
-          {/* Section 3: Feedback Loop */}
-          <section className="mb-12">
-            <div className="flex items-center gap-2 mb-4 pb-2 border-b border-border">
-              <RefreshCw className="size-5 text-[var(--ai-accent)]" />
-              <h2 className="text-lg font-bold text-foreground">Feedback Loop</h2>
-            </div>
-            <div className="flex flex-col gap-4">
+          {activeTab === 'feedback-loop' && (
+            <div className="flex flex-col gap-6">
               {data.feedbackLoop.sections.map((section, i) => (
                 <Card key={i}>
                   <CardHeader>
@@ -288,7 +313,7 @@ export function WizardArtifactPage({ data }: { data: WizardArtifactData }) {
                 </Card>
               ))}
             </div>
-          </section>
+          )}
         </div>
       </main>
     </div>
