@@ -1,8 +1,6 @@
 'use client'
 
-import { useState } from 'react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
 import {
   Sparkles,
   ArrowLeft,
@@ -43,31 +41,10 @@ export interface WizardArtifactData {
   }
 }
 
-type TabId = 'decision-spec' | 'prompts' | 'feedback-loop'
-
-const TABS: { id: TabId; label: string; icon: React.ElementType }[] = [
-  { id: 'decision-spec', label: 'AI Decision Spec', icon: Brain },
-  { id: 'prompts', label: 'LLM Prompts', icon: BookOpen },
-  { id: 'feedback-loop', label: 'Feedback Loop', icon: RefreshCw },
-]
-
-function SectionBlock({ section }: { section: WizardSection }) {
-  return (
-    <div className="flex flex-col gap-2">
-      <h3 className="text-sm font-semibold text-foreground">{section.title}</h3>
-      {section.content.map((line, i) => (
-        <p key={i} className="text-sm text-muted-foreground leading-relaxed">
-          {line}
-        </p>
-      ))}
-    </div>
-  )
-}
-
 function PromptBlock({ label, prompt }: { label: string; prompt: string }) {
   return (
     <div className="flex flex-col gap-2">
-      <h3 className="text-sm font-semibold text-foreground">{label}</h3>
+      {label && <h3 className="text-sm font-semibold text-foreground">{label}</h3>}
       <pre className="rounded-lg border border-border bg-muted/50 p-4 text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap overflow-x-auto font-mono">
         {prompt}
       </pre>
@@ -76,10 +53,6 @@ function PromptBlock({ label, prompt }: { label: string; prompt: string }) {
 }
 
 export function WizardArtifactPage({ data }: { data: WizardArtifactData }) {
-  const searchParams = useSearchParams()
-  const initialTab = (searchParams.get('tab') as TabId) || 'decision-spec'
-  const [activeTab, setActiveTab] = useState<TabId>(initialTab)
-
   const Icon = data.icon
 
   return (
@@ -122,7 +95,7 @@ export function WizardArtifactPage({ data }: { data: WizardArtifactData }) {
           </nav>
 
           {/* Wizard header */}
-          <div className="flex items-start gap-4 mb-8">
+          <div className="flex items-start gap-4 mb-10">
             <div
               className="flex size-12 shrink-0 items-center justify-center rounded-xl"
               style={{ backgroundColor: `color-mix(in oklch, ${data.accentColor} 12%, transparent)` }}
@@ -134,7 +107,7 @@ export function WizardArtifactPage({ data }: { data: WizardArtifactData }) {
                 {data.title} Wizard
               </h1>
               <p className="text-sm text-muted-foreground mt-1">
-                Documentation, specifications, and prototype for the {data.title} wizard.
+                Complete documentation for the {data.title} wizard.
               </p>
             </div>
             <Button variant="outline" asChild>
@@ -150,39 +123,14 @@ export function WizardArtifactPage({ data }: { data: WizardArtifactData }) {
             </Button>
           </div>
 
-          {/* Tab navigation */}
-          <div className="flex gap-1 border-b border-border mb-8" role="tablist">
-            {TABS.map((tab) => {
-              const TabIcon = tab.icon
-              const isActive = activeTab === tab.id
-              return (
-                <button
-                  key={tab.id}
-                  role="tab"
-                  aria-selected={isActive}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-                    isActive
-                      ? 'border-[var(--ai-accent)] text-foreground'
-                      : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
-                  }`}
-                >
-                  <TabIcon className="size-4" />
-                  {tab.label}
-                </button>
-              )
-            })}
-          </div>
-
-          {/* Tab content */}
-          {activeTab === 'decision-spec' && (
-            <div className="flex flex-col gap-6">
-              <div className="flex items-center gap-2 mb-2">
-                <Badge variant="secondary">{data.decisionSpec.version}</Badge>
-                <span className="text-xs text-muted-foreground">
-                  Binding specification for AI decision-making
-                </span>
-              </div>
+          {/* Section 1: AI Decision Spec */}
+          <section className="mb-12">
+            <div className="flex items-center gap-2 mb-4 pb-2 border-b border-border">
+              <Brain className="size-5 text-[var(--ai-accent)]" />
+              <h2 className="text-lg font-bold text-foreground">AI Decision Spec</h2>
+              <Badge variant="secondary" className="ml-2">{data.decisionSpec.version}</Badge>
+            </div>
+            <div className="flex flex-col gap-4">
               {data.decisionSpec.sections.map((section, i) => (
                 <Card key={i}>
                   <CardHeader>
@@ -200,9 +148,14 @@ export function WizardArtifactPage({ data }: { data: WizardArtifactData }) {
                 </Card>
               ))}
             </div>
-          )}
+          </section>
 
-          {activeTab === 'prompts' && (
+          {/* Section 2: LLM Prompts */}
+          <section className="mb-12">
+            <div className="flex items-center gap-2 mb-4 pb-2 border-b border-border">
+              <BookOpen className="size-5 text-[var(--ai-accent)]" />
+              <h2 className="text-lg font-bold text-foreground">LLM Prompts</h2>
+            </div>
             <div className="flex flex-col gap-6">
               {data.prompts.mappingTable.length > 0 && (
                 <Card>
@@ -251,11 +204,8 @@ export function WizardArtifactPage({ data }: { data: WizardArtifactData }) {
                     {data.prompts.outputContract.map((section, i) => {
                       const fields: { name: string; type: string }[] = []
                       section.content.forEach((line) => {
-                        // Split on "), " followed by a word char (start of next field name)
-                        // This preserves commas inside parentheses like (string, e.g. "A9", "B4")
                         const parts = line.split(/\),\s*(?=[a-zA-Z])/)
                         parts.forEach((part, idx) => {
-                          // Re-add the closing paren that was consumed by split, except for last part
                           const cleaned = idx < parts.length - 1 ? part.trim() + ')' : part.trim()
                           const match = cleaned.match(/^([^\s(]+)\s*\((.+)\)\.?$/)
                           if (match) {
@@ -312,10 +262,15 @@ export function WizardArtifactPage({ data }: { data: WizardArtifactData }) {
                 </CardContent>
               </Card>
             </div>
-          )}
+          </section>
 
-          {activeTab === 'feedback-loop' && (
-            <div className="flex flex-col gap-6">
+          {/* Section 3: Feedback Loop */}
+          <section className="mb-12">
+            <div className="flex items-center gap-2 mb-4 pb-2 border-b border-border">
+              <RefreshCw className="size-5 text-[var(--ai-accent)]" />
+              <h2 className="text-lg font-bold text-foreground">Feedback Loop</h2>
+            </div>
+            <div className="flex flex-col gap-4">
               {data.feedbackLoop.sections.map((section, i) => (
                 <Card key={i}>
                   <CardHeader>
@@ -333,7 +288,7 @@ export function WizardArtifactPage({ data }: { data: WizardArtifactData }) {
                 </Card>
               ))}
             </div>
-          )}
+          </section>
         </div>
       </main>
     </div>

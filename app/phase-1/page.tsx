@@ -28,8 +28,7 @@ const WIZARDS = [
     decisionTypes: 'Original / Superseded',
     confidenceBands: '4 bands',
     artifacts: [
-      { label: 'AI Decision Spec', icon: Brain, type: 'decision-spec' },
-      { label: 'LLM Prompts', icon: BookOpen, type: 'prompts' },
+      { label: 'Documentation', icon: BookOpen, type: 'documentation' },
       { label: 'Feedback Loop', icon: RefreshCw, type: 'feedback-loop' },
       { label: 'View Prototype', icon: Monitor, type: 'prototype' },
     ],
@@ -45,8 +44,7 @@ const WIZARDS = [
     decisionTypes: 'Duplicate / Original',
     confidenceBands: '3 bands',
     artifacts: [
-      { label: 'AI Decision Spec', icon: Brain, type: 'decision-spec' },
-      { label: 'LLM Prompts', icon: BookOpen, type: 'prompts' },
+      { label: 'Documentation', icon: BookOpen, type: 'documentation' },
       { label: 'Feedback Loop', icon: RefreshCw, type: 'feedback-loop' },
       { label: 'View Prototype', icon: Monitor, type: 'prototype' },
     ],
@@ -62,8 +60,7 @@ const WIZARDS = [
     decisionTypes: 'Associate / AddForm / Unmatched',
     confidenceBands: '4 bands',
     artifacts: [
-      { label: 'AI Decision Spec', icon: Brain, type: 'decision-spec' },
-      { label: 'LLM Prompts', icon: BookOpen, type: 'prompts' },
+      { label: 'Documentation', icon: BookOpen, type: 'documentation' },
       { label: 'Feedback Loop', icon: RefreshCw, type: 'feedback-loop' },
       { label: 'View Prototype', icon: Monitor, type: 'prototype' },
     ],
@@ -79,8 +76,7 @@ const WIZARDS = [
     decisionTypes: 'Match / Unmatched / Supersede / Merge',
     confidenceBands: '4 bands',
     artifacts: [
-      { label: 'AI Decision Spec', icon: Brain, type: 'decision-spec' },
-      { label: 'LLM Prompts', icon: BookOpen, type: 'prompts' },
+      { label: 'Documentation', icon: BookOpen, type: 'documentation' },
       { label: 'Feedback Loop', icon: RefreshCw, type: 'feedback-loop' },
       { label: 'View Prototype', icon: Monitor, type: 'prototype' },
     ],
@@ -171,16 +167,19 @@ function WizardCard({ wizard }: { wizard: (typeof WIZARDS)[number] }) {
                 </a>
               )
             }
-            return (
-              <Link
-                key={artifact.type}
-                href={`/phase-1/${wizard.id}?tab=${artifact.type}`}
-                className="flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-medium text-foreground hover:bg-accent transition-colors"
-              >
-                <AIcon className="size-3.5 text-muted-foreground" />
-                {artifact.label}
-              </Link>
-            )
+            if (artifact.type === 'documentation') {
+              return (
+                <Link
+                  key={artifact.type}
+                  href={`/phase-1/${wizard.id}`}
+                  className="flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs font-medium text-foreground hover:bg-accent transition-colors"
+                >
+                  <AIcon className="size-3.5 text-muted-foreground" />
+                  {artifact.label}
+                </Link>
+              )
+            }
+            return null
           })}
         </div>
       </CardContent>
