@@ -209,9 +209,34 @@ export function WizardArtifactPage({ data }: { data: WizardArtifactData }) {
                   <CardHeader>
                     <CardTitle className="text-base">Mapping Table</CardTitle>
                   </CardHeader>
-                  <CardContent className="flex flex-col gap-4">
+                  <CardContent>
                     {data.prompts.mappingTable.map((section, i) => (
-                      <SectionBlock key={i} section={section} />
+                      <div key={i} className="flex flex-col gap-2">
+                        <h3 className="text-sm font-semibold text-foreground mb-2">{section.title}</h3>
+                        <div className="overflow-x-auto rounded-lg border border-border">
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="border-b border-border bg-muted/50">
+                                <th className="px-4 py-2.5 text-left font-semibold text-foreground w-[220px]">Rule</th>
+                                <th className="px-4 py-2.5 text-left font-semibold text-foreground">Description</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {section.content.map((line, j) => {
+                                const colonIndex = line.indexOf(':')
+                                const rule = colonIndex !== -1 ? line.slice(0, colonIndex).trim() : line
+                                const description = colonIndex !== -1 ? line.slice(colonIndex + 1).trim() : ''
+                                return (
+                                  <tr key={j} className={j < section.content.length - 1 ? 'border-b border-border' : ''}>
+                                    <td className="px-4 py-2.5 text-muted-foreground font-medium align-top whitespace-nowrap">{rule}</td>
+                                    <td className="px-4 py-2.5 text-muted-foreground leading-relaxed">{description}</td>
+                                  </tr>
+                                )
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
                     ))}
                   </CardContent>
                 </Card>
