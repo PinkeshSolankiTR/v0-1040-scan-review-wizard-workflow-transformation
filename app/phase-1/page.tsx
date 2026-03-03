@@ -28,8 +28,8 @@ const WIZARDS = [
     decisionTypes: 'Original / Superseded',
     artifacts: [
       { label: 'Documentation', icon: BookOpen, type: 'documentation' },
-      { label: 'Feedback Loop', icon: RefreshCw, type: 'feedback-loop' },
       { label: 'View Prototype', icon: Monitor, type: 'prototype' },
+      { label: 'Feedback Loop', icon: RefreshCw, type: 'feedback-loop' },
     ],
   },
   {
@@ -43,8 +43,8 @@ const WIZARDS = [
     decisionTypes: 'Duplicate / Original',
     artifacts: [
       { label: 'Documentation', icon: BookOpen, type: 'documentation' },
-      { label: 'Feedback Loop', icon: RefreshCw, type: 'feedback-loop' },
       { label: 'View Prototype', icon: Monitor, type: 'prototype' },
+      { label: 'Feedback Loop', icon: RefreshCw, type: 'feedback-loop' },
     ],
   },
   {
@@ -58,8 +58,8 @@ const WIZARDS = [
     decisionTypes: 'Associate / AddForm / Unmatched',
     artifacts: [
       { label: 'Documentation', icon: BookOpen, type: 'documentation' },
-      { label: 'Feedback Loop', icon: RefreshCw, type: 'feedback-loop' },
       { label: 'View Prototype', icon: Monitor, type: 'prototype' },
+      { label: 'Feedback Loop', icon: RefreshCw, type: 'feedback-loop' },
     ],
   },
   {
@@ -73,8 +73,8 @@ const WIZARDS = [
     decisionTypes: 'Match / Unmatched / Supersede / Merge',
     artifacts: [
       { label: 'Documentation', icon: BookOpen, type: 'documentation' },
-      { label: 'Feedback Loop', icon: RefreshCw, type: 'feedback-loop' },
       { label: 'View Prototype', icon: Monitor, type: 'prototype' },
+      { label: 'Feedback Loop', icon: RefreshCw, type: 'feedback-loop' },
     ],
   },
 ]
