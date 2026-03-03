@@ -14,7 +14,7 @@ export const supersededData: WizardArtifactData = {
         title: '1. Purpose & Scope',
         content: [
           'This AI Decision Spec defines how the Superseded Wizard AI is allowed to make decisions, under what conditions those decisions are applied automatically, and how those decisions are explained to users.',
-          'In Scope: Superseded Wizard (Post-Verification), Source documents (W-2, 1099 series, 1098, K-1, Consolidated Statements), AI-generated supersede/retain recommendations.',
+          'In Scope: Superseded Wizard (Post-Verification), Source documents and consolidated statements, AI-generated supersede/retain recommendations.',
           'Out of Scope: Data correctness validation, OCR extraction quality, Child Form Association (CFA), Duplicate Organizer Wizard, Form merging or data entry.',
         ],
       },
@@ -40,25 +40,25 @@ export const supersededData: WizardArtifactData = {
         title: '4. Decision Outputs',
         content: [
           'Required Output Fields: engagementPageId, isSuperseded (true/false), retainedPageId (if superseded), confidenceLevel (0.0-1.0).',
-          'Explainability Fields (Mandatory): decisionType (Original | Superseded | RetainBoth), appliedRuleSet (SourceDocs | ConsolidatedStatements), decisionRule (e.g., A9, B4), decisionReason (human-readable explanation).',
+          'Explainability Fields (Mandatory): decisionType (Original | Superseded), appliedRuleSet (SourceDocs | ConsolidatedStatements), decisionRule, decisionReason (human-readable explanation).',
         ],
       },
       {
-        title: '5. Rule Set A: Source Documents (A1-A9)',
+        title: '5. Rule Set A: Source Documents',
         content: [
-          'A1. Payer/Issuer Name Match (Hard Stop) -- If payer names do not match, retain both.',
-          'A2. Payer/Issuer ID Match (Hard Stop) -- If EIN/TIN does not match, retain both.',
-          'A3. Recipient/Taxpayer Match (Hard Stop) -- If recipient names do not match, retain both.',
-          'A4. Account Number Match (Conditional) -- If applicable and does not match, retain both.',
-          'A5. Tax Year Match (Hard Stop) -- If tax year differs, retain both.',
-          'A6. Common Amount Field Existence -- If no common amount field exists, retain both.',
+          'A1. Payer/Issuer Name Match (Hard Stop) -- If payer names do not match, keep both documents.',
+          'A2. Payer/Issuer ID Match (Hard Stop) -- If EIN/TIN does not match, keep both documents.',
+          'A3. Recipient/Taxpayer Match (Hard Stop) -- If recipient names do not match, keep both documents.',
+          'A4. Account Number Match (Conditional) -- If applicable and does not match, keep both documents.',
+          'A5. Tax Year Match (Hard Stop) -- If tax year differs, keep both documents.',
+          'A6. Common Amount Field Existence -- If no common amount field exists, keep both documents.',
           'A7. Exact Match Resolution -- If all qualifying fields match, retain document with maximum data. If tied, retain first in sequence.',
-          'A8. Short-Year K-1 Exception (Override) -- If K-1s cover different periods within the same tax year, retain both.',
+          'A8. Short-Year K-1 Exception (Override) -- If K-1s cover different periods within the same tax year, keep both documents.',
           'A9. Corrected Indicator Override (Precedence) -- If one is Corrected: keep Corrected as Original, supersede uncorrected. If both Corrected: use Maximum Data to determine Original.',
         ],
       },
       {
-        title: '6. Rule Set B: Consolidated Statements (B1-B10)',
+        title: '6. Rule Set B: Consolidated Statements',
         content: [
           'B1. Multiple Copy Verification -- If only one copy exists, no duplicate identification required.',
           'B2. Statement Date Presence Check -- Check whether copies contain a Statement Date.',
@@ -78,7 +78,7 @@ export const supersededData: WizardArtifactData = {
           '1. Corrected > Uncorrected',
           '2. Latest Amended > Older Versions',
           '3. Federal Copy > State/Employee Copies',
-          '4. Short-Year K-1s: Retain Both',
+          '4. Short-Year K-1s: Keep Both Documents',
         ],
       },
       {
@@ -129,7 +129,7 @@ export const supersededData: WizardArtifactData = {
         title: 'Required Fields per Page',
         content: [
           'engagementPageId (integer), isSuperseded (boolean), retainedPageId (integer or null), confidenceLevel (number 0.0-1.0)',
-          'decisionType ("Original" | "Superseded" | "RetainBoth"), appliedRuleSet ("SourceDocs" | "ConsolidatedStatements")',
+          'decisionType ("Original" | "Superseded"), appliedRuleSet ("SourceDocs" | "ConsolidatedStatements")',
           'decisionRule (string, e.g. "A9", "B4"), decisionReason (string, human-readable)',
           'reviewRequired (boolean), escalationReason (string or null)',
         ],
@@ -164,12 +164,12 @@ For each ocrtemplateid group:
 - Output one decision object per page.
 
 RULE SET A: SOURCE DOCUMENTS (apply in order; stop at first failing rule)
-A1 Payer/Issuer Name Match (if fail → RetainBoth)
-A2 Payer/Issuer ID Match (if fail → RetainBoth)
-A3 Recipient/Taxpayer Name Match (if fail → RetainBoth)
-A4 Account Number Match (if applicable; if fail → RetainBoth)
-A5 Tax Year Match (if fail → RetainBoth)
-A6 Common Amount Field Existence (if fail → RetainBoth)
+A1 Payer/Issuer Name Match (if fail → Keep Both)
+A2 Payer/Issuer ID Match (if fail → Keep Both)
+A3 Recipient/Taxpayer Name Match (if fail → Keep Both)
+A4 Account Number Match (if applicable; if fail → Keep Both)
+A5 Tax Year Match (if fail → Keep Both)
+A6 Common Amount Field Existence (if fail → Keep Both)
 A7 Exact Match Resolution
 A8 Short-Year K-1 Exception
 A9 Corrected Indicator Override
@@ -181,7 +181,7 @@ PRECEDENCE RULES
 - Corrected > Uncorrected
 - Latest Amended > Older Versions
 - Federal Copy > State/Employee Copies
-- Short-Year K-1s → RetainBoth
+- Short-Year K-1s → Keep Both
 
 CONFIDENCE SEMANTICS
 - >= 0.90: deterministic outcome
@@ -270,13 +270,13 @@ export const duplicateData: WizardArtifactData = {
       {
         title: '4. Decision Outputs',
         content: [
-          'DUPLICATE_DATA: decision (DuplicateData / NotDuplicateData), matchType (DirectAmount / SumMatch / Other), confidenceLevel, fieldsCompared.',
-          'DUPLICATE_SOURCE_DOC: decision (Duplicate / NotDuplicate), retainDocId, confidenceLevel, appliedRuleSet, decisionRule, decisionReason.',
+          'DUPLICATE_DATA: decision (DuplicateData / Original), matchType (DirectAmount / SumMatch / Other), confidenceLevel, fieldsCompared.',
+          'DUPLICATE_SOURCE_DOC: decision (Duplicate / Original), retainDocId, confidenceLevel, appliedRuleSet, decisionRule, decisionReason.',
           'DUPLICATE_CONSOLIDATED_STATEMENT: Same structure as source doc with broker/account context.',
         ],
       },
       {
-        title: '5. Rule Set DUP-DATA (DUP-DATA-1 to DUP-DATA-3)',
+        title: '5. Rule Set DUP-DATA',
         content: [
           'DUP-DATA-1: Name Match -- Organizer name must match source name (Hard Stop).',
           'DUP-DATA-2: Direct Amount Match -- Amounts within $1 tolerance.',
@@ -284,7 +284,7 @@ export const duplicateData: WizardArtifactData = {
         ],
       },
       {
-        title: '6. Rule Set DUP-SRC (DUP-SRC-1 to DUP-SRC-9)',
+        title: '6. Rule Set DUP-SRC',
         content: [
           'DUP-SRC-1: Payer/Issuer Name Match. DUP-SRC-2: Payer/Issuer ID Match. DUP-SRC-3: Recipient/Taxpayer Match.',
           'DUP-SRC-4: Account Number Match. DUP-SRC-5: Tax Year Match. DUP-SRC-6: Jurisdiction Hard Stop.',
@@ -292,7 +292,7 @@ export const duplicateData: WizardArtifactData = {
         ],
       },
       {
-        title: '7. Rule Set DUP-CS (DUP-CS-1 to DUP-CS-5)',
+        title: '7. Rule Set DUP-CS',
         content: [
           'DUP-CS-1: Broker/Payer Name Match. DUP-CS-2: Account Number Match. DUP-CS-3: Taxpayer Name Match.',
           'DUP-CS-4: Tax Year Match. DUP-CS-5: Statement Date Retention Logic -- latest date takes precedence.',
@@ -332,19 +332,19 @@ export const duplicateData: WizardArtifactData = {
       {
         title: 'DUPLICATE_DATA Fields',
         content: [
-          'decision (DuplicateData | NotDuplicateData), matchType (DirectAmount | SumMatch | Other), confidenceLevel, fieldsCompared, decisionReason.',
+          'decision (DuplicateData | Original), matchType (DirectAmount | SumMatch | Other), confidenceLevel, fieldsCompared, decisionReason.',
         ],
       },
       {
         title: 'DUPLICATE_SOURCE_DOC Fields',
         content: [
-          'decision (Duplicate | NotDuplicate), retainDocId, confidenceLevel, appliedRuleSet, decisionRule, decisionReason.',
+          'decision (Duplicate | Original), retainDocId, confidenceLevel, appliedRuleSet, decisionRule, decisionReason.',
         ],
       },
       {
         title: 'DUPLICATE_CONSOLIDATED_STATEMENT Fields',
         content: [
-          'decision (Duplicate | NotDuplicate), retainDocId, confidenceLevel, appliedRuleSet, decisionRule, decisionReason.',
+          'decision (Duplicate | Original), retainDocId, confidenceLevel, appliedRuleSet, decisionRule, decisionReason.',
         ],
       },
     ],
@@ -355,9 +355,9 @@ STRICT OUTPUT RULES
 - Return results for all three determination areas as applicable.
 
 DECISION REQUIREMENTS
-- Apply DUP-DATA rules sequentially (DUP-DATA-1 through DUP-DATA-3).
-- Apply DUP-SRC rules sequentially (DUP-SRC-1 through DUP-SRC-9).
-- Apply DUP-CS rules sequentially (DUP-CS-1 through DUP-CS-5).
+- Apply DUP-DATA rules sequentially.
+- Apply DUP-SRC rules sequentially.
+- Apply DUP-CS rules sequentially.
 - Populate mandatory explainability fields for every item.
 - Assign confidenceLevel using defined ranges.
 
@@ -377,10 +377,10 @@ DUP-DATA-2: Direct amount match within $1
 DUP-DATA-3: Sum-of-amounts match within $1
 
 RULE SET DUP-SRC (sequential)
-DUP-SRC-1 through DUP-SRC-9
+Apply DUP-SRC rules in order
 
 RULE SET DUP-CS (sequential)
-DUP-CS-1 through DUP-CS-5
+Apply DUP-CS rules in order
 
 CONFIDENCE SEMANTICS
 - >90%: automation eligible
@@ -401,7 +401,7 @@ OUTPUT: Return JSON with all required fields per item type.`,
       {
         title: 'Override Capture',
         content: [
-          'When a user changes a Duplicate decision to NotDuplicate (or vice versa), the system records the full context: amounts compared, identifiers matched, confidence level, and user rationale.',
+          'When a user changes a Duplicate decision to Original (or vice versa), the system records the full context: amounts compared, identifiers matched, confidence level, and user rationale.',
           'Amount tolerance overrides are tracked separately to inform the $1 vs percentage tolerance decision.',
         ],
       },
@@ -457,7 +457,7 @@ export const cfaData: WizardArtifactData = {
         ],
       },
       {
-        title: '5. Decision Rules (CFA-1 to CFA-5)',
+        title: '5. Decision Rules',
         content: [
           'CFA-1: Mandatory Compatibility Check (Hard Stop) -- Child\'s parentFaxFormDWPCode must contain parent\'s faxFormDWPCode. If no compatible parent exists, AddForm is required.',
           'CFA-2: Name & Identifier Matching -- Match child engagementFormName against parent searchString and toolTip. Exact match gets highest confidence.',
@@ -595,12 +595,12 @@ export const nfrData: WizardArtifactData = {
         ],
       },
       {
-        title: '5. Decision Rules (NFR-1 to NFR-6)',
+        title: '5. Decision Rules',
         content: [
           'NFR-1: Form Type Compatibility (Hard Stop) -- formTypeId must match between document and proforma.',
           'NFR-2: ImageIndex Eligibility -- Only proforma forms with ImageIndex=3 are eligible for matching.',
           'NFR-3: Name & Identifier Matching -- Compare document name against proforma nodeName and searchString.',
-          'NFR-4: Accuracy Threshold (>= 80%) -- Match confidence must meet 80% threshold.',
+          'NFR-4: Accuracy Threshold -- Match confidence must meet the minimum accuracy threshold.',
           'NFR-5: Placeholder Avoidance -- Prefer proforma forms with real data.',
           'NFR-6: No Forced Matches -- If no proforma meets threshold, leave unmatched.',
         ],
@@ -625,7 +625,7 @@ export const nfrData: WizardArtifactData = {
           'One decision per document: Each unmatched document gets exactly one decision.',
           'formTypeId compatibility: Hard stop -- must match between doc and proforma.',
           'ImageIndex=3: Only eligible proforma forms.',
-          '80% accuracy threshold: Minimum confidence for association.',
+          'Accuracy threshold: Minimum confidence for association.',
           'No forced matches: Leave unmatched if threshold not met.',
         ],
       },
@@ -647,7 +647,7 @@ STRICT OUTPUT RULES
 HARD CONSTRAINTS
 - formTypeId must match between document and proforma (hard stop).
 - Only proforma forms with ImageIndex=3 are eligible.
-- Minimum 80% accuracy threshold for association.
+- Minimum accuracy threshold for association.
 - Do not force matches -- leave unmatched if threshold not met.
 
 GUARDRAILS
@@ -659,7 +659,7 @@ RULES (apply in order):
 1. Form Type Compatibility (Hard Stop) -- formTypeId must match
 2. ImageIndex Eligibility -- only ImageIndex=3 proforma forms
 3. Name & Identifier Matching -- nodeName, searchString comparison
-4. Accuracy Threshold -- >= 80% confidence required
+4. Accuracy Threshold -- minimum confidence required
 5. Placeholder Avoidance -- prefer real data proforma
 6. No Forced Matches -- leave unmatched if threshold not met
 
