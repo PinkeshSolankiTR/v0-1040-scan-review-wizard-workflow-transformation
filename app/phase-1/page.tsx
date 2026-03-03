@@ -26,7 +26,6 @@ const WIZARDS = [
       'Identifies superseded source documents using payer matching, EIN comparison, corrected indicator analysis, and date-based retention logic.',
     ruleSets: ['Rule Set A (Source Documents)', 'Rule Set B (Consolidated Statements)'],
     decisionTypes: 'Original / Superseded',
-    confidenceBands: '4 bands',
     artifacts: [
       { label: 'Documentation', icon: BookOpen, type: 'documentation' },
       { label: 'Feedback Loop', icon: RefreshCw, type: 'feedback-loop' },
@@ -42,7 +41,6 @@ const WIZARDS = [
       'Detects duplicate entries by comparing amounts, payer/recipient identifiers, account numbers, jurisdictions, and document dates across organizer data, source documents, and consolidated statements.',
     ruleSets: ['Duplicate Identification Rules'],
     decisionTypes: 'Duplicate / Original',
-    confidenceBands: '3 bands',
     artifacts: [
       { label: 'Documentation', icon: BookOpen, type: 'documentation' },
       { label: 'Feedback Loop', icon: RefreshCw, type: 'feedback-loop' },
@@ -58,7 +56,6 @@ const WIZARDS = [
       'Associates unassociated child documents to the most appropriate parent form. Enforces mandatory compatibility checks, name/identifier matching, placeholder avoidance, and AddForm creation.',
     ruleSets: ['CFA (Association Rules)'],
     decisionTypes: 'Associate / AddForm / Unmatched',
-    confidenceBands: '4 bands',
     artifacts: [
       { label: 'Documentation', icon: BookOpen, type: 'documentation' },
       { label: 'Feedback Loop', icon: RefreshCw, type: 'feedback-loop' },
@@ -74,7 +71,6 @@ const WIZARDS = [
       'Matches unmatched documents to existing proforma input forms. Enforces form type compatibility, eligibility checks, accuracy threshold, and no forced matches.',
     ruleSets: ['NFR (Matching Rules)'],
     decisionTypes: 'Match / Unmatched / Supersede / Merge',
-    confidenceBands: '4 bands',
     artifacts: [
       { label: 'Documentation', icon: BookOpen, type: 'documentation' },
       { label: 'Feedback Loop', icon: RefreshCw, type: 'feedback-loop' },
@@ -106,11 +102,6 @@ function WizardCard({ wizard }: { wizard: (typeof WIZARDS)[number] }) {
         </div>
         <div className="flex-1">
           <CardTitle className="text-base">{wizard.title}</CardTitle>
-          <div className="flex items-center gap-2 mt-1">
-            <Badge variant="outline" className="text-xs">
-              {wizard.confidenceBands}
-            </Badge>
-          </div>
         </div>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col gap-4">
