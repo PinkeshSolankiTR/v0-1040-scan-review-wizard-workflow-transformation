@@ -35,6 +35,12 @@ import { Badge } from "@/components/ui/badge"
 
 /* ────────────────────────────────────────── DATA ── */
 
+const QUALITY_SUB_AGENTS = [
+  { name: "Information Collection Agent", desc: "Validates input data completeness and OCR quality before processing", parallel: false, role: "quality" as const },
+  { name: "Rule Validation Agent", desc: "Checks if input patterns have clear historical outcomes and flags ambiguities", parallel: true, role: "quality" as const },
+  { name: "Hallucination Detection Agent", desc: "Identifies hallucination-prone fields and data consistency risks", parallel: true, role: "quality" as const },
+]
+
 const WIZARD_AGENTS = [
   {
     id: "pre-verification",
@@ -42,9 +48,11 @@ const WIZARD_AGENTS = [
     icon: ClipboardCheck,
     accent: "oklch(0.55 0.15 250)",
     group: 1,
-    coreAgents: [
-      { name: "Completeness Agent", desc: "Checks if all required documents are present in the binder", parallel: true },
-      { name: "Data Quality Agent", desc: "Checks if OCR extracted data is readable and usable", parallel: true },
+    totalAgents: 5,
+    subAgents: [
+      ...QUALITY_SUB_AGENTS,
+      { name: "Completeness Agent", desc: "Checks if all required documents are present in the binder", parallel: true, role: "core" as const },
+      { name: "Data Quality Agent", desc: "Checks if OCR extracted data is readable and usable", parallel: true, role: "core" as const },
     ],
     coreExecution: "Parallel",
   },
@@ -54,9 +62,11 @@ const WIZARD_AGENTS = [
     icon: CheckCircle2,
     accent: "oklch(0.55 0.17 165)",
     group: 1,
-    coreAgents: [
-      { name: "Cross-Reference Agent", desc: "Validates data consistency across related documents", parallel: true },
-      { name: "Anomaly Agent", desc: "Detects unusual patterns or outlier data", parallel: true },
+    totalAgents: 5,
+    subAgents: [
+      ...QUALITY_SUB_AGENTS,
+      { name: "Cross-Reference Agent", desc: "Validates data consistency across related documents", parallel: true, role: "core" as const },
+      { name: "Anomaly Agent", desc: "Detects unusual patterns or outlier data", parallel: true, role: "core" as const },
     ],
     coreExecution: "Parallel",
   },
@@ -66,11 +76,13 @@ const WIZARD_AGENTS = [
     icon: FileStack,
     accent: "oklch(0.55 0.18 290)",
     group: 2,
-    coreAgents: [
-      { name: "Grouping Agent", desc: "Groups pages by shared characteristics (ocrtemplateid, payer, form type) for comparison", parallel: false },
-      { name: "Comparison Agent", desc: "Compares document pairs within each group on payer, recipient, account, tax year, amounts", parallel: false },
-      { name: "Precedence Agent", desc: "For matched pairs, determines which document to retain", parallel: false },
-      { name: "Confidence Agent", desc: "Scores decision confidence based on Library patterns", parallel: false },
+    totalAgents: 7,
+    subAgents: [
+      ...QUALITY_SUB_AGENTS,
+      { name: "Grouping Agent", desc: "Groups pages by shared characteristics (ocrtemplateid, payer, form type) for comparison", parallel: false, role: "core" as const },
+      { name: "Comparison Agent", desc: "Compares document pairs within each group on payer, recipient, account, tax year, amounts", parallel: false, role: "core" as const },
+      { name: "Precedence Agent", desc: "For matched pairs, determines which document to retain", parallel: false, role: "core" as const },
+      { name: "Confidence Agent", desc: "Scores decision confidence based on Library patterns", parallel: false, role: "core" as const },
     ],
     coreExecution: "Sequential",
   },
@@ -80,10 +92,12 @@ const WIZARD_AGENTS = [
     icon: Copy,
     accent: "oklch(0.55 0.15 250)",
     group: 2,
-    coreAgents: [
-      { name: "Data Duplicate Agent", desc: "Compares organizer entries vs source documents for duplication", parallel: true },
-      { name: "Source Document Duplicate Agent", desc: "Compares two source documents for duplication", parallel: true },
-      { name: "Consolidated Statement Agent", desc: "Compares two consolidated broker statements for duplication", parallel: true },
+    totalAgents: 6,
+    subAgents: [
+      ...QUALITY_SUB_AGENTS,
+      { name: "Data Duplicate Agent", desc: "Compares organizer entries vs source documents for duplication", parallel: true, role: "core" as const },
+      { name: "Source Document Duplicate Agent", desc: "Compares two source documents for duplication", parallel: true, role: "core" as const },
+      { name: "Consolidated Statement Agent", desc: "Compares two consolidated broker statements for duplication", parallel: true, role: "core" as const },
     ],
     coreExecution: "Parallel",
   },
@@ -93,10 +107,12 @@ const WIZARD_AGENTS = [
     icon: Link2,
     accent: "oklch(0.55 0.17 165)",
     group: 2,
-    coreAgents: [
-      { name: "Compatibility Agent", desc: "Filters which parent forms are compatible with the child form", parallel: false },
-      { name: "Matching Agent", desc: "Scores each compatible parent on name, identifier, and search string similarity", parallel: false },
-      { name: "Resolution Agent", desc: "Makes final association decision, handles ambiguity or no-match cases", parallel: false },
+    totalAgents: 6,
+    subAgents: [
+      ...QUALITY_SUB_AGENTS,
+      { name: "Compatibility Agent", desc: "Filters which parent forms are compatible with the child form", parallel: false, role: "core" as const },
+      { name: "Matching Agent", desc: "Scores each compatible parent on name, identifier, and search string similarity", parallel: false, role: "core" as const },
+      { name: "Resolution Agent", desc: "Makes final association decision, handles ambiguity or no-match cases", parallel: false, role: "core" as const },
     ],
     coreExecution: "Sequential",
   },
@@ -106,10 +122,12 @@ const WIZARD_AGENTS = [
     icon: FileSearch,
     accent: "oklch(0.6 0.15 60)",
     group: 3,
-    coreAgents: [
-      { name: "Eligibility Agent", desc: "Filters which proforma input forms are eligible for matching", parallel: false },
-      { name: "Matching Agent", desc: "Scores similarity between document and eligible proforma forms", parallel: false },
-      { name: "Decision Agent", desc: "Makes final match or leave-unmatched decision based on threshold", parallel: false },
+    totalAgents: 6,
+    subAgents: [
+      ...QUALITY_SUB_AGENTS,
+      { name: "Eligibility Agent", desc: "Filters which proforma input forms are eligible for matching", parallel: false, role: "core" as const },
+      { name: "Matching Agent", desc: "Scores similarity between document and eligible proforma forms", parallel: false, role: "core" as const },
+      { name: "Decision Agent", desc: "Makes final match or leave-unmatched decision based on threshold", parallel: false, role: "core" as const },
     ],
     coreExecution: "Sequential",
   },
@@ -119,9 +137,11 @@ const WIZARD_AGENTS = [
     icon: Shield,
     accent: "oklch(0.55 0.22 25)",
     group: 4,
-    coreAgents: [
-      { name: "Conflict Agent", desc: "Detects conflicting decisions across all previous wizards", parallel: false },
-      { name: "Completeness Agent", desc: "Verifies every document in the binder has a final status", parallel: false },
+    totalAgents: 5,
+    subAgents: [
+      ...QUALITY_SUB_AGENTS,
+      { name: "Conflict Agent", desc: "Detects conflicting decisions across all previous wizards", parallel: false, role: "core" as const },
+      { name: "Completeness Agent", desc: "Verifies every document in the binder has a final status", parallel: false, role: "core" as const },
     ],
     coreExecution: "Sequential",
   },
@@ -185,45 +205,45 @@ const DISAGREEMENT_MATRIX = [
 
 const AGENT_INVENTORY = [
   { num: 1, group: "--", wizard: "--", name: "Routing Agent", type: "Router", seq: "--", parallelWith: "Nothing", dependsOn: "Nothing" },
-  { num: 2, group: "G1", wizard: "Pre-verification", name: "Information Collection Agent", type: "Pre", seq: "1", parallelWith: "Nothing", dependsOn: "Routing Agent" },
-  { num: 3, group: "G1", wizard: "Pre-verification", name: "Rule Validation Agent", type: "Pre", seq: "2a", parallelWith: "Hallucination Agent", dependsOn: "Info Collection" },
-  { num: 4, group: "G1", wizard: "Pre-verification", name: "Hallucination Detection Agent", type: "Pre", seq: "2b", parallelWith: "Rule Validation Agent", dependsOn: "Info Collection" },
-  { num: 5, group: "G1", wizard: "Pre-verification", name: "Completeness Agent", type: "Core", seq: "3a", parallelWith: "Data Quality Agent", dependsOn: "Pre-wizard agents" },
-  { num: 6, group: "G1", wizard: "Pre-verification", name: "Data Quality Agent", type: "Core", seq: "3b", parallelWith: "Completeness Agent", dependsOn: "Pre-wizard agents" },
-  { num: 7, group: "G1", wizard: "Verification", name: "Information Collection Agent", type: "Pre", seq: "1", parallelWith: "Nothing", dependsOn: "Routing Agent" },
-  { num: 8, group: "G1", wizard: "Verification", name: "Rule Validation Agent", type: "Pre", seq: "2a", parallelWith: "Hallucination Agent", dependsOn: "Info Collection" },
-  { num: 9, group: "G1", wizard: "Verification", name: "Hallucination Detection Agent", type: "Pre", seq: "2b", parallelWith: "Rule Validation Agent", dependsOn: "Info Collection" },
-  { num: 10, group: "G1", wizard: "Verification", name: "Cross-Reference Agent", type: "Core", seq: "3a", parallelWith: "Anomaly Agent", dependsOn: "Pre-wizard agents" },
-  { num: 11, group: "G1", wizard: "Verification", name: "Anomaly Agent", type: "Core", seq: "3b", parallelWith: "Cross-Reference Agent", dependsOn: "Pre-wizard agents" },
-  { num: 12, group: "G2", wizard: "Superseded", name: "Information Collection Agent", type: "Pre", seq: "1", parallelWith: "Nothing", dependsOn: "Routing Agent" },
-  { num: 13, group: "G2", wizard: "Superseded", name: "Rule Validation Agent", type: "Pre", seq: "2a", parallelWith: "Hallucination Agent", dependsOn: "Info Collection" },
-  { num: 14, group: "G2", wizard: "Superseded", name: "Hallucination Detection Agent", type: "Pre", seq: "2b", parallelWith: "Rule Validation Agent", dependsOn: "Info Collection" },
-  { num: 15, group: "G2", wizard: "Superseded", name: "Grouping Agent", type: "Core", seq: "3", parallelWith: "Nothing", dependsOn: "Pre-wizard agents" },
+  { num: 2, group: "G1", wizard: "Pre-verification", name: "Information Collection Agent", type: "Quality", seq: "1", parallelWith: "Nothing", dependsOn: "Routing Agent" },
+  { num: 3, group: "G1", wizard: "Pre-verification", name: "Rule Validation Agent", type: "Quality", seq: "2a", parallelWith: "Hallucination Agent", dependsOn: "Info Collection" },
+  { num: 4, group: "G1", wizard: "Pre-verification", name: "Hallucination Detection Agent", type: "Quality", seq: "2b", parallelWith: "Rule Validation Agent", dependsOn: "Info Collection" },
+  { num: 5, group: "G1", wizard: "Pre-verification", name: "Completeness Agent", type: "Core", seq: "3a", parallelWith: "Data Quality Agent", dependsOn: "Quality sub-agents" },
+  { num: 6, group: "G1", wizard: "Pre-verification", name: "Data Quality Agent", type: "Core", seq: "3b", parallelWith: "Completeness Agent", dependsOn: "Quality sub-agents" },
+  { num: 7, group: "G1", wizard: "Verification", name: "Information Collection Agent", type: "Quality", seq: "1", parallelWith: "Nothing", dependsOn: "Routing Agent" },
+  { num: 8, group: "G1", wizard: "Verification", name: "Rule Validation Agent", type: "Quality", seq: "2a", parallelWith: "Hallucination Agent", dependsOn: "Info Collection" },
+  { num: 9, group: "G1", wizard: "Verification", name: "Hallucination Detection Agent", type: "Quality", seq: "2b", parallelWith: "Rule Validation Agent", dependsOn: "Info Collection" },
+  { num: 10, group: "G1", wizard: "Verification", name: "Cross-Reference Agent", type: "Core", seq: "3a", parallelWith: "Anomaly Agent", dependsOn: "Quality sub-agents" },
+  { num: 11, group: "G1", wizard: "Verification", name: "Anomaly Agent", type: "Core", seq: "3b", parallelWith: "Cross-Reference Agent", dependsOn: "Quality sub-agents" },
+  { num: 12, group: "G2", wizard: "Superseded", name: "Information Collection Agent", type: "Quality", seq: "1", parallelWith: "Nothing", dependsOn: "Routing Agent" },
+  { num: 13, group: "G2", wizard: "Superseded", name: "Rule Validation Agent", type: "Quality", seq: "2a", parallelWith: "Hallucination Agent", dependsOn: "Info Collection" },
+  { num: 14, group: "G2", wizard: "Superseded", name: "Hallucination Detection Agent", type: "Quality", seq: "2b", parallelWith: "Rule Validation Agent", dependsOn: "Info Collection" },
+  { num: 15, group: "G2", wizard: "Superseded", name: "Grouping Agent", type: "Core", seq: "3", parallelWith: "Nothing", dependsOn: "Quality sub-agents" },
   { num: 16, group: "G2", wizard: "Superseded", name: "Comparison Agent", type: "Core", seq: "4", parallelWith: "Nothing", dependsOn: "Grouping Agent" },
   { num: 17, group: "G2", wizard: "Superseded", name: "Precedence Agent", type: "Core", seq: "5", parallelWith: "Nothing", dependsOn: "Comparison Agent" },
   { num: 18, group: "G2", wizard: "Superseded", name: "Confidence Agent", type: "Core", seq: "6", parallelWith: "Nothing", dependsOn: "Precedence Agent" },
-  { num: 19, group: "G2", wizard: "Duplicate", name: "Information Collection Agent", type: "Pre", seq: "1", parallelWith: "Nothing", dependsOn: "Routing Agent" },
-  { num: 20, group: "G2", wizard: "Duplicate", name: "Rule Validation Agent", type: "Pre", seq: "2a", parallelWith: "Hallucination Agent", dependsOn: "Info Collection" },
-  { num: 21, group: "G2", wizard: "Duplicate", name: "Hallucination Detection Agent", type: "Pre", seq: "2b", parallelWith: "Rule Validation Agent", dependsOn: "Info Collection" },
-  { num: 22, group: "G2", wizard: "Duplicate", name: "Data Duplicate Agent", type: "Core", seq: "3a", parallelWith: "Source Doc, Consolidated", dependsOn: "Pre-wizard agents" },
-  { num: 23, group: "G2", wizard: "Duplicate", name: "Source Document Duplicate Agent", type: "Core", seq: "3b", parallelWith: "Data Dup, Consolidated", dependsOn: "Pre-wizard agents" },
-  { num: 24, group: "G2", wizard: "Duplicate", name: "Consolidated Statement Agent", type: "Core", seq: "3c", parallelWith: "Data Dup, Source Doc", dependsOn: "Pre-wizard agents" },
-  { num: 25, group: "G2", wizard: "CFA", name: "Information Collection Agent", type: "Pre", seq: "1", parallelWith: "Nothing", dependsOn: "Routing Agent" },
-  { num: 26, group: "G2", wizard: "CFA", name: "Rule Validation Agent", type: "Pre", seq: "2a", parallelWith: "Hallucination Agent", dependsOn: "Info Collection" },
-  { num: 27, group: "G2", wizard: "CFA", name: "Hallucination Detection Agent", type: "Pre", seq: "2b", parallelWith: "Rule Validation Agent", dependsOn: "Info Collection" },
-  { num: 28, group: "G2", wizard: "CFA", name: "Compatibility Agent", type: "Core", seq: "3", parallelWith: "Nothing", dependsOn: "Pre-wizard agents" },
+  { num: 19, group: "G2", wizard: "Duplicate", name: "Information Collection Agent", type: "Quality", seq: "1", parallelWith: "Nothing", dependsOn: "Routing Agent" },
+  { num: 20, group: "G2", wizard: "Duplicate", name: "Rule Validation Agent", type: "Quality", seq: "2a", parallelWith: "Hallucination Agent", dependsOn: "Info Collection" },
+  { num: 21, group: "G2", wizard: "Duplicate", name: "Hallucination Detection Agent", type: "Quality", seq: "2b", parallelWith: "Rule Validation Agent", dependsOn: "Info Collection" },
+  { num: 22, group: "G2", wizard: "Duplicate", name: "Data Duplicate Agent", type: "Core", seq: "3a", parallelWith: "Source Doc, Consolidated", dependsOn: "Quality sub-agents" },
+  { num: 23, group: "G2", wizard: "Duplicate", name: "Source Document Duplicate Agent", type: "Core", seq: "3b", parallelWith: "Data Dup, Consolidated", dependsOn: "Quality sub-agents" },
+  { num: 24, group: "G2", wizard: "Duplicate", name: "Consolidated Statement Agent", type: "Core", seq: "3c", parallelWith: "Data Dup, Source Doc", dependsOn: "Quality sub-agents" },
+  { num: 25, group: "G2", wizard: "CFA", name: "Information Collection Agent", type: "Quality", seq: "1", parallelWith: "Nothing", dependsOn: "Routing Agent" },
+  { num: 26, group: "G2", wizard: "CFA", name: "Rule Validation Agent", type: "Quality", seq: "2a", parallelWith: "Hallucination Agent", dependsOn: "Info Collection" },
+  { num: 27, group: "G2", wizard: "CFA", name: "Hallucination Detection Agent", type: "Quality", seq: "2b", parallelWith: "Rule Validation Agent", dependsOn: "Info Collection" },
+  { num: 28, group: "G2", wizard: "CFA", name: "Compatibility Agent", type: "Core", seq: "3", parallelWith: "Nothing", dependsOn: "Quality sub-agents" },
   { num: 29, group: "G2", wizard: "CFA", name: "Matching Agent", type: "Core", seq: "4", parallelWith: "Nothing", dependsOn: "Compatibility Agent" },
   { num: 30, group: "G2", wizard: "CFA", name: "Resolution Agent", type: "Core", seq: "5", parallelWith: "Nothing", dependsOn: "Matching Agent" },
-  { num: 31, group: "G3", wizard: "NFR", name: "Information Collection Agent", type: "Pre", seq: "1", parallelWith: "Nothing", dependsOn: "Group 2 results" },
-  { num: 32, group: "G3", wizard: "NFR", name: "Rule Validation Agent", type: "Pre", seq: "2a", parallelWith: "Hallucination Agent", dependsOn: "Info Collection" },
-  { num: 33, group: "G3", wizard: "NFR", name: "Hallucination Detection Agent", type: "Pre", seq: "2b", parallelWith: "Rule Validation Agent", dependsOn: "Info Collection" },
-  { num: 34, group: "G3", wizard: "NFR", name: "Eligibility Agent", type: "Core", seq: "3", parallelWith: "Nothing", dependsOn: "Pre-wizard agents" },
+  { num: 31, group: "G3", wizard: "NFR", name: "Information Collection Agent", type: "Quality", seq: "1", parallelWith: "Nothing", dependsOn: "Group 2 results" },
+  { num: 32, group: "G3", wizard: "NFR", name: "Rule Validation Agent", type: "Quality", seq: "2a", parallelWith: "Hallucination Agent", dependsOn: "Info Collection" },
+  { num: 33, group: "G3", wizard: "NFR", name: "Hallucination Detection Agent", type: "Quality", seq: "2b", parallelWith: "Rule Validation Agent", dependsOn: "Info Collection" },
+  { num: 34, group: "G3", wizard: "NFR", name: "Eligibility Agent", type: "Core", seq: "3", parallelWith: "Nothing", dependsOn: "Quality sub-agents" },
   { num: 35, group: "G3", wizard: "NFR", name: "Matching Agent", type: "Core", seq: "4", parallelWith: "Nothing", dependsOn: "Eligibility Agent" },
   { num: 36, group: "G3", wizard: "NFR", name: "Decision Agent", type: "Core", seq: "5", parallelWith: "Nothing", dependsOn: "Matching Agent" },
-  { num: 37, group: "G4", wizard: "Finalization", name: "Information Collection Agent", type: "Pre", seq: "1", parallelWith: "Nothing", dependsOn: "All prior results" },
-  { num: 38, group: "G4", wizard: "Finalization", name: "Rule Validation Agent", type: "Pre", seq: "2a", parallelWith: "Hallucination Agent", dependsOn: "Info Collection" },
-  { num: 39, group: "G4", wizard: "Finalization", name: "Hallucination Detection Agent", type: "Pre", seq: "2b", parallelWith: "Rule Validation Agent", dependsOn: "Info Collection" },
-  { num: 40, group: "G4", wizard: "Finalization", name: "Conflict Agent", type: "Core", seq: "3", parallelWith: "Nothing", dependsOn: "Pre-wizard agents" },
+  { num: 37, group: "G4", wizard: "Finalization", name: "Information Collection Agent", type: "Quality", seq: "1", parallelWith: "Nothing", dependsOn: "All prior results" },
+  { num: 38, group: "G4", wizard: "Finalization", name: "Rule Validation Agent", type: "Quality", seq: "2a", parallelWith: "Hallucination Agent", dependsOn: "Info Collection" },
+  { num: 39, group: "G4", wizard: "Finalization", name: "Hallucination Detection Agent", type: "Quality", seq: "2b", parallelWith: "Rule Validation Agent", dependsOn: "Info Collection" },
+  { num: 40, group: "G4", wizard: "Finalization", name: "Conflict Agent", type: "Core", seq: "3", parallelWith: "Nothing", dependsOn: "Quality sub-agents" },
   { num: 41, group: "G4", wizard: "Finalization", name: "Completeness Agent", type: "Core", seq: "4", parallelWith: "Nothing", dependsOn: "Conflict Agent" },
 ]
 
@@ -261,7 +281,7 @@ const SECTIONS = [
   { id: "how-it-works", label: "How It Works" },
   { id: "routing-agent", label: "Routing Agent" },
   { id: "wizard-agents", label: "Wizard Agents" },
-  { id: "pre-wizard", label: "Pre-Wizard Quality" },
+  { id: "quality-agents", label: "Quality Sub-Agents" },
   { id: "disagreements", label: "Disagreement Resolution" },
   { id: "learning", label: "Self-Learning" },
   { id: "decision-walkthrough", label: "Decision Walkthrough" },
@@ -391,17 +411,17 @@ export default function MultiAgentArchitecturePage() {
                   Multi-Agent Architecture -- Self-Learning System
                 </h1>
                 <p className="text-sm text-muted-foreground mt-1">
-                  48 specialist agents organized into 7 wizard departments with skill-based learning from historical data
+                  1 Routing Agent + 7 Wizard Agents containing 40 sub-agents (including 3 quality sub-agents per wizard that always run first)
                 </p>
               </div>
             </div>
 
             {/* Key stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
-              <StatCard value="48" label="Total Agents" accent="oklch(0.55 0.15 250)" />
-              <StatCard value="7" label="Wizard Departments" accent="oklch(0.55 0.17 165)" />
-              <StatCard value="19" label="Core Sub-Agents" accent="oklch(0.55 0.18 290)" />
-              <StatCard value="21" label="Pre-Wizard Checkers" accent="oklch(0.55 0.22 25)" />
+              <StatCard value="1" label="Routing Agent" accent="oklch(0.55 0.17 165)" />
+              <StatCard value="7" label="Wizard Agents" accent="oklch(0.55 0.15 250)" />
+              <StatCard value="40" label="Total Sub-Agents" accent="oklch(0.55 0.18 290)" />
+              <StatCard value="3" label="Quality Agents per Wizard" accent="oklch(0.55 0.22 25)" />
             </div>
 
             <div className="flex flex-col gap-14">
@@ -412,14 +432,12 @@ export default function MultiAgentArchitecturePage() {
                 <Card>
                   <CardContent className="pt-6">
                     <p className="text-sm text-muted-foreground leading-relaxed mb-6">
-                      The system has 4 layers. A Routing Agent at the top decides which departments each document needs. 7 Wizard Agents act as specialist departments. Before each department begins its work, 21 Pre-Wizard Quality Agents run first to validate data completeness, check historical patterns, and identify hallucination risks -- catching discrepancies at the earliest stage. Then 19 Core Sub-Agents perform the specific wizard tasks.
+                      The system has 2 levels. A Routing Agent at the top decides which wizard departments each document needs. 7 Wizard Agents act as specialist departments, each containing all its sub-agents. Within each wizard, 3 quality sub-agents always run first (Information Collection, Rule Validation, Hallucination Detection) to validate data before the core sub-agents begin their work.
                     </p>
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {[
-                        { layer: "Layer 1", who: "Routing Agent", what: "Looks at a document and decides which departments it needs", count: "1 agent", icon: Route },
-                        { layer: "Layer 2", who: "Wizard Agents", what: "Each department handles one type of tax decision", count: "7 agents", icon: Layers },
-                        { layer: "Layer 3", who: "Pre-Wizard Quality Agents", what: "3 quality agents run BEFORE each wizard to catch data issues, pattern risks, and hallucination-prone fields early", count: "21 agents", icon: Shield },
-                        { layer: "Layer 4", who: "Core Sub-Agents", what: "Each worker does one specific task within a department, with pre-validated data", count: "19 agents", icon: Settings },
+                        { layer: "Level 1", who: "Routing Agent", what: "Looks at a document and decides which wizard departments it needs. Does not make any tax decisions -- only routes.", count: "1 agent", icon: Route },
+                        { layer: "Level 2", who: "7 Wizard Agents", what: "Each wizard is a specialist department containing all its sub-agents. Within each wizard, 3 quality sub-agents run first (info check, rule check, hallucination check), then the core sub-agents perform the specific wizard tasks.", count: "7 wizards, 40 sub-agents total", icon: Layers },
                       ].map((l) => {
                         const LIcon = l.icon
                         return (
@@ -451,27 +469,27 @@ export default function MultiAgentArchitecturePage() {
                   {[
                     {
                       step: "Step 1",
-                      title: "Front Desk",
-                      desc: "Routing Agent examines document characteristics and decides which of the 7 departments it needs. Unnecessary departments are skipped entirely.",
-                      highlight: "Only relevant departments are invoked",
+                      title: "Front Desk -- Routing Agent",
+                      desc: "Routing Agent examines document characteristics and decides which of the 7 wizard departments it needs. Unnecessary departments are skipped entirely.",
+                      highlight: "Only relevant wizard departments are invoked",
                     },
                     {
                       step: "Step 2",
-                      title: "Quality Team Checks First",
-                      desc: "Before each department starts its work, 3 pre-wizard quality agents run: Is the data complete? Does this pattern have a clear historical outcome? Are there known hallucination risks? This catches discrepancies at the earliest possible stage.",
-                      highlight: "Discrepancies caught before the wizard even begins",
+                      title: "Quality Sub-Agents Run First (Inside Each Wizard)",
+                      desc: "When a wizard starts, its first 3 sub-agents are always the quality agents: Is the data complete? Does this pattern have a clear historical outcome? Are there known hallucination risks? These run before any core sub-agents within the same wizard.",
+                      highlight: "Quality gates are embedded inside each wizard, not a separate layer",
                     },
                     {
                       step: "Step 3",
-                      title: "Departments Work in Parallel",
-                      desc: "Independent departments work at the same time with pre-validated data. Superseded and Duplicate do not depend on each other, so they run simultaneously. This makes the system roughly 50% faster.",
-                      highlight: "Up to 3 wizards run at the same time with clean, validated inputs",
+                      title: "Wizards Work in Parallel",
+                      desc: "Independent wizards work at the same time. Superseded and Duplicate do not depend on each other, so they run simultaneously -- each running their own quality sub-agents first, then their core sub-agents. This makes the system roughly 50% faster.",
+                      highlight: "Up to 3 wizards run at the same time, each with self-contained quality checks",
                     },
                     {
                       step: "Step 4",
-                      title: "Workers Inside Each Department",
-                      desc: "Each department has a small team of focused workers. Each worker does one specific task -- grouping documents, comparing fields, scoring confidence -- and gets better at that one task over time. They work with data that has already been validated.",
-                      highlight: "19 specialist workers across 7 departments, working on pre-checked data",
+                      title: "Core Sub-Agents Execute with Validated Data",
+                      desc: "After the 3 quality sub-agents finish, the core sub-agents within each wizard begin. Each does one specific task -- grouping documents, comparing fields, scoring confidence -- working with data that has already been validated by their wizard's quality gate.",
+                      highlight: "Core sub-agents never start until the quality sub-agents have cleared the data",
                     },
                   ].map((s, i) => (
                     <Card key={s.step}>
@@ -539,10 +557,10 @@ export default function MultiAgentArchitecturePage() {
 
               {/* ═══════════════ SECTION 4: WIZARD AGENTS ═══════════════ */}
               <section>
-                <SectionHeading id="wizard-agents" number="4" icon={Layers} title="Wizard Agents and Core Sub-Agents" />
+                <SectionHeading id="wizard-agents" number="4" icon={Layers} title="Wizard Agents and Their Sub-Agents" />
 
                 <p className="text-sm text-muted-foreground leading-relaxed mb-6">
-                  7 wizard agents are organized into 4 execution groups. Wizards within the same group run in parallel. Groups execute sequentially because later groups depend on earlier results.
+                  7 wizard agents are organized into 4 execution groups. Wizards within the same group run in parallel. Groups execute sequentially because later groups depend on earlier results. Each wizard contains all its sub-agents: 3 quality sub-agents that always run first, followed by the core sub-agents.
                 </p>
 
                 {/* Group labels */}
@@ -579,6 +597,7 @@ export default function MultiAgentArchitecturePage() {
                             </div>
                             <div className="flex items-center gap-2">
                               <Badge variant="outline" className="text-xs">Group {w.group}</Badge>
+                              <Badge variant="outline" className="text-xs">{w.totalAgents} sub-agents</Badge>
                               <Badge variant="outline" className="text-xs">Core: {w.coreExecution}</Badge>
                             </div>
                           </div>
@@ -590,27 +609,46 @@ export default function MultiAgentArchitecturePage() {
                                 <tr className="border-b border-border">
                                   <th className="text-left py-2 pr-4 text-xs font-semibold text-foreground">Seq</th>
                                   <th className="text-left py-2 pr-4 text-xs font-semibold text-foreground">Sub-Agent</th>
+                                  <th className="text-left py-2 pr-4 text-xs font-semibold text-foreground">Role</th>
                                   <th className="text-left py-2 pr-4 text-xs font-semibold text-foreground">Purpose</th>
                                   <th className="text-left py-2 text-xs font-semibold text-foreground">Parallel</th>
                                 </tr>
                               </thead>
                               <tbody>
-                                {w.coreAgents.map((a, i) => (
-                                  <tr key={a.name} className="border-b border-border/50 last:border-0">
-                                    <td className="py-2 pr-4 text-xs text-muted-foreground font-mono">
-                                      {a.parallel ? `${i + 1}${String.fromCharCode(97 + i)}` : `${i + 1}`}
-                                    </td>
-                                    <td className="py-2 pr-4 text-xs font-medium text-foreground whitespace-nowrap">{a.name}</td>
-                                    <td className="py-2 pr-4 text-xs text-muted-foreground">{a.desc}</td>
-                                    <td className="py-2 text-xs">
-                                      {a.parallel ? (
-                                        <Badge variant="outline" className="text-xs bg-[var(--confidence-high)]/10 text-[var(--confidence-high)] border-[var(--confidence-high)]/30">Yes</Badge>
-                                      ) : (
-                                        <span className="text-muted-foreground">No</span>
-                                      )}
-                                    </td>
-                                  </tr>
-                                ))}
+                                {w.subAgents.map((a, i) => {
+                                  const isQuality = a.role === "quality"
+                                  const isLastQuality = isQuality && i === 2
+                                  const seqLabel = i === 0 ? "1" : i === 1 ? "2a" : i === 2 ? "2b" : (() => {
+                                    const coreIndex = i - 3
+                                    const coreAgents = w.subAgents.filter(sa => sa.role === "core")
+                                    const hasCoreParallel = coreAgents.some(sa => sa.parallel)
+                                    if (hasCoreParallel) return `${3}${String.fromCharCode(97 + coreIndex)}`
+                                    return `${3 + coreIndex}`
+                                  })()
+                                  return (
+                                    <tr key={`${a.name}-${a.role}`} className={`border-b ${isLastQuality ? "border-border" : "border-border/50"} last:border-0 ${isQuality ? "bg-muted/30" : ""}`}>
+                                      <td className="py-2 pr-4 text-xs text-muted-foreground font-mono">
+                                        {seqLabel}
+                                      </td>
+                                      <td className="py-2 pr-4 text-xs font-medium text-foreground whitespace-nowrap">{a.name}</td>
+                                      <td className="py-2 pr-4 text-xs">
+                                        {isQuality ? (
+                                          <Badge variant="outline" className="text-xs" style={{ borderColor: "oklch(0.6 0.15 60)", color: "oklch(0.6 0.15 60)" }}>Quality</Badge>
+                                        ) : (
+                                          <Badge variant="outline" className="text-xs" style={{ borderColor: "oklch(0.55 0.15 250)", color: "oklch(0.55 0.15 250)" }}>Core</Badge>
+                                        )}
+                                      </td>
+                                      <td className="py-2 pr-4 text-xs text-muted-foreground">{a.desc}</td>
+                                      <td className="py-2 text-xs">
+                                        {a.parallel ? (
+                                          <Badge variant="outline" className="text-xs bg-[var(--confidence-high)]/10 text-[var(--confidence-high)] border-[var(--confidence-high)]/30">Yes</Badge>
+                                        ) : (
+                                          <span className="text-muted-foreground">No</span>
+                                        )}
+                                      </td>
+                                    </tr>
+                                  )
+                                })}
                               </tbody>
                             </table>
                           </div>
@@ -621,12 +659,12 @@ export default function MultiAgentArchitecturePage() {
                 </div>
               </section>
 
-              {/* ═══════════════ SECTION 5: POST-WIZARD ═══════════════ */}
+              {/* ═══════════════ SECTION 5: QUALITY SUB-AGENTS ═══════════════ */}
               <section>
-                <SectionHeading id="pre-wizard" number="5" icon={Shield} title="Pre-Wizard Quality Agents" />
+                <SectionHeading id="quality-agents" number="5" icon={Shield} title="Quality Sub-Agents (Inside Each Wizard)" />
 
                 <p className="text-sm text-muted-foreground leading-relaxed mb-6">
-                  Before every wizard begins its core work, 3 quality agents run first to validate inputs and catch discrepancies at the earliest stage. These 3 agents run before every wizard -- that is 21 pre-wizard agents total (3 per wizard x 7 wizards). Information Collection runs first, then Rule Validation and Hallucination Detection run in parallel. By catching data issues, ambiguous patterns, and hallucination-prone fields upfront, the core wizard agents work with clean, validated, risk-assessed inputs.
+                  Every wizard contains 3 quality sub-agents that always execute first, before any core sub-agents begin. These are not a separate layer -- they are the first sub-agents in each wizard's execution sequence. Information Collection runs first (seq 1), then Rule Validation and Hallucination Detection run in parallel (seq 2a, 2b). Only after all 3 finish do the core sub-agents start. This pattern repeats identically in all 7 wizards (21 quality sub-agent instances total).
                 </p>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -666,31 +704,31 @@ export default function MultiAgentArchitecturePage() {
                 {/* Execution flow */}
                 <Card className="mt-4">
                   <CardContent className="pt-6">
-                    <p className="text-xs font-semibold text-foreground uppercase tracking-wider mb-2">Execution Flow (per wizard)</p>
+                    <p className="text-xs font-semibold text-foreground uppercase tracking-wider mb-2">Sub-Agent Execution Order (inside each wizard)</p>
                     <p className="text-xs text-muted-foreground leading-relaxed mb-4">
-                      Quality agents run BEFORE the core wizard agents. This ensures discrepancies are caught at the earliest stage, before the wizard processes any data.
+                      Within each wizard, the 3 quality sub-agents execute first. Only after they complete do the core sub-agents begin. All agents shown below are sub-agents of the same wizard.
                     </p>
                     <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
                       <div className="flex-1 rounded-lg border-2 border-[oklch(0.55_0.15_250)] bg-[oklch(0.55_0.15_250)]/5 p-3 text-center">
                         <p className="text-xs font-semibold text-foreground">Information Collection</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">Pre-check 1</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">Sub-agent 1 (quality)</p>
                       </div>
                       <ArrowDown className="size-4 text-muted-foreground mx-auto md:hidden" />
                       <ChevronRight className="size-4 text-muted-foreground hidden md:block shrink-0" />
                       <div className="flex-1 flex flex-col gap-2">
                         <div className="rounded-lg border-2 border-[oklch(0.55_0.17_165)] bg-[oklch(0.55_0.17_165)]/5 p-3 text-center">
                           <p className="text-xs font-semibold text-foreground">Rule Validation</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">Pre-check 2a (parallel)</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">Sub-agent 2a (quality, parallel)</p>
                         </div>
                         <div className="rounded-lg border-2 border-[oklch(0.55_0.22_25)] bg-[oklch(0.55_0.22_25)]/5 p-3 text-center">
                           <p className="text-xs font-semibold text-foreground">Hallucination Detection</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">Pre-check 2b (parallel)</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">Sub-agent 2b (quality, parallel)</p>
                         </div>
                       </div>
                       <ArrowDown className="size-4 text-muted-foreground mx-auto md:hidden" />
                       <ChevronRight className="size-4 text-muted-foreground hidden md:block shrink-0" />
                       <div className="flex-1 rounded-lg border-2 border-dashed border-border bg-muted/30 p-3 text-center">
-                        <p className="text-xs font-semibold text-foreground">Pre-Check Report</p>
+                        <p className="text-xs font-semibold text-foreground">Quality Gate Output</p>
                         <p className="text-xs text-muted-foreground mt-0.5">Flags and risk areas</p>
                       </div>
                       <ArrowDown className="size-4 text-muted-foreground mx-auto md:hidden" />
@@ -711,7 +749,7 @@ export default function MultiAgentArchitecturePage() {
                 <Card className="mb-4">
                   <CardContent className="pt-6">
                     <p className="text-sm text-muted-foreground leading-relaxed mb-4">
-                      When the 3 pre-wizard agents disagree during their upfront checks, a strict priority hierarchy determines how the wizard should proceed. Hallucination risk always takes highest priority -- if data is prone to fabrication, the wizard is instructed to flag for human review regardless of what the other agents say. Because these checks happen before processing, problems are caught early rather than discovered after a decision has been made.
+                      When the 3 quality sub-agents within a wizard disagree, a strict priority hierarchy determines how the core sub-agents should proceed. Hallucination risk always takes highest priority -- if data is prone to fabrication, the core sub-agents are instructed to flag for human review regardless of what the other quality agents say. Because these checks happen first within the wizard, problems are caught before any core processing begins.
                     </p>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       {[
@@ -1011,7 +1049,7 @@ export default function MultiAgentArchitecturePage() {
                                   style={
                                     row.type === "Core"
                                       ? { borderColor: "oklch(0.55 0.15 250)", color: "oklch(0.55 0.15 250)" }
-                                      : row.type === "Pre"
+                                      : row.type === "Quality"
                                         ? { borderColor: "oklch(0.6 0.15 60)", color: "oklch(0.6 0.15 60)" }
                                         : { borderColor: "oklch(0.55 0.17 165)", color: "oklch(0.55 0.17 165)" }
                                   }
@@ -1034,16 +1072,16 @@ export default function MultiAgentArchitecturePage() {
                         <p className="text-xs text-muted-foreground">Routing Agent</p>
                       </div>
                       <div className="rounded-lg bg-muted/30 p-3 text-center">
-                        <p className="text-lg font-bold text-foreground">19</p>
-                        <p className="text-xs text-muted-foreground">Core Sub-Agents</p>
+                        <p className="text-lg font-bold text-foreground">7</p>
+                        <p className="text-xs text-muted-foreground">Wizard Agents</p>
                       </div>
                       <div className="rounded-lg bg-muted/30 p-3 text-center">
                         <p className="text-lg font-bold text-foreground">21</p>
-                        <p className="text-xs text-muted-foreground">Pre-Wizard Agents</p>
+                        <p className="text-xs text-muted-foreground">Quality Sub-Agents</p>
                       </div>
                       <div className="rounded-lg bg-muted/30 p-3 text-center">
-                        <p className="text-lg font-bold text-foreground">48</p>
-                        <p className="text-xs text-muted-foreground">Total Agents</p>
+                        <p className="text-lg font-bold text-foreground">19</p>
+                        <p className="text-xs text-muted-foreground">Core Sub-Agents</p>
                       </div>
                     </div>
                   </CardContent>
@@ -1061,8 +1099,8 @@ export default function MultiAgentArchitecturePage() {
                       title: "One Wizard",
                       status: "First",
                       color: "oklch(0.55 0.17 145)",
-                      what: "Build Routing Agent + Superseded Wizard with all 7 sub-agents (3 pre-wizard quality + 4 core). Pre-load Library with historical tracking data.",
-                      proves: "Does the pattern work? Do pre-wizard checks catch data issues early? Do core agents make accurate decisions on validated data?",
+                      what: "Build Routing Agent + Superseded Wizard with all 7 sub-agents (3 quality sub-agents that run first + 4 core sub-agents). Pre-load Library with historical tracking data.",
+                      proves: "Does the pattern work? Do quality sub-agents catch data issues before core agents start? Do core agents make accurate decisions on validated data?",
                       risk: "Low -- one wizard only",
                     },
                     {
@@ -1125,7 +1163,7 @@ export default function MultiAgentArchitecturePage() {
                       Each phase is independently valuable.
                     </p>
                     <p className="text-xs text-muted-foreground leading-relaxed max-w-xl mx-auto">
-                      Phase 1 alone delivers a working Superseded wizard with self-checking. We do not need to complete all 4 phases to see benefit. No hardcoded rules. No code changes between seasons. The system improves by watching and learning from human expertise.
+                      Phase 1 alone delivers a working Superseded wizard with quality sub-agents and core sub-agents. We do not need to complete all 4 phases to see benefit. No hardcoded rules. No code changes between seasons. The system improves by watching and learning from human expertise.
                     </p>
                     <div className="flex justify-center gap-3 mt-4">
                       <Button variant="outline" size="sm" asChild>
