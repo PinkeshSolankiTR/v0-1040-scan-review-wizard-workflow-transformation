@@ -125,20 +125,7 @@ const WIZARD_AGENTS = [
     ],
     coreExecution: "Sequential",
   },
-  {
-    id: "finalization",
-    title: "Finalization",
-    icon: Shield,
-    accent: "oklch(0.55 0.22 25)",
-    group: 4,
-    totalAgents: 5,
-    subAgents: [
-      ...QUALITY_SUB_AGENTS,
-      { name: "Conflict Agent", desc: "Detects conflicting decisions across wizards", parallel: false, role: "core" as const },
-      { name: "Completeness Agent", desc: "Verifies every document has a final status", parallel: false, role: "core" as const },
-    ],
-    coreExecution: "Sequential",
-  },
+
 ]
 
 const DISAGREEMENT_MATRIX = [
@@ -270,7 +257,7 @@ export default function MultiAgentArchitecturePage() {
                   Multi-Agent Architecture
                 </h1>
                 <p className="text-sm text-muted-foreground mt-1">
-                  1 Routing Agent + 7 Wizards containing 40 sub-agents. Each wizard runs 3 quality sub-agents first, then its core sub-agents.
+                  1 Routing Agent + 6 Wizards containing 35 sub-agents. Each wizard runs 3 quality sub-agents first, then its core sub-agents.
                 </p>
               </div>
             </div>
@@ -278,9 +265,9 @@ export default function MultiAgentArchitecturePage() {
             {/* Key stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
               <StatCard value="1" label="Routing Agent" accent="oklch(0.55 0.17 165)" />
-              <StatCard value="7" label="Wizard Agents" accent="oklch(0.55 0.15 250)" />
-              <StatCard value="21" label="Quality Sub-Agents" accent="oklch(0.6 0.15 60)" />
-              <StatCard value="19" label="Core Sub-Agents" accent="oklch(0.55 0.18 290)" />
+              <StatCard value="6" label="Wizard Agents" accent="oklch(0.55 0.15 250)" />
+              <StatCard value="18" label="Quality Sub-Agents" accent="oklch(0.6 0.15 60)" />
+              <StatCard value="17" label="Core Sub-Agents" accent="oklch(0.55 0.18 290)" />
             </div>
 
             <div className="flex flex-col gap-12">
@@ -291,7 +278,7 @@ export default function MultiAgentArchitecturePage() {
                 <Card>
                   <CardContent className="pt-6">
                     <p className="text-sm text-muted-foreground leading-relaxed mb-4">
-                      The system has 2 levels. A Routing Agent decides which wizards each document needs. Each wizard contains all its sub-agents internally -- 3 quality sub-agents that run first, followed by the core sub-agents.
+                      The system has 2 levels. A Routing Agent decides which wizards each document needs. 6 Wizard Agents each contain all their sub-agents internally -- 3 quality sub-agents that run first, followed by the core sub-agents.
                     </p>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="rounded-lg border border-border bg-muted/30 p-4">
@@ -307,7 +294,7 @@ export default function MultiAgentArchitecturePage() {
                           <Layers className="size-4 text-[var(--ai-accent)]" />
                           <p className="text-xs font-semibold text-foreground uppercase tracking-wider">Level 2</p>
                         </div>
-                        <p className="text-sm font-medium text-foreground mb-1">7 Wizard Agents</p>
+                        <p className="text-sm font-medium text-foreground mb-1">6 Wizard Agents</p>
                         <p className="text-xs text-muted-foreground leading-relaxed">Each wizard is a self-contained department. Within it: 3 quality sub-agents run first (data check, rule check, hallucination check), then core sub-agents execute with validated data.</p>
                       </div>
                     </div>
@@ -322,8 +309,7 @@ export default function MultiAgentArchitecturePage() {
                   {[
                     { step: "1", title: "Route", desc: "Routing Agent decides which wizards are needed. Unnecessary wizards are skipped." },
                     { step: "2", title: "Quality Gate (inside each wizard)", desc: "3 quality sub-agents run first: Information Collection (seq 1), then Rule Validation + Hallucination Detection in parallel (seq 2a, 2b). Discrepancies are caught before core processing." },
-                    { step: "3", title: "Core Processing", desc: "Core sub-agents execute with validated data. Independent wizards run in parallel (e.g., Superseded + Duplicate simultaneously)." },
-                    { step: "4", title: "Finalization", desc: "Conflict and completeness checks across all wizard results. Final decision presented to reviewer with confidence scores." },
+                    { step: "3", title: "Core Processing", desc: "Core sub-agents execute with validated data. Independent wizards run in parallel (e.g., Superseded + Duplicate simultaneously). Final results from all wizards are presented to the reviewer with confidence scores." },
                   ].map((s) => (
                     <Card key={s.step}>
                       <CardContent className="py-4 flex items-start gap-3">
@@ -345,16 +331,15 @@ export default function MultiAgentArchitecturePage() {
                 <SectionHeading id="wizard-agents" number="3" icon={Database} title="Wizard Agents and Sub-Agents" />
 
                 <p className="text-sm text-muted-foreground leading-relaxed mb-4">
-                  7 wizards in 4 execution groups. Wizards in the same group run in parallel. Each wizard contains 3 quality sub-agents (shaded rows) that run first, followed by its core sub-agents.
+                  6 wizards in 3 execution groups. Wizards in the same group run in parallel. Each wizard contains 3 quality sub-agents (shaded rows) that run first, followed by its core sub-agents.
                 </p>
 
                 {/* Group overview */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                <div className="grid grid-cols-3 gap-3 mb-4">
                   {[
                     { group: "Group 1", wizards: "Pre-verif, Verification", color: "oklch(0.55 0.15 250)" },
                     { group: "Group 2", wizards: "Superseded, Duplicate, CFA", color: "oklch(0.55 0.18 290)" },
                     { group: "Group 3", wizards: "NFR", color: "oklch(0.6 0.15 60)" },
-                    { group: "Group 4", wizards: "Finalization", color: "oklch(0.55 0.22 25)" },
                   ].map((g) => (
                     <div key={g.group} className="rounded-lg border border-border p-3" style={{ borderLeftWidth: "4px", borderLeftColor: g.color }}>
                       <p className="text-xs font-semibold text-foreground">{g.group}</p>
@@ -677,11 +662,7 @@ export default function MultiAgentArchitecturePage() {
                     color: "oklch(0.55 0.18 290)",
                     text: "Superseded quality gate: account number flagged as hallucination-prone field for extra scrutiny. Core agents: Group pages 12+15 (same account), page 22 alone. Compare, determine precedence: retain Page 15 (corrected, later date). Confidence: 97.7%. Duplicate quality gate: clean. Core agents: NOT duplicate (original vs corrected).",
                   },
-                  {
-                    step: "4. Finalization",
-                    color: "oklch(0.55 0.22 25)",
-                    text: "Quality gate: all results consistent with 97.2% of past finalization outcomes. Conflict Agent: no conflicts. Completeness: all 3 pages accounted for.",
-                  },
+
                 ].map((s) => (
                   <Card key={s.step} className="mb-3" style={{ borderLeftWidth: "4px", borderLeftColor: s.color }}>
                     <CardContent className="py-4">
@@ -710,11 +691,11 @@ export default function MultiAgentArchitecturePage() {
                     </div>
                     <div className="grid grid-cols-4 gap-3">
                       <div className="rounded-lg bg-muted/30 p-2 text-center">
-                        <p className="text-base font-bold text-foreground">29</p>
+                        <p className="text-base font-bold text-foreground">24</p>
                         <p className="text-xs text-muted-foreground">Agents Invoked</p>
                       </div>
                       <div className="rounded-lg bg-muted/30 p-2 text-center">
-                        <p className="text-base font-bold text-foreground">4</p>
+                        <p className="text-base font-bold text-foreground">3</p>
                         <p className="text-xs text-muted-foreground">Steps</p>
                       </div>
                       <div className="rounded-lg bg-muted/30 p-2 text-center">
@@ -751,7 +732,7 @@ export default function MultiAgentArchitecturePage() {
                     {
                       phase: "Phase 3", title: "Full Pipeline",
                       color: "oklch(0.55 0.15 250)",
-                      what: "Add remaining wizards. Complete the full 41-agent system.",
+                      what: "Add remaining wizards (NFR). Complete the full 6-wizard, 35-sub-agent system.",
                       proves: "Full end-to-end pipeline works. All wizards learning independently.",
                     },
                     {
