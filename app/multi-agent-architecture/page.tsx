@@ -86,12 +86,10 @@ const WIZARD_AGENTS = [
     icon: Copy,
     accent: "oklch(0.55 0.15 250)",
     group: 2,
-    totalAgents: 6,
+    totalAgents: 4,
     subAgents: [
       ...QUALITY_SUB_AGENTS,
-      { name: "Data Duplicate Agent", desc: "Compares organizer entries vs source documents", parallel: true, role: "core" as const },
-      { name: "Source Document Duplicate Agent", desc: "Compares two source documents", parallel: true, role: "core" as const },
-      { name: "Consolidated Statement Agent", desc: "Compares consolidated broker statements", parallel: true, role: "core" as const },
+      { name: "Data Duplicate Agent", desc: "Applies DUP-DATA rules: amount matching, source document comparison, and consolidated statement comparison", parallel: true, role: "core" as const },
     ],
     coreExecution: "Parallel",
   },
@@ -257,7 +255,7 @@ export default function MultiAgentArchitecturePage() {
                   Multi-Agent Architecture
                 </h1>
                 <p className="text-sm text-muted-foreground mt-1">
-                  1 Routing Agent + 6 Wizards containing 35 sub-agents. Each wizard runs 3 quality sub-agents first, then its core sub-agents.
+                  1 Routing Agent + 6 Wizards containing 33 sub-agents. Each wizard runs 3 quality sub-agents first, then its core sub-agents.
                 </p>
               </div>
             </div>
@@ -267,7 +265,7 @@ export default function MultiAgentArchitecturePage() {
               <StatCard value="1" label="Routing Agent" accent="oklch(0.55 0.17 165)" />
               <StatCard value="6" label="Wizard Agents" accent="oklch(0.55 0.15 250)" />
               <StatCard value="18" label="Quality Sub-Agents" accent="oklch(0.6 0.15 60)" />
-              <StatCard value="17" label="Core Sub-Agents" accent="oklch(0.55 0.18 290)" />
+              <StatCard value="15" label="Core Sub-Agents" accent="oklch(0.55 0.18 290)" />
             </div>
 
             <div className="flex flex-col gap-12">
@@ -547,7 +545,7 @@ export default function MultiAgentArchitecturePage() {
                       <ul className="flex flex-col gap-1.5">
                         {[
                           "Superseded: Rule Sets A (A1-A9, source docs) and B (B1-B10, consolidated statements) with precedence rules",
-                          "Duplicate: Rule Sets DUP-DATA (1-3, sequential), DUP-SRC (1-9), DUP-CS (1-5) with JSON output contract",
+                          "Duplicate: Unified DUP-DATA rule set covering amount matching, source document comparison, and consolidated statement comparison",
                           "CFA: Rules CFA-1 to CFA-5 (compatibility, name matching, placeholder avoidance, AddForm, ambiguity)",
                           "NFR: Rules NFR-1 to NFR-6 (form type, ImageIndex, name matching, 80% threshold, no forced matches)",
                         ].map((item) => (
@@ -585,8 +583,8 @@ export default function MultiAgentArchitecturePage() {
                             },
                             {
                               wizard: "Duplicate",
-                              ruleSets: "DUP-DATA, DUP-SRC, DUP-CS",
-                              keyRules: "DUP-DATA 1-3: sequential (name, direct amount, sum match). DUP-SRC 1-9: 6 field matches, jurisdiction hard stop, corrected precedence. DUP-CS 1-5: broker/account match, latest date retention.",
+                              ruleSets: "DUP-DATA (unified)",
+                              keyRules: "Amount matching: name match (hard stop), direct amount, sum-of-amounts. Source docs: payer/recipient/account/tax year match, jurisdiction hard stop, corrected precedence. Consolidated: broker/account/taxpayer match, latest date retention.",
                               confidence: ">0.90 automation | 0.70-0.90 recommend+review | <0.70 human review required",
                             },
                             {
@@ -714,7 +712,7 @@ export default function MultiAgentArchitecturePage() {
                   {
                     step: "3. Superseded + Duplicate (parallel wizards)",
                     color: "oklch(0.55 0.18 290)",
-                    text: "Superseded quality gate: account number flagged as hallucination-prone field for extra scrutiny. Core agents: Group pages 12+15 (same account 9876), page 22 alone. Rules A1-A6 pass for 12 vs 15. Rule A9 (corrected override from Decision Spec) triggers: retain Page 15 (corrected). decisionRule: A9, confidenceLevel: 0.97. Duplicate quality gate: clean. DUP-SRC-8 (corrected precedence): NOT duplicate, it is a supersede case.",
+                    text: "Superseded quality gate: account number flagged as hallucination-prone field for extra scrutiny. Core agents: Group pages 12+15 (same account 9876), page 22 alone. Rules A1-A6 pass for 12 vs 15. Rule A9 (corrected override from Decision Spec) triggers: retain Page 15 (corrected). decisionRule: A9, confidenceLevel: 0.97. Duplicate quality gate: clean. DUP-DATA corrected precedence rule: NOT duplicate, it is a supersede case.",
                   },
 
                 ].map((s) => (
