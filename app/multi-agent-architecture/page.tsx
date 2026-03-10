@@ -538,18 +538,18 @@ export default function MultiAgentArchitecturePage() {
                   </Card>
                   <Card style={{ borderLeftWidth: "4px", borderLeftColor: "oklch(0.6 0.15 60)" }}>
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-sm">AI Decision Specs</CardTitle>
+                      <CardTitle className="text-sm">AI Decision Specs (4 authored)</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <p className="text-xs text-muted-foreground leading-relaxed mb-3">
-                        Authored by SMEs and business analysts. Formalized rules for how decisions should be made, versioned per tax season.
+                        Formalized decision contracts authored by SMEs for each wizard. Each spec defines allowed inputs, ordered decision rules, output contracts, confidence semantics, and escalation criteria. Versioned per tax season.
                       </p>
                       <ul className="flex flex-col gap-1.5">
                         {[
-                          "\"If corrected flag is true and tax year matches, always prefer corrected\"",
-                          "Solves cold-start for new form types (zero history)",
-                          "Audit-ready: decisions traceable to explicit rules",
-                          "Updated by business teams, no AI expertise needed",
+                          "Superseded: Rule Sets A (A1-A9, source docs) and B (B1-B10, consolidated statements) with precedence rules",
+                          "Duplicate: Rule Sets DUP-DATA (1-3, sequential), DUP-SRC (1-9), DUP-CS (1-5) with JSON output contract",
+                          "CFA: Rules CFA-1 to CFA-5 (compatibility, name matching, placeholder avoidance, AddForm, ambiguity)",
+                          "NFR: Rules NFR-1 to NFR-6 (form type, ImageIndex, name matching, 80% threshold, no forced matches)",
                         ].map((item) => (
                           <li key={item} className="flex items-start gap-2 text-xs text-muted-foreground leading-relaxed">
                             <span className="mt-1.5 block size-1.5 shrink-0 rounded-full bg-[oklch(0.6_0.15_60)]" />
@@ -560,6 +560,60 @@ export default function MultiAgentArchitecturePage() {
                     </CardContent>
                   </Card>
                 </div>
+
+                {/* Decision Spec detail per wizard */}
+                <Card className="mb-4">
+                  <CardContent className="pt-6">
+                    <p className="text-xs font-semibold text-foreground uppercase tracking-wider mb-3">AI Decision Spec summary by wizard</p>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-border">
+                            <th className="text-left py-1.5 pr-3 text-xs font-semibold text-foreground">Wizard</th>
+                            <th className="text-left py-1.5 pr-3 text-xs font-semibold text-foreground">Rule Sets</th>
+                            <th className="text-left py-1.5 pr-3 text-xs font-semibold text-foreground">Key Rules</th>
+                            <th className="text-left py-1.5 text-xs font-semibold text-foreground">Confidence Bands</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {[
+                            {
+                              wizard: "Superseded",
+                              ruleSets: "A (Source Docs), B (Consolidated)",
+                              keyRules: "A1-A6: sequential field matching (stop at first fail). A7: exact match resolution. A8: short-year K-1 exception. A9: corrected override. B1-B10: statement date, corrected text, max data tie-breakers.",
+                              confidence: ">=0.90 deterministic | 0.75-0.89 high | 0.60-0.74 partial (review) | <0.60 no match",
+                            },
+                            {
+                              wizard: "Duplicate",
+                              ruleSets: "DUP-DATA, DUP-SRC, DUP-CS",
+                              keyRules: "DUP-DATA 1-3: sequential (name, direct amount, sum match). DUP-SRC 1-9: 6 field matches, jurisdiction hard stop, corrected precedence. DUP-CS 1-5: broker/account match, latest date retention.",
+                              confidence: ">0.90 automation | 0.70-0.90 recommend+review | <0.70 human review required",
+                            },
+                            {
+                              wizard: "CFA",
+                              ruleSets: "CFA-1 to CFA-5",
+                              keyRules: "CFA-1: faxFormDWPCode compatibility (hard stop). CFA-2: name/identifier matching. CFA-3: placeholder avoidance. CFA-4: AddForm fallback. CFA-5: ambiguity handling (lower confidence).",
+                              confidence: ">=0.90 clear | 0.70-0.89 strong | 0.50-0.69 weak (review) | <0.50 do not associate",
+                            },
+                            {
+                              wizard: "NFR",
+                              ruleSets: "NFR-1 to NFR-6",
+                              keyRules: "NFR-1: formTypeId compatibility (hard stop). NFR-2: ImageIndex=3 constraint. NFR-3: name matching. NFR-4: 80% similarity threshold. NFR-5: placeholder avoidance. NFR-6: no forced matches.",
+                              confidence: ">=0.90 clear | 0.70-0.89 strong | 0.50-0.69 weak (review) | <0.50 leave unmatched",
+                            },
+                          ].map((row) => (
+                            <tr key={row.wizard} className="border-b border-border/50 last:border-0 align-top">
+                              <td className="py-2 pr-3 text-xs font-medium text-foreground whitespace-nowrap">{row.wizard}</td>
+                              <td className="py-2 pr-3 text-xs text-muted-foreground whitespace-nowrap">{row.ruleSets}</td>
+                              <td className="py-2 pr-3 text-xs text-muted-foreground leading-relaxed">{row.keyRules}</td>
+                              <td className="py-2 text-xs text-muted-foreground leading-relaxed">{row.confidence}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
 
                 {/* Priority when sources conflict */}
                 <Card className="mb-4">
@@ -596,9 +650,9 @@ export default function MultiAgentArchitecturePage() {
                         </thead>
                         <tbody>
                           {[
-                            { agent: "Information Collection", patterns: "What fields were typically available for this form type?", spec: "What fields are required per the spec?" },
-                            { agent: "Rule Validation", patterns: "What did reviewers decide in similar past cases?", spec: "What does the spec say the outcome should be?" },
-                            { agent: "Hallucination Detection", patterns: "Which fields historically caused fabrication?", spec: "Which fields are flagged as high-risk for this form?" },
+                            { agent: "Information Collection", patterns: "What fields were typically available for this form type?", spec: "Checks \"Allowed Inputs\" section of the spec -- e.g., Superseded requires ocrtemplateid, payer name, tax year" },
+                            { agent: "Rule Validation", patterns: "What did reviewers decide in similar past cases?", spec: "Checks \"Decision Rules\" section -- e.g., CFA-1 compatibility hard stop, NFR-4 80% threshold" },
+                            { agent: "Hallucination Detection", patterns: "Which fields historically caused fabrication?", spec: "Checks spec-defined escalation criteria -- e.g., missing critical identifiers, multiple corrected copies" },
                           ].map((row) => (
                             <tr key={row.agent} className="border-b border-border/50 last:border-0">
                               <td className="py-1.5 pr-3 text-xs font-medium text-foreground whitespace-nowrap">{row.agent}</td>
@@ -660,7 +714,7 @@ export default function MultiAgentArchitecturePage() {
                   {
                     step: "3. Superseded + Duplicate (parallel wizards)",
                     color: "oklch(0.55 0.18 290)",
-                    text: "Superseded quality gate: account number flagged as hallucination-prone field for extra scrutiny. Core agents: Group pages 12+15 (same account), page 22 alone. Compare, determine precedence: retain Page 15 (corrected, later date). Confidence: 97.7%. Duplicate quality gate: clean. Core agents: NOT duplicate (original vs corrected).",
+                    text: "Superseded quality gate: account number flagged as hallucination-prone field for extra scrutiny. Core agents: Group pages 12+15 (same account 9876), page 22 alone. Rules A1-A6 pass for 12 vs 15. Rule A9 (corrected override from Decision Spec) triggers: retain Page 15 (corrected). decisionRule: A9, confidenceLevel: 0.97. Duplicate quality gate: clean. DUP-SRC-8 (corrected precedence): NOT duplicate, it is a supersede case.",
                   },
 
                 ].map((s) => (
