@@ -1,3 +1,6 @@
+"use client"
+
+import { useState } from "react"
 import Link from "next/link"
 import {
   Sparkles,
@@ -22,6 +25,7 @@ import {
   Target,
   AlertTriangle,
   Database,
+  ChevronDown,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -137,6 +141,175 @@ const DISAGREEMENT_MATRIX = [
   { info: "Incomplete", rule: "Contradicts", hall: "Hallucination", action: "BLOCK and escalate", priority: "Highest", color: "oklch(0.55 0.22 25)" },
 ]
 
+/* ────────────────────────────────────────── WORKFLOW DATA ── */
+
+const WORKFLOW_WIZARDS = [
+  {
+    id: "pre-verification",
+    name: "Pre-verification",
+    icon: ClipboardCheck,
+    color: "oklch(0.55 0.15 250)",
+    group: 1,
+    qualityAgents: ["Information Collection Agent", "Rule Validation Agent", "Hallucination Detection Agent"],
+    coreAgents: ["Completeness Agent", "Data Quality Agent"],
+    coreExecution: "Parallel",
+  },
+  {
+    id: "verification",
+    name: "Verification",
+    icon: CheckCircle2,
+    color: "oklch(0.55 0.17 165)",
+    group: 1,
+    qualityAgents: ["Information Collection Agent", "Rule Validation Agent", "Hallucination Detection Agent"],
+    coreAgents: ["Cross-Reference Agent", "Anomaly Agent"],
+    coreExecution: "Parallel",
+  },
+  {
+    id: "superseded",
+    name: "Superseded",
+    icon: FileStack,
+    color: "oklch(0.55 0.18 290)",
+    group: 2,
+    qualityAgents: ["Information Collection Agent", "Rule Validation Agent", "Hallucination Detection Agent"],
+    coreAgents: ["Grouping Agent", "Comparison Agent", "Precedence Agent", "Confidence Agent"],
+    coreExecution: "Sequential",
+  },
+  {
+    id: "duplicate",
+    name: "Duplicate",
+    icon: Copy,
+    color: "oklch(0.55 0.15 250)",
+    group: 2,
+    qualityAgents: ["Information Collection Agent", "Rule Validation Agent", "Hallucination Detection Agent"],
+    coreAgents: ["Data Duplicate Agent"],
+    coreExecution: "Parallel",
+  },
+  {
+    id: "cfa",
+    name: "CFA",
+    icon: Link2,
+    color: "oklch(0.55 0.17 165)",
+    group: 2,
+    qualityAgents: ["Information Collection Agent", "Rule Validation Agent", "Hallucination Detection Agent"],
+    coreAgents: ["Compatibility Agent", "Matching Agent", "Resolution Agent"],
+    coreExecution: "Sequential",
+  },
+  {
+    id: "nfr",
+    name: "NFR",
+    icon: FileSearch,
+    color: "oklch(0.6 0.15 60)",
+    group: 3,
+    qualityAgents: ["Information Collection Agent", "Rule Validation Agent", "Hallucination Detection Agent"],
+    coreAgents: ["Eligibility Agent", "Matching Agent", "Decision Agent"],
+    coreExecution: "Sequential",
+  },
+]
+
+/* ────────────────────────────────────────── WORKFLOW BOX ── */
+
+function WizardBox({ 
+  wizard, 
+  isExpanded, 
+  onToggle 
+}: { 
+  wizard: typeof WORKFLOW_WIZARDS[0]
+  isExpanded: boolean
+  onToggle: () => void
+}) {
+  const Icon = wizard.icon
+  
+  return (
+    <div 
+      className="flex-1 rounded-lg border transition-all duration-200 cursor-pointer hover:shadow-md"
+      style={{ 
+        borderColor: wizard.color,
+        backgroundColor: `color-mix(in oklch, ${wizard.color} 5%, transparent)`,
+      }}
+      onClick={onToggle}
+    >
+      {/* Header - always visible */}
+      <div className="p-3">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-1.5">
+            <Icon className="size-3.5" style={{ color: wizard.color }} />
+            <p className="text-xs font-semibold text-foreground">{wizard.name}</p>
+          </div>
+          <ChevronDown 
+            className={`size-3.5 text-muted-foreground transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} 
+          />
+        </div>
+        
+        {/* Collapsed summary */}
+        {!isExpanded && (
+          <div className="flex flex-col gap-1">
+            <div className="rounded bg-muted/50 px-2 py-1 text-xs text-muted-foreground">
+              Quality Gate ({wizard.qualityAgents.length})
+            </div>
+            <ArrowDown className="size-3 text-muted-foreground mx-auto" />
+            <div 
+              className="rounded px-2 py-1 text-xs text-foreground"
+              style={{ backgroundColor: `color-mix(in oklch, ${wizard.color} 15%, transparent)` }}
+            >
+              Core ({wizard.coreAgents.length})
+            </div>
+          </div>
+        )}
+      </div>
+      
+      {/* Expanded details */}
+      {isExpanded && (
+        <div className="px-3 pb-3 border-t border-border/50 pt-2">
+          {/* Quality Agents */}
+          <div className="mb-3">
+            <p className="text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1">
+              <Shield className="size-3" />
+              Quality Gate (runs first)
+            </p>
+            <div className="flex flex-col gap-1">
+              {wizard.qualityAgents.map((agent) => (
+                <div 
+                  key={agent} 
+                  className="rounded bg-muted/50 px-2 py-1 text-xs text-muted-foreground flex items-center gap-1.5"
+                >
+                  <span className="size-1.5 rounded-full bg-muted-foreground/50" />
+                  {agent.replace(" Agent", "")}
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          <ArrowDown className="size-3 text-muted-foreground mx-auto mb-2" />
+          
+          {/* Core Agents */}
+          <div>
+            <p className="text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1">
+              <Brain className="size-3" />
+              Core ({wizard.coreExecution})
+            </p>
+            <div className="flex flex-col gap-1">
+              {wizard.coreAgents.map((agent, idx) => (
+                <div 
+                  key={agent} 
+                  className="rounded px-2 py-1 text-xs text-foreground flex items-center gap-1.5"
+                  style={{ backgroundColor: `color-mix(in oklch, ${wizard.color} 15%, transparent)` }}
+                >
+                  {wizard.coreExecution === "Sequential" ? (
+                    <span className="text-xs font-mono text-muted-foreground">{idx + 1}.</span>
+                  ) : (
+                    <span className="size-1.5 rounded-full" style={{ backgroundColor: wizard.color }} />
+                  )}
+                  {agent.replace(" Agent", "")}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 /* ────────────────────────────────────────── SECTION NAV ── */
 
 const SECTIONS = [
@@ -192,6 +365,28 @@ function StatCard({ value, label, accent }: { value: string; label: string; acce
 /* ────────────────────────────────────────── PAGE ── */
 
 export default function MultiAgentArchitecturePage() {
+  const [expandedWizards, setExpandedWizards] = useState<Set<string>>(new Set())
+  
+  const toggleWizard = (wizardId: string) => {
+    setExpandedWizards(prev => {
+      const next = new Set(prev)
+      if (next.has(wizardId)) {
+        next.delete(wizardId)
+      } else {
+        next.add(wizardId)
+      }
+      return next
+    })
+  }
+  
+  const expandAll = () => {
+    setExpandedWizards(new Set(WORKFLOW_WIZARDS.map(w => w.id)))
+  }
+  
+  const collapseAll = () => {
+    setExpandedWizards(new Set())
+  }
+  
   return (
     <div className="flex min-h-screen flex-col bg-background">
       {/* Header */}
@@ -767,9 +962,19 @@ export default function MultiAgentArchitecturePage() {
               <section>
                 <SectionHeading id="workflow" number="7" icon={GitBranch} title="Workflow Diagram" />
 
-                <p className="text-sm text-muted-foreground leading-relaxed mb-4">
-                  Visual representation of how documents flow through the multi-agent system, from initial routing through wizard processing to final decision output.
-                </p>
+                <div className="flex items-center justify-between mb-4">
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    Click any wizard to see its agents. Groups run sequentially; wizards within groups run in parallel.
+                  </p>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={expandAll} className="text-xs h-7">
+                      Expand All
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={collapseAll} className="text-xs h-7">
+                      Collapse All
+                    </Button>
+                  </div>
+                </div>
 
                 {/* Main workflow diagram */}
                 <Card className="mb-4">
@@ -797,36 +1002,25 @@ export default function MultiAgentArchitecturePage() {
                         <ArrowDown className="size-5 text-muted-foreground mt-2" />
                       </div>
 
-                      {/* Level 3: Wizard Groups */}
+                      {/* Level 3: Wizard Groups - Interactive */}
                       <div className="rounded-lg border border-border bg-card p-4">
-                        <p className="text-xs font-semibold text-foreground uppercase tracking-wider mb-4 text-center">Wizard Execution (Groups run sequentially, wizards within groups run in parallel)</p>
+                        <p className="text-xs font-semibold text-foreground uppercase tracking-wider mb-4 text-center">
+                          Wizard Execution
+                          <span className="font-normal text-muted-foreground ml-2">(click to expand)</span>
+                        </p>
                         
                         {/* Group 1 */}
                         <div className="mb-4">
                           <p className="text-xs font-medium text-muted-foreground mb-2">Group 1 (Parallel)</p>
                           <div className="flex gap-3">
-                            <div className="flex-1 rounded-lg border border-[oklch(0.55_0.15_250)] bg-[oklch(0.55_0.15_250)]/5 p-3">
-                              <div className="flex items-center gap-1.5 mb-2">
-                                <ClipboardCheck className="size-3.5 text-[oklch(0.55_0.15_250)]" />
-                                <p className="text-xs font-semibold text-foreground">Pre-verification</p>
-                              </div>
-                              <div className="flex flex-col gap-1">
-                                <div className="rounded bg-muted/50 px-2 py-1 text-xs text-muted-foreground">Quality Gate (3 agents)</div>
-                                <ArrowDown className="size-3 text-muted-foreground mx-auto" />
-                                <div className="rounded bg-[oklch(0.55_0.15_250)]/10 px-2 py-1 text-xs text-foreground">Core (2 agents)</div>
-                              </div>
-                            </div>
-                            <div className="flex-1 rounded-lg border border-[oklch(0.55_0.17_165)] bg-[oklch(0.55_0.17_165)]/5 p-3">
-                              <div className="flex items-center gap-1.5 mb-2">
-                                <CheckCircle2 className="size-3.5 text-[oklch(0.55_0.17_165)]" />
-                                <p className="text-xs font-semibold text-foreground">Verification</p>
-                              </div>
-                              <div className="flex flex-col gap-1">
-                                <div className="rounded bg-muted/50 px-2 py-1 text-xs text-muted-foreground">Quality Gate (3 agents)</div>
-                                <ArrowDown className="size-3 text-muted-foreground mx-auto" />
-                                <div className="rounded bg-[oklch(0.55_0.17_165)]/10 px-2 py-1 text-xs text-foreground">Core (2 agents)</div>
-                              </div>
-                            </div>
+                            {WORKFLOW_WIZARDS.filter(w => w.group === 1).map(wizard => (
+                              <WizardBox 
+                                key={wizard.id}
+                                wizard={wizard}
+                                isExpanded={expandedWizards.has(wizard.id)}
+                                onToggle={() => toggleWizard(wizard.id)}
+                              />
+                            ))}
                           </div>
                         </div>
 
@@ -836,39 +1030,14 @@ export default function MultiAgentArchitecturePage() {
                         <div className="mb-4">
                           <p className="text-xs font-medium text-muted-foreground mb-2">Group 2 (Parallel)</p>
                           <div className="flex gap-3">
-                            <div className="flex-1 rounded-lg border border-[oklch(0.55_0.18_290)] bg-[oklch(0.55_0.18_290)]/5 p-3">
-                              <div className="flex items-center gap-1.5 mb-2">
-                                <FileStack className="size-3.5 text-[oklch(0.55_0.18_290)]" />
-                                <p className="text-xs font-semibold text-foreground">Superseded</p>
-                              </div>
-                              <div className="flex flex-col gap-1">
-                                <div className="rounded bg-muted/50 px-2 py-1 text-xs text-muted-foreground">Quality Gate (3)</div>
-                                <ArrowDown className="size-3 text-muted-foreground mx-auto" />
-                                <div className="rounded bg-[oklch(0.55_0.18_290)]/10 px-2 py-1 text-xs text-foreground">Core (4)</div>
-                              </div>
-                            </div>
-                            <div className="flex-1 rounded-lg border border-[oklch(0.55_0.15_250)] bg-[oklch(0.55_0.15_250)]/5 p-3">
-                              <div className="flex items-center gap-1.5 mb-2">
-                                <Copy className="size-3.5 text-[oklch(0.55_0.15_250)]" />
-                                <p className="text-xs font-semibold text-foreground">Duplicate</p>
-                              </div>
-                              <div className="flex flex-col gap-1">
-                                <div className="rounded bg-muted/50 px-2 py-1 text-xs text-muted-foreground">Quality Gate (3)</div>
-                                <ArrowDown className="size-3 text-muted-foreground mx-auto" />
-                                <div className="rounded bg-[oklch(0.55_0.15_250)]/10 px-2 py-1 text-xs text-foreground">Core (1)</div>
-                              </div>
-                            </div>
-                            <div className="flex-1 rounded-lg border border-[oklch(0.55_0.17_165)] bg-[oklch(0.55_0.17_165)]/5 p-3">
-                              <div className="flex items-center gap-1.5 mb-2">
-                                <Link2 className="size-3.5 text-[oklch(0.55_0.17_165)]" />
-                                <p className="text-xs font-semibold text-foreground">CFA</p>
-                              </div>
-                              <div className="flex flex-col gap-1">
-                                <div className="rounded bg-muted/50 px-2 py-1 text-xs text-muted-foreground">Quality Gate (3)</div>
-                                <ArrowDown className="size-3 text-muted-foreground mx-auto" />
-                                <div className="rounded bg-[oklch(0.55_0.17_165)]/10 px-2 py-1 text-xs text-foreground">Core (3)</div>
-                              </div>
-                            </div>
+                            {WORKFLOW_WIZARDS.filter(w => w.group === 2).map(wizard => (
+                              <WizardBox 
+                                key={wizard.id}
+                                wizard={wizard}
+                                isExpanded={expandedWizards.has(wizard.id)}
+                                onToggle={() => toggleWizard(wizard.id)}
+                              />
+                            ))}
                           </div>
                         </div>
 
@@ -878,17 +1047,15 @@ export default function MultiAgentArchitecturePage() {
                         <div>
                           <p className="text-xs font-medium text-muted-foreground mb-2">Group 3</p>
                           <div className="flex justify-center">
-                            <div className="w-1/3 rounded-lg border border-[oklch(0.6_0.15_60)] bg-[oklch(0.6_0.15_60)]/5 p-3">
-                              <div className="flex items-center gap-1.5 mb-2">
-                                <FileSearch className="size-3.5 text-[oklch(0.6_0.15_60)]" />
-                                <p className="text-xs font-semibold text-foreground">NFR</p>
+                            {WORKFLOW_WIZARDS.filter(w => w.group === 3).map(wizard => (
+                              <div key={wizard.id} className="w-1/3">
+                                <WizardBox 
+                                  wizard={wizard}
+                                  isExpanded={expandedWizards.has(wizard.id)}
+                                  onToggle={() => toggleWizard(wizard.id)}
+                                />
                               </div>
-                              <div className="flex flex-col gap-1">
-                                <div className="rounded bg-muted/50 px-2 py-1 text-xs text-muted-foreground">Quality Gate (3)</div>
-                                <ArrowDown className="size-3 text-muted-foreground mx-auto" />
-                                <div className="rounded bg-[oklch(0.6_0.15_60)]/10 px-2 py-1 text-xs text-foreground">Core (3)</div>
-                              </div>
-                            </div>
+                            ))}
                           </div>
                         </div>
                       </div>
@@ -927,22 +1094,26 @@ export default function MultiAgentArchitecturePage() {
                 <Card>
                   <CardContent className="pt-6">
                     <p className="text-xs font-semibold text-foreground uppercase tracking-wider mb-3">Legend</p>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                       <div className="flex items-center gap-2">
                         <div className="size-3 rounded bg-muted/50 border border-border" />
-                        <span className="text-xs text-muted-foreground">Quality Gate (runs first)</span>
+                        <span className="text-xs text-muted-foreground">Quality Gate</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="size-3 rounded bg-[var(--ai-accent)]/20 border border-[var(--ai-accent)]" />
-                        <span className="text-xs text-muted-foreground">Core Sub-Agents</span>
+                        <span className="text-xs text-muted-foreground">Core Agents</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="size-3 rounded border-2 border-dashed border-border" />
-                        <span className="text-xs text-muted-foreground">Library (dual-source)</span>
+                        <span className="text-xs text-muted-foreground">Library</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <ArrowDown className="size-3 text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground">Sequential flow</span>
+                        <span className="text-xs text-muted-foreground">Sequential</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <ChevronDown className="size-3 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground">Click to expand</span>
                       </div>
                     </div>
                   </CardContent>
