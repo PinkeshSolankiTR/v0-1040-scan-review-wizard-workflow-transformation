@@ -920,8 +920,6 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                       margin: 0, paddingInlineStart: '1.25rem',
                       display: 'flex', flexDirection: 'column', gap: '0.375rem',
                       listStyleType: 'disc',
-                      opacity: showOverridePanel ? 0.5 : 1,
-                      transition: 'opacity 0.2s ease',
                     }}>
                       {groupSuperseded?.decisionReason
                         ?.split(/\.(?=\s+[A-Z])/)
