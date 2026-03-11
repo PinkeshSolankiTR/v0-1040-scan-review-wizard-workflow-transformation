@@ -41,7 +41,6 @@ type PanelId = 'documents' | 'aiAnalysis' | 'fieldComparison'
 /* ── Predefined override reasons based on Superseded Decision Spec ── */
 const OVERRIDE_REASONS = [
   { id: 'corrected', label: 'Corrected form detected - should be retained', rule: 'A9' },
-  { id: 'different-period', label: 'Different account/period - not a true supersede case', rule: 'A4/A8' },
   { id: 'more-data', label: 'More complete data exists on this document', rule: 'A7' },
 ] as const
 
