@@ -146,7 +146,7 @@ const SECTIONS = [
   { id: "quality-gate", label: "Quality Gate" },
   { id: "library", label: "The Library" },
   { id: "walkthrough", label: "Walkthrough" },
-  { id: "rollout", label: "Rollout Plan" },
+  { id: "workflow", label: "Workflow Diagram" },
 ]
 
 /* ────────────────────────────────────────── COMPONENTS ── */
@@ -763,75 +763,203 @@ export default function MultiAgentArchitecturePage() {
                 </Card>
               </section>
 
-              {/* ═══════════════ SECTION 7: ROLLOUT ═══════════════ */}
+              {/* ═══════════════ SECTION 7: WORKFLOW DIAGRAM ═══════════════ */}
               <section>
-                <SectionHeading id="rollout" number="7" icon={Target} title="Rollout Plan" />
+                <SectionHeading id="workflow" number="7" icon={GitBranch} title="Workflow Diagram" />
 
-                <div className="flex flex-col gap-3">
-                  {[
-                    {
-                      phase: "Phase 1", title: "One Wizard",
-                      color: "oklch(0.55 0.17 145)",
-                      what: "Routing Agent + Superseded Wizard (3 quality + 4 core sub-agents). Pre-load Library with historical data + Decision Specs.",
-                      proves: "Does the quality-then-core pattern work? Do agents make accurate decisions?",
-                    },
-                    {
-                      phase: "Phase 2", title: "Three Wizards",
-                      color: "oklch(0.7 0.15 75)",
-                      what: "Add Duplicate and CFA wizards. Enable parallel execution across Group 2.",
-                      proves: "Can multiple wizards with independent quality gates run simultaneously?",
-                    },
-                    {
-                      phase: "Phase 3", title: "Full Pipeline",
-                      color: "oklch(0.55 0.15 250)",
-                      what: "Add remaining wizards (NFR). Complete the full 6-wizard, 35-sub-agent system.",
-                      proves: "Full end-to-end pipeline works. All wizards learning independently.",
-                    },
-                    {
-                      phase: "Phase 4", title: "Learning at Scale",
-                      color: "oklch(0.55 0.18 290)",
-                      what: "Enable learning from corrections. Library and Decision Specs evolve together.",
-                      proves: "Accuracy improves over time. Reviewer workload decreases each season.",
-                    },
-                  ].map((p) => (
-                    <Card key={p.phase} style={{ borderLeftWidth: "4px", borderLeftColor: p.color }}>
-                      <CardContent className="py-4">
-                        <p className="text-sm font-semibold text-foreground mb-2">{p.phase}: {p.title}</p>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <p className="text-xs font-semibold text-foreground mb-1">What</p>
-                            <p className="text-xs text-muted-foreground leading-relaxed">{p.what}</p>
+                <p className="text-sm text-muted-foreground leading-relaxed mb-4">
+                  Visual representation of how documents flow through the multi-agent system, from initial routing through wizard processing to final decision output.
+                </p>
+
+                {/* Main workflow diagram */}
+                <Card className="mb-4">
+                  <CardContent className="pt-6">
+                    <div className="flex flex-col gap-6">
+
+                      {/* Level 1: Document Input */}
+                      <div className="flex flex-col items-center">
+                        <div className="rounded-lg border-2 border-dashed border-border bg-muted/30 px-6 py-3 text-center">
+                          <p className="text-xs font-semibold text-foreground">Document Input</p>
+                          <p className="text-xs text-muted-foreground">Tax documents from binder</p>
+                        </div>
+                        <ArrowDown className="size-5 text-muted-foreground mt-2" />
+                      </div>
+
+                      {/* Level 2: Routing Agent */}
+                      <div className="flex flex-col items-center">
+                        <div className="rounded-xl border-2 border-[oklch(0.55_0.17_165)] bg-[oklch(0.55_0.17_165)]/10 px-8 py-4 text-center">
+                          <div className="flex items-center justify-center gap-2 mb-1">
+                            <Route className="size-4 text-[oklch(0.55_0.17_165)]" />
+                            <p className="text-sm font-semibold text-foreground">Routing Agent</p>
                           </div>
-                          <div>
-                            <p className="text-xs font-semibold text-foreground mb-1">Proves</p>
-                            <p className="text-xs text-muted-foreground leading-relaxed">{p.proves}</p>
+                          <p className="text-xs text-muted-foreground">Decides which wizards to invoke</p>
+                        </div>
+                        <ArrowDown className="size-5 text-muted-foreground mt-2" />
+                      </div>
+
+                      {/* Level 3: Wizard Groups */}
+                      <div className="rounded-lg border border-border bg-card p-4">
+                        <p className="text-xs font-semibold text-foreground uppercase tracking-wider mb-4 text-center">Wizard Execution (Groups run sequentially, wizards within groups run in parallel)</p>
+                        
+                        {/* Group 1 */}
+                        <div className="mb-4">
+                          <p className="text-xs font-medium text-muted-foreground mb-2">Group 1 (Parallel)</p>
+                          <div className="flex gap-3">
+                            <div className="flex-1 rounded-lg border border-[oklch(0.55_0.15_250)] bg-[oklch(0.55_0.15_250)]/5 p-3">
+                              <div className="flex items-center gap-1.5 mb-2">
+                                <ClipboardCheck className="size-3.5 text-[oklch(0.55_0.15_250)]" />
+                                <p className="text-xs font-semibold text-foreground">Pre-verification</p>
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                <div className="rounded bg-muted/50 px-2 py-1 text-xs text-muted-foreground">Quality Gate (3 agents)</div>
+                                <ArrowDown className="size-3 text-muted-foreground mx-auto" />
+                                <div className="rounded bg-[oklch(0.55_0.15_250)]/10 px-2 py-1 text-xs text-foreground">Core (2 agents)</div>
+                              </div>
+                            </div>
+                            <div className="flex-1 rounded-lg border border-[oklch(0.55_0.17_165)] bg-[oklch(0.55_0.17_165)]/5 p-3">
+                              <div className="flex items-center gap-1.5 mb-2">
+                                <CheckCircle2 className="size-3.5 text-[oklch(0.55_0.17_165)]" />
+                                <p className="text-xs font-semibold text-foreground">Verification</p>
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                <div className="rounded bg-muted/50 px-2 py-1 text-xs text-muted-foreground">Quality Gate (3 agents)</div>
+                                <ArrowDown className="size-3 text-muted-foreground mx-auto" />
+                                <div className="rounded bg-[oklch(0.55_0.17_165)]/10 px-2 py-1 text-xs text-foreground">Core (2 agents)</div>
+                              </div>
+                            </div>
                           </div>
                         </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
 
-                {/* CTA */}
-                <Card className="mt-4 border-[var(--ai-accent)]/30 bg-[var(--ai-accent)]/5">
-                  <CardContent className="pt-6 text-center">
-                    <p className="text-sm font-semibold text-foreground mb-1">Each phase is independently valuable.</p>
-                    <p className="text-xs text-muted-foreground leading-relaxed max-w-lg mx-auto">
-                      Phase 1 alone delivers a working Superseded wizard with quality gates and self-learning from dual-source Library. No hardcoded rules. No code changes between seasons.
-                    </p>
-                    <div className="flex justify-center gap-3 mt-4">
-                      <Button variant="outline" size="sm" asChild>
-                        <Link href="/phase-1">
-                          <ArrowLeft className="size-3.5" />
-                          Back to Phase 1
-                        </Link>
-                      </Button>
-                      <Button size="sm" asChild>
-                        <Link href="/">Overview</Link>
-                      </Button>
+                        <ArrowDown className="size-4 text-muted-foreground mx-auto mb-4" />
+
+                        {/* Group 2 */}
+                        <div className="mb-4">
+                          <p className="text-xs font-medium text-muted-foreground mb-2">Group 2 (Parallel)</p>
+                          <div className="flex gap-3">
+                            <div className="flex-1 rounded-lg border border-[oklch(0.55_0.18_290)] bg-[oklch(0.55_0.18_290)]/5 p-3">
+                              <div className="flex items-center gap-1.5 mb-2">
+                                <FileStack className="size-3.5 text-[oklch(0.55_0.18_290)]" />
+                                <p className="text-xs font-semibold text-foreground">Superseded</p>
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                <div className="rounded bg-muted/50 px-2 py-1 text-xs text-muted-foreground">Quality Gate (3)</div>
+                                <ArrowDown className="size-3 text-muted-foreground mx-auto" />
+                                <div className="rounded bg-[oklch(0.55_0.18_290)]/10 px-2 py-1 text-xs text-foreground">Core (4)</div>
+                              </div>
+                            </div>
+                            <div className="flex-1 rounded-lg border border-[oklch(0.55_0.15_250)] bg-[oklch(0.55_0.15_250)]/5 p-3">
+                              <div className="flex items-center gap-1.5 mb-2">
+                                <Copy className="size-3.5 text-[oklch(0.55_0.15_250)]" />
+                                <p className="text-xs font-semibold text-foreground">Duplicate</p>
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                <div className="rounded bg-muted/50 px-2 py-1 text-xs text-muted-foreground">Quality Gate (3)</div>
+                                <ArrowDown className="size-3 text-muted-foreground mx-auto" />
+                                <div className="rounded bg-[oklch(0.55_0.15_250)]/10 px-2 py-1 text-xs text-foreground">Core (1)</div>
+                              </div>
+                            </div>
+                            <div className="flex-1 rounded-lg border border-[oklch(0.55_0.17_165)] bg-[oklch(0.55_0.17_165)]/5 p-3">
+                              <div className="flex items-center gap-1.5 mb-2">
+                                <Link2 className="size-3.5 text-[oklch(0.55_0.17_165)]" />
+                                <p className="text-xs font-semibold text-foreground">CFA</p>
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                <div className="rounded bg-muted/50 px-2 py-1 text-xs text-muted-foreground">Quality Gate (3)</div>
+                                <ArrowDown className="size-3 text-muted-foreground mx-auto" />
+                                <div className="rounded bg-[oklch(0.55_0.17_165)]/10 px-2 py-1 text-xs text-foreground">Core (3)</div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <ArrowDown className="size-4 text-muted-foreground mx-auto mb-4" />
+
+                        {/* Group 3 */}
+                        <div>
+                          <p className="text-xs font-medium text-muted-foreground mb-2">Group 3</p>
+                          <div className="flex justify-center">
+                            <div className="w-1/3 rounded-lg border border-[oklch(0.6_0.15_60)] bg-[oklch(0.6_0.15_60)]/5 p-3">
+                              <div className="flex items-center gap-1.5 mb-2">
+                                <FileSearch className="size-3.5 text-[oklch(0.6_0.15_60)]" />
+                                <p className="text-xs font-semibold text-foreground">NFR</p>
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                <div className="rounded bg-muted/50 px-2 py-1 text-xs text-muted-foreground">Quality Gate (3)</div>
+                                <ArrowDown className="size-3 text-muted-foreground mx-auto" />
+                                <div className="rounded bg-[oklch(0.6_0.15_60)]/10 px-2 py-1 text-xs text-foreground">Core (3)</div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <ArrowDown className="size-5 text-muted-foreground mx-auto" />
+
+                      {/* Level 4: Library Integration */}
+                      <div className="flex justify-center gap-4">
+                        <div className="rounded-lg border border-dashed border-[oklch(0.55_0.15_250)] bg-[oklch(0.55_0.15_250)]/5 px-4 py-3 text-center">
+                          <Database className="size-4 text-[oklch(0.55_0.15_250)] mx-auto mb-1" />
+                          <p className="text-xs font-semibold text-foreground">Historical Patterns</p>
+                          <p className="text-xs text-muted-foreground">Learned outcomes</p>
+                        </div>
+                        <div className="rounded-lg border border-dashed border-[oklch(0.6_0.15_60)] bg-[oklch(0.6_0.15_60)]/5 px-4 py-3 text-center">
+                          <BookOpen className="size-4 text-[oklch(0.6_0.15_60)] mx-auto mb-1" />
+                          <p className="text-xs font-semibold text-foreground">AI Decision Specs</p>
+                          <p className="text-xs text-muted-foreground">Authored rules</p>
+                        </div>
+                      </div>
+
+                      <ArrowDown className="size-5 text-muted-foreground mx-auto" />
+
+                      {/* Level 5: Output */}
+                      <div className="flex flex-col items-center">
+                        <div className="rounded-xl border-2 border-[var(--confidence-high)] bg-[var(--confidence-high)]/10 px-8 py-4 text-center">
+                          <p className="text-sm font-semibold text-foreground mb-1">Decision Output</p>
+                          <p className="text-xs text-muted-foreground">Per-document status + confidence + applied rule</p>
+                        </div>
+                      </div>
+
                     </div>
                   </CardContent>
                 </Card>
+
+                {/* Legend */}
+                <Card>
+                  <CardContent className="pt-6">
+                    <p className="text-xs font-semibold text-foreground uppercase tracking-wider mb-3">Legend</p>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      <div className="flex items-center gap-2">
+                        <div className="size-3 rounded bg-muted/50 border border-border" />
+                        <span className="text-xs text-muted-foreground">Quality Gate (runs first)</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="size-3 rounded bg-[var(--ai-accent)]/20 border border-[var(--ai-accent)]" />
+                        <span className="text-xs text-muted-foreground">Core Sub-Agents</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="size-3 rounded border-2 border-dashed border-border" />
+                        <span className="text-xs text-muted-foreground">Library (dual-source)</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <ArrowDown className="size-3 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground">Sequential flow</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Navigation */}
+                <div className="flex justify-center gap-3 mt-6">
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href="/phase-1">
+                      <ArrowLeft className="size-3.5" />
+                      Back to Phase 1
+                    </Link>
+                  </Button>
+                  <Button size="sm" asChild>
+                    <Link href="/">Overview</Link>
+                  </Button>
+                </div>
               </section>
 
             </div>
