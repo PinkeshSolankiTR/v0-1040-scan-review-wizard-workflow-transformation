@@ -348,12 +348,12 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
               const isExpanded = expandedGroups.has(group.formType)
               const isActiveGroup = gIdx === selectedGroupIdx
               const groupAccepted = group.records.every(r => decisions[`sup-pg${r.engagementPageId}`] === 'accepted')
-              const avgConfidence = Math.round(
-                (group.records.reduce((sum, r) => sum + r.confidenceLevel, 0) / group.records.length) * 100
-              )
-              const confColor = avgConfidence >= 90
+              const avgConfidence = group.records.reduce((sum, r) => sum + r.confidenceLevel, 0) / group.records.length
+              const avgConfPct = Math.round(avgConfidence * 100)
+              const confColor = avgConfPct >= 90
                 ? 'oklch(0.55 0.17 145)'
-                : avgConfidence >= 70 ? 'oklch(0.65 0.14 80)' : 'oklch(0.6 0.18 15)'
+                : avgConfPct >= 70 ? 'oklch(0.65 0.14 80)' : 'oklch(0.6 0.18 15)'
+              const actionLabel = avgConfPct >= 90 ? 'Auto-Ready' : avgConfPct >= 70 ? 'Review' : 'Manual'
               const groupSuperseded = group.records.find(r => r.decisionType === 'Superseded')
               const groupOriginal = group.records.find(r => r.decisionType === 'Original')
               const groupCompared = group.records.flatMap(r => r.comparedValues ?? [])
@@ -389,12 +389,15 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                         {group.formType}: {group.formEntity.toUpperCase()}
                       </span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginBlockStart: '0.25rem' }}>
-                        <span style={{
-                          fontSize: '0.625rem', fontWeight: 700, fontFamily: 'var(--font-mono)',
-                          padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem',
-                          backgroundColor: `${confColor} / 0.12`, color: confColor,
-                        }}>
-                          {avgConfidence}%
+                        <span 
+                          style={{
+                            fontSize: '0.625rem', fontWeight: 700,
+                            padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem',
+                            backgroundColor: `${confColor} / 0.12`, color: confColor,
+                          }}
+                          title={`${avgConfPct}% confidence`}
+                        >
+                          {actionLabel}
                         </span>
                         <span style={{ fontSize: '0.625rem', fontWeight: 600, color: 'oklch(0.5 0.01 260)' }}>
                           {group.records.length} {group.records.length === 1 ? 'page' : 'pages'}
@@ -496,10 +499,12 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
             const groupOriginal = activeGroup?.records.find(r => r.decisionType === 'Original')
             const groupCompared = (activeGroup?.records ?? []).flatMap(r => r.comparedValues ?? [])
               .filter((v, i, arr) => arr.findIndex(x => x.field === v.field) === i)
-            const avgConf = activeGroup
-              ? Math.round((activeGroup.records.reduce((sum, r) => sum + r.confidenceLevel, 0) / activeGroup.records.length) * 100)
+            const avgConfRaw = activeGroup
+              ? activeGroup.records.reduce((sum, r) => sum + r.confidenceLevel, 0) / activeGroup.records.length
               : 0
+            const avgConf = Math.round(avgConfRaw * 100)
             const confColor = avgConf >= 90 ? 'oklch(0.55 0.17 145)' : avgConf >= 70 ? 'oklch(0.65 0.14 80)' : 'oklch(0.6 0.18 15)'
+            const panelActionLabel = avgConf >= 90 ? 'Auto-Ready' : avgConf >= 70 ? 'Review Suggested' : 'Manual Review'
             const mismatches = groupCompared.filter(v => !v.match)
             const isGroupOverridden = activeGroup ? flippedGroups.has(activeGroup.formType) : false
 
@@ -534,13 +539,16 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                       Manual Override
                     </span>
                   ) : (
-                    <span style={{
-                      fontSize: '0.625rem', fontWeight: 700, fontFamily: 'var(--font-mono)',
-                      padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem',
-                      backgroundColor: `${confColor} / 0.12`, color: confColor,
-                      marginInlineStart: '0.25rem',
-                    }}>
-                      {avgConf}%
+                    <span 
+                      style={{
+                        fontSize: '0.625rem', fontWeight: 700,
+                        padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem',
+                        backgroundColor: `${confColor} / 0.12`, color: confColor,
+                        marginInlineStart: '0.25rem',
+                      }}
+                      title={`${avgConf}% confidence`}
+                    >
+                      {panelActionLabel}
                     </span>
                   )}
                   {groupSuperseded?.reviewRequired && (
