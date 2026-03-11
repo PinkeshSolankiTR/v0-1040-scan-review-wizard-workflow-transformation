@@ -728,9 +728,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                         <span style={{ fontSize: '0.625rem', fontWeight: 600, color: 'oklch(0.5 0.01 260)' }}>
                           {group.records.length} {group.records.length === 1 ? 'page' : 'pages'}
                         </span>
-                        {group.records.some(r => r.reviewRequired) && (
-                          <AlertTriangle style={{ inlineSize: '0.625rem', blockSize: '0.625rem', color: 'oklch(0.6 0.18 60)' }} />
-                        )}
+
                       </div>
                     </div>
                     {isExpanded
@@ -882,44 +880,14 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                       {panelActionLabel}
                     </span>
                   )}
-                  {groupSuperseded?.reviewRequired && (
-                    <AlertTriangle style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.6 0.18 60)' }} />
-                  )}
+
                 </button>
 
                 {expandedPanels.has('aiAnalysis') && (
                   <div style={{
                     padding: '0.625rem 0.75rem',
-                    backgroundColor: isGroupOverridden ? 'oklch(0.98 0.02 60)' : 'oklch(0.98 0.003 240)',
+                    backgroundColor: 'oklch(0.98 0.003 240)',
                   }}>
-                    {/* Amber warning banner when overridden */}
-                    {isGroupOverridden && (
-                      <div style={{
-                        display: 'flex', flexDirection: 'column', gap: '0.25rem',
-                        padding: '0.5rem 0.625rem',
-                        marginBlockEnd: '0.625rem',
-                        borderRadius: '0.25rem',
-                        border: '0.0625rem solid oklch(0.82 0.08 60)',
-                        backgroundColor: 'oklch(0.96 0.04 60)',
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                          <AlertTriangle style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem', color: 'oklch(0.55 0.16 60)', flexShrink: 0 }} />
-                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'oklch(0.4 0.14 60)' }}>
-                            User has reversed this classification
-                          </span>
-                        </div>
-                        <div style={{ paddingInlineStart: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.125rem' }}>
-                          <p style={{ fontSize: '0.6875rem', color: 'oklch(0.4 0.1 60)', margin: 0 }}>
-                            <strong>AI recommended:</strong>{' '}
-                            Page {groupSuperseded?.engagementPageId} = Superseded, Page {groupOriginal?.engagementPageId} = Original
-                          </p>
-                          <p style={{ fontSize: '0.6875rem', color: 'oklch(0.4 0.1 60)', margin: 0 }}>
-                            <strong>User changed to:</strong>{' '}
-                            Page {groupSuperseded?.engagementPageId} = Original, Page {groupOriginal?.engagementPageId} = Superseded
-                          </p>
-                        </div>
-                      </div>
-                    )}
 
                     {/* Hide AI explanation after user applies override */}
                     {/* Compact icon + text explanation */}

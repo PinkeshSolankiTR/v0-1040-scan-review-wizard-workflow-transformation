@@ -706,9 +706,7 @@ backgroundColor: `${confColor} / 0.12`, color: confColor,
                             {group.unmatchedRecords.length} unmatched
                           </span>
                         )}
-                        {group.needsReview && (
-                          <AlertTriangle style={{ inlineSize: '0.625rem', blockSize: '0.625rem', color: 'oklch(0.6 0.18 60)' }} />
-                        )}
+
                       </div>
                     </div>
                     {isExpanded
@@ -799,19 +797,6 @@ backgroundColor: `${confColor} / 0.12`, color: confColor,
           {/* ═══ PANEL 1: AI Analysis ═══ */}
           {(() => {
             const firstRec = activeGroup?.records[0]
-            const groupCompared = comparedValues
-            const avgConf = activeGroup
-              ? Math.round(activeGroup.averageConfidence * 100)
-              : 0
-            const confColor = avgConf >= 90 ? 'oklch(0.55 0.17 145)' : avgConf >= 70 ? 'oklch(0.65 0.14 80)' : 'oklch(0.6 0.18 15)'
-            const panelActionLabel = avgConf >= 90 ? 'High Confidence' : avgConf >= 70 ? 'Moderate Confidence' : 'Low Confidence'
-            const panelTooltip = avgConf >= 90 
-              ? 'AI is confident. Reviewer can approve quickly.' 
-              : avgConf >= 70 
-                ? 'AI has moderate confidence. Reviewer should verify key fields.' 
-                : 'AI is uncertain. Reviewer must examine carefully.'
-            const mismatches = groupCompared.filter(v => !v.match)
-            const matchType = firstRec?.itemType === 'DUPLICATE_DATA' ? (firstRec as DuplicateDataRecord).matchType : null
 
             return (
               <div style={{ borderBlockEnd: '0.0625rem solid oklch(0.91 0.005 260)' }}>
@@ -834,65 +819,13 @@ backgroundColor: `${confColor} / 0.12`, color: confColor,
                   }
                   <Sparkles style={{ inlineSize: '0.875rem', blockSize: '0.875rem' }} />
                   What we found
-                  <span 
-                    style={{
-                      fontSize: '0.625rem', fontWeight: 700,
-                      padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem',
-                      backgroundColor: `${confColor} / 0.12`, color: confColor,
-                      marginInlineStart: '0.25rem',
-                    }}
-                    title={panelTooltip}
-                  >
-                    {panelActionLabel}
-                  </span>
-                  {firstRec?.reviewRequired && (
-                    <AlertTriangle style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.6 0.18 60)' }} />
-                  )}
-                  {matchType && (
-                    <span style={{
-                      fontSize: '0.5625rem', fontWeight: 600, fontFamily: 'var(--font-mono)',
-                      padding: '0.0625rem 0.25rem', borderRadius: '0.125rem',
-                      backgroundColor: 'oklch(0.93 0.005 260)', color: 'oklch(0.45 0.01 260)',
-                    }}>
-                      {matchType}
-                    </span>
-                  )}
                 </button>
 
                 {expandedPanels.has('aiAnalysis') && (
                   <div style={{
                     padding: '0.625rem 0.75rem',
-                    backgroundColor: isGroupOverridden ? 'oklch(0.98 0.02 60)' : 'oklch(0.98 0.003 240)',
+                    backgroundColor: 'oklch(0.98 0.003 240)',
                   }}>
-                    {/* Amber warning banner when overridden */}
-                    {isGroupOverridden && (
-                      <div style={{
-                        display: 'flex', flexDirection: 'column', gap: '0.25rem',
-                        padding: '0.5rem 0.625rem',
-                        marginBlockEnd: '0.625rem',
-                        borderRadius: '0.25rem',
-                        border: '0.0625rem solid oklch(0.82 0.08 60)',
-                        backgroundColor: 'oklch(0.96 0.04 60)',
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                          <AlertTriangle style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem', color: 'oklch(0.55 0.16 60)', flexShrink: 0 }} />
-                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'oklch(0.4 0.14 60)' }}>
-                            User has overridden the Original classification
-                          </span>
-                        </div>
-                        <div style={{ paddingInlineStart: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.125rem' }}>
-                          <p style={{ fontSize: '0.6875rem', color: 'oklch(0.4 0.1 60)', margin: 0 }}>
-                            <strong>AI recommended:</strong>{' '}
-                            {aiOriginalId ?? 'Unknown'} = Original; all others = Duplicate
-                          </p>
-                          <p style={{ fontSize: '0.6875rem', color: 'oklch(0.4 0.1 60)', margin: 0 }}>
-                            <strong>User changed to:</strong>{' '}
-                            {effectiveOriginalId} = Original; all others = Duplicate
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
                     {/* Document tabs -- click to switch between docs */}
                     <nav style={{
                       display: 'flex', gap: '0.125rem',
