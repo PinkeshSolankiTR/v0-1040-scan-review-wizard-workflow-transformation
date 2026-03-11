@@ -1048,47 +1048,11 @@ backgroundColor: `${confColor} / 0.12`, color: confColor,
                                       </div>
                                     ))
                                 )}
-                                {primaryRec.escalationReason && (
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                                    <span style={{ color: 'oklch(0.5 0.16 60)', flexShrink: 0 }}>
-                                      <AlertTriangle style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} />
-                                    </span>
-                                    <span style={{ fontSize: '0.6875rem', color: 'oklch(0.45 0.12 60)' }}>{primaryRec.escalationReason}</span>
-                                  </div>
-                                )}
+
                               </div>
                             )}
 
-                            {/* Mismatched fields */}
-                            {uniqueMismatches.length > 0 && (
-                              <div style={{ marginBlockStart: '0.5rem' }}>
-                                <p style={{
-                                  margin: 0, marginBlockEnd: '0.1875rem',
-                                  fontSize: '0.625rem', fontWeight: 700,
-                                  color: 'oklch(0.45 0.12 25)',
-                                }}>
-                                  Flagged Fields ({uniqueMismatches.length})
-                                </p>
-                                <ul style={{
-                                  margin: 0, paddingInlineStart: '1rem',
-                                  listStyleType: 'circle',
-                                  display: 'flex', flexDirection: 'column', gap: '0.125rem',
-                                }}>
-                                  {uniqueMismatches.map(v => (
-                                    <li key={v.field} style={{ fontSize: '0.625rem', color: 'oklch(0.35 0.01 260)' }}>
-                                      <span style={{ fontWeight: 600 }}>{v.field}:</span>{' '}
-                                      <span style={{ padding: '0 0.125rem', borderRadius: '0.0625rem', backgroundColor: 'oklch(0.94 0.04 25)', color: 'oklch(0.45 0.14 25)' }}>
-                                        {v.valueA}
-                                      </span>
-                                      {' '}&rarr;{' '}
-                                      <span style={{ padding: '0 0.125rem', borderRadius: '0.0625rem', backgroundColor: 'oklch(0.94 0.04 145)', color: 'oklch(0.35 0.12 145)' }}>
-                                        {v.valueB}
-                                      </span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
-                            )}
+
                           </div>
                         </article>
                       )

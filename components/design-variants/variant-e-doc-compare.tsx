@@ -968,16 +968,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                             )
                           })
                         }
-                        {groupSuperseded?.escalationReason && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                            <span style={{ color: 'oklch(0.5 0.16 60)', flexShrink: 0 }}>
-                              <AlertTriangle style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} />
-                            </span>
-                            <span style={{ fontSize: '0.6875rem', color: 'oklch(0.45 0.12 60)' }}>
-                              {groupSuperseded.escalationReason}
-                            </span>
-                          </div>
-                        )}
+
                       </div>
                     )}
                   </div>
@@ -988,7 +979,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
 
           {/* ═══════════════════════════════════════════════════════════
               PANEL 2: Field Comparison (collapsible)
-              ═══════════════════════════════════════════════════════════ */}
+              ═════════════════════���═════════════════════════════════════ */}
           {comparedValues.length > 0 && (
             <div style={{ borderBlockEnd: '0.0625rem solid oklch(0.91 0.005 260)' }}>
               <button
