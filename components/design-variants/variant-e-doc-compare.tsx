@@ -358,6 +358,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                 }
                 setShowOverridePanel(p => !p)
               }}
+              disabled={isGroupRejected}
               style={{
                 display: 'flex', alignItems: 'center', gap: '0.375rem',
                 padding: '0.375rem 0.75rem',
@@ -368,7 +369,8 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                   : 'oklch(1 0 0)',
                 fontSize: '0.75rem', fontWeight: 600,
                 color: 'oklch(0.5 0.16 60)',
-                cursor: 'pointer',
+                cursor: isGroupRejected ? 'not-allowed' : 'pointer',
+                opacity: isGroupRejected ? 0.5 : 1,
               }}
               aria-expanded={showOverridePanel}
             >

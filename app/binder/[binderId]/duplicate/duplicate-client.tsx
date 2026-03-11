@@ -491,6 +491,7 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
             <button
               type="button"
               onClick={() => setShowOverridePanel(p => !p)}
+              disabled={isGroupRejected}
               style={{
                 display: 'flex', alignItems: 'center', gap: '0.375rem',
                 padding: '0.375rem 0.75rem',
@@ -499,7 +500,8 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
                 backgroundColor: isGroupOverridden ? 'oklch(0.96 0.04 60)' : 'oklch(1 0 0)',
                 fontSize: '0.75rem', fontWeight: 600,
                 color: 'oklch(0.45 0.12 60)',
-                cursor: 'pointer',
+                cursor: isGroupRejected ? 'not-allowed' : 'pointer',
+                opacity: isGroupRejected ? 0.5 : 1,
               }}
               aria-expanded={showOverridePanel}
             >
