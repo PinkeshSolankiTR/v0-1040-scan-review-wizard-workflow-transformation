@@ -1002,37 +1002,6 @@ backgroundColor: `${confColor} / 0.12`, color: confColor,
 
                           {/* Analysis body */}
                           <div style={{ padding: '0.5rem 0.625rem' }}>
-                            {/* Ruleset + decision + confidence */}
-                            <div style={{
-                              display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.25rem',
-                              marginBlockEnd: '0.5rem',
-                            }}>
-                              <span style={{
-                                fontSize: '0.5625rem', fontWeight: 700, fontFamily: 'var(--font-mono)',
-                                padding: '0.0625rem 0.25rem', borderRadius: '0.125rem',
-                                backgroundColor: 'oklch(0.93 0.005 260)', color: 'oklch(0.4 0.01 260)',
-                              }}>
-                                {primaryRec.appliedRuleSet} / {primaryRec.decisionRule}
-                              </span>
-                              {'matchType' in primaryRec && (primaryRec as DuplicateDataRecord).matchType && (
-                                <span style={{
-                                  fontSize: '0.5625rem', fontWeight: 600, fontFamily: 'var(--font-mono)',
-                                  padding: '0.0625rem 0.25rem', borderRadius: '0.125rem',
-                                  backgroundColor: 'oklch(0.93 0.01 240)', color: 'oklch(0.4 0.08 240)',
-                                }}>
-                                  {(primaryRec as DuplicateDataRecord).matchType}
-                                </span>
-                              )}
-                              <span style={{
-                                fontSize: '0.5625rem', fontWeight: 700,
-                                padding: '0.0625rem 0.25rem', borderRadius: '0.125rem',
-                                backgroundColor: `${primaryRec.confidenceLevel >= 0.9 ? 'oklch(0.94 0.04 145)' : primaryRec.confidenceLevel >= 0.6 ? 'oklch(0.95 0.04 85)' : 'oklch(0.94 0.04 25)'}`,
-                                color: `${primaryRec.confidenceLevel >= 0.9 ? 'oklch(0.35 0.14 145)' : primaryRec.confidenceLevel >= 0.6 ? 'oklch(0.4 0.12 85)' : 'oklch(0.45 0.14 25)'}`,
-                              }}>
-                                {Math.round(primaryRec.confidenceLevel * 100)}%
-                              </span>
-                            </div>
-
                             {/* Decision reasons - compact icon + text format */}
                             {!isGroupOverridden && (
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
