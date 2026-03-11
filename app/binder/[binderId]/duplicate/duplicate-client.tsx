@@ -796,7 +796,16 @@ backgroundColor: `${confColor} / 0.12`, color: confColor,
 
           {/* ═══ PANEL 1: AI Analysis ═══ */}
           {(() => {
-            const firstRec = activeGroup?.records[0]
+            const avgConf = activeGroup
+              ? Math.round(activeGroup.averageConfidence * 100)
+              : 0
+            const confColor = avgConf >= 90 ? 'oklch(0.55 0.17 145)' : avgConf >= 70 ? 'oklch(0.65 0.14 80)' : 'oklch(0.6 0.18 15)'
+            const panelActionLabel = avgConf >= 90 ? 'High Confidence' : avgConf >= 70 ? 'Moderate Confidence' : 'Low Confidence'
+            const panelTooltip = avgConf >= 90 
+              ? 'AI is confident. Reviewer can approve quickly.' 
+              : avgConf >= 70 
+                ? 'AI has moderate confidence. Reviewer should verify key fields.' 
+                : 'AI is uncertain. Reviewer must examine carefully.'
 
             return (
               <div style={{ borderBlockEnd: '0.0625rem solid oklch(0.91 0.005 260)' }}>
@@ -819,6 +828,17 @@ backgroundColor: `${confColor} / 0.12`, color: confColor,
                   }
                   <Sparkles style={{ inlineSize: '0.875rem', blockSize: '0.875rem' }} />
                   What we found
+                  <span 
+                    style={{
+                      fontSize: '0.625rem', fontWeight: 700,
+                      padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem',
+                      backgroundColor: `${confColor} / 0.12`, color: confColor,
+                      marginInlineStart: '0.25rem',
+                    }}
+                    title={panelTooltip}
+                  >
+                    {panelActionLabel}
+                  </span>
                 </button>
 
                 {expandedPanels.has('aiAnalysis') && (
