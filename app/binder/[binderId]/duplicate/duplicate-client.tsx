@@ -17,6 +17,7 @@ import {
   FileText,
   Sparkles,
   Check,
+  CheckCircle2,
   Undo2,
   AlertTriangle,
   ArrowRight,
@@ -31,6 +32,12 @@ import {
   Minimize2,
   Eye,
   Columns2,
+  RefreshCw,
+  User,
+  FileEdit,
+  Info,
+  Copy,
+  FileCheck,
 } from 'lucide-react'
 import type { DuplicateRecord, DuplicateDataRecord, DuplicateDocRecord, OverrideDetail } from '@/lib/types'
 
@@ -826,7 +833,7 @@ backgroundColor: `${confColor} / 0.12`, color: confColor,
                     : <ChevronRight style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} />
                   }
                   <Sparkles style={{ inlineSize: '0.875rem', blockSize: '0.875rem' }} />
-                  AI Analysis
+                  What we found
                   <span 
                     style={{
                       fontSize: '0.625rem', fontWeight: 700,
@@ -1026,30 +1033,62 @@ backgroundColor: `${confColor} / 0.12`, color: confColor,
                               </span>
                             </div>
 
-                            {/* Decision reasons */}
-                            <ul style={{
-                              margin: 0, paddingInlineStart: '1rem',
-                              display: 'flex', flexDirection: 'column', gap: '0.25rem',
-                              listStyleType: 'disc',
-                            }}>
-                              {primaryRec.decisionReason
-                                ?.split(/\.(?=\s+[A-Z])/)
-                                .map(s => s.trim())
-                                .filter(s => s.length > 0)
-                                .map(s => s.replace(/\.$/, ''))
-                                .map((sentence, i) => (
-                                  <li key={`${doc.id}-reason-${i}`} style={{ fontSize: '0.6875rem', lineHeight: '1.5', color: 'oklch(0.3 0.01 260)' }}>
-                                    {sentence}
-                                  </li>
-                                ))
-                              }
-                              {primaryRec.escalationReason && (
-                                <li style={{ fontSize: '0.6875rem', lineHeight: '1.5', color: 'oklch(0.45 0.16 60)' }}>
-                                  <strong style={{ color: 'oklch(0.5 0.16 60)' }}>Escalation:</strong>{' '}
-                                  {primaryRec.escalationReason}
-                                </li>
-                              )}
-                            </ul>
+                            {/* Decision reasons - compact icon + text format */}
+                            {!isGroupOverridden && (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                {primaryRec.decisionReason?.includes('||') ? (
+                                  // New icon format
+                                  primaryRec.decisionReason
+                                    .split('||')
+                                    .map(item => {
+                                      const [type, text] = item.split('|')
+                                      return { type, text }
+                                    })
+                                    .filter(item => item.text)
+                                    .map((item, i) => {
+                                      const iconMap: Record<string, { icon: React.ReactNode; color: string }> = {
+                                        'NEWER_VERSION': { icon: <RefreshCw style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} />, color: 'oklch(0.45 0.15 145)' },
+                                        'SAME_RECIPIENT': { icon: <User style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} />, color: 'oklch(0.45 0.12 250)' },
+                                        'UPDATED_VALUES': { icon: <FileEdit style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} />, color: 'oklch(0.5 0.14 60)' },
+                                        'CORRECTED_MARK': { icon: <CheckCircle2 style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} />, color: 'oklch(0.45 0.15 145)' },
+                                        'EXACT_MATCH': { icon: <Copy style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} />, color: 'oklch(0.45 0.15 145)' },
+                                        'SAME_DOCUMENT': { icon: <FileCheck style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} />, color: 'oklch(0.45 0.12 250)' },
+                                        'KEEP_ONE': { icon: <Check style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} />, color: 'oklch(0.45 0.15 145)' },
+                                      }
+                                      const config = iconMap[item.type] || { icon: <Info style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} />, color: 'oklch(0.5 0.01 260)' }
+                                      return (
+                                        <div key={`${doc.id}-reason-${i}`} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                                          <span style={{ color: config.color, flexShrink: 0 }}>{config.icon}</span>
+                                          <span style={{ fontSize: '0.6875rem', color: 'oklch(0.35 0.01 260)' }}>{item.text}</span>
+                                        </div>
+                                      )
+                                    })
+                                ) : (
+                                  // Legacy sentence format fallback
+                                  primaryRec.decisionReason
+                                    ?.split(/\.(?=\s+[A-Z])/)
+                                    .map(s => s.trim())
+                                    .filter(s => s.length > 0)
+                                    .map(s => s.replace(/\.$/, ''))
+                                    .map((sentence, i) => (
+                                      <div key={`${doc.id}-reason-${i}`} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                                        <span style={{ color: 'oklch(0.5 0.01 260)', flexShrink: 0 }}>
+                                          <Info style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} />
+                                        </span>
+                                        <span style={{ fontSize: '0.6875rem', color: 'oklch(0.35 0.01 260)' }}>{sentence}</span>
+                                      </div>
+                                    ))
+                                )}
+                                {primaryRec.escalationReason && (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                                    <span style={{ color: 'oklch(0.5 0.16 60)', flexShrink: 0 }}>
+                                      <AlertTriangle style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} />
+                                    </span>
+                                    <span style={{ fontSize: '0.6875rem', color: 'oklch(0.45 0.12 60)' }}>{primaryRec.escalationReason}</span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
 
                             {/* Mismatched fields */}
                             {uniqueMismatches.length > 0 && (
