@@ -20,7 +20,7 @@ export type WizardType = 'superseded' | 'duplicate' | 'cfa' | 'nfr'
 
 // ── Confidence ──
 export type ConfidenceLevel = 'high' | 'medium' | 'low'
-export type ConfidenceAction = 'auto-ready' | 'review-suggested' | 'manual-review'
+export type ConfidenceAction = 'high-confidence' | 'moderate-confidence' | 'low-confidence'
 
 export function getConfidenceLevel(score: number): ConfidenceLevel {
   if (score >= 0.9) return 'high'
@@ -29,9 +29,9 @@ export function getConfidenceLevel(score: number): ConfidenceLevel {
 }
 
 export function getConfidenceAction(score: number): ConfidenceAction {
-  if (score >= 0.9) return 'auto-ready'
-  if (score >= 0.7) return 'review-suggested'
-  return 'manual-review'
+  if (score >= 0.9) return 'high-confidence'
+  if (score >= 0.7) return 'moderate-confidence'
+  return 'low-confidence'
 }
 
 // ── Superseded ──

@@ -925,9 +925,9 @@ export default function MultiAgentArchitecturePage() {
                     <p className="text-xs font-semibold text-[var(--confidence-high)] uppercase tracking-wider mb-3">Result</p>
                     <div className="grid grid-cols-3 gap-3 mb-3">
                       {[
-                        { page: "Page 12", status: "SUPERSEDED by Page 15", action: "Auto-Ready", conf: "97.7%" },
-                        { page: "Page 15", status: "RETAINED (corrected)", action: "Auto-Ready", conf: "97.7%" },
-                        { page: "Page 22", status: "NO ACTION (different account)", action: "Auto-Ready", conf: "98.9%" },
+                        { page: "Page 12", status: "SUPERSEDED by Page 15", action: "High Confidence", conf: "97.7%" },
+                        { page: "Page 15", status: "RETAINED (corrected)", action: "High Confidence", conf: "97.7%" },
+                        { page: "Page 22", status: "NO ACTION (different account)", action: "High Confidence", conf: "98.9%" },
                       ].map((r) => (
                         <div key={r.page} className="rounded-lg border border-border bg-muted/30 p-3">
                           <p className="text-xs font-semibold text-foreground">{r.page}</p>

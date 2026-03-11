@@ -21,10 +21,10 @@ export function BulkActionsBar({ totalItems, highCount, onAcceptAllHigh }: BulkA
         size="sm"
         onClick={onAcceptAllHigh}
         disabled={highCount === 0}
-        title="Accept all items with Auto-Ready status (>=90% confidence)"
+        title="Accept all items with High Confidence (>=90%)"
       >
         <CheckCircle2 className="size-4 text-[var(--confidence-high)]" />
-        Accept All Auto-Ready ({highCount})
+        Accept All High Confidence ({highCount})
       </Button>
     </div>
   )

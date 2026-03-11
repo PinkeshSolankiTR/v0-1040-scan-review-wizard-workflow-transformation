@@ -353,7 +353,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
               const confColor = avgConfPct >= 90
                 ? 'oklch(0.55 0.17 145)'
                 : avgConfPct >= 70 ? 'oklch(0.65 0.14 80)' : 'oklch(0.6 0.18 15)'
-              const actionLabel = avgConfPct >= 90 ? 'Auto-Ready' : avgConfPct >= 70 ? 'Review' : 'Manual'
+              const actionLabel = avgConfPct >= 90 ? 'High' : avgConfPct >= 70 ? 'Moderate' : 'Low'
               const groupSuperseded = group.records.find(r => r.decisionType === 'Superseded')
               const groupOriginal = group.records.find(r => r.decisionType === 'Original')
               const groupCompared = group.records.flatMap(r => r.comparedValues ?? [])
@@ -504,7 +504,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
               : 0
             const avgConf = Math.round(avgConfRaw * 100)
             const confColor = avgConf >= 90 ? 'oklch(0.55 0.17 145)' : avgConf >= 70 ? 'oklch(0.65 0.14 80)' : 'oklch(0.6 0.18 15)'
-            const panelActionLabel = avgConf >= 90 ? 'Auto-Ready' : avgConf >= 70 ? 'Review Suggested' : 'Manual Review'
+            const panelActionLabel = avgConf >= 90 ? 'High Confidence' : avgConf >= 70 ? 'Moderate Confidence' : 'Low Confidence'
             const mismatches = groupCompared.filter(v => !v.match)
             const isGroupOverridden = activeGroup ? flippedGroups.has(activeGroup.formType) : false
 

@@ -10,17 +10,17 @@ const STYLES = {
   low: 'bg-[var(--confidence-low)] text-white',
 } as const
 
-/* Action-based labels that tell the reviewer what to do */
-const ACTION_LABELS = {
-  high: 'Auto-Ready',
-  medium: 'Review Suggested',
-  low: 'Manual Review',
+/* Confidence-based labels with actionable descriptions */
+const CONFIDENCE_LABELS = {
+  high: 'High Confidence',
+  medium: 'Moderate Confidence',
+  low: 'Low Confidence',
 } as const
 
-const ACTION_DESCRIPTIONS = {
-  high: 'AI is confident. Quick approval recommended.',
-  medium: 'AI has moderate confidence. Verify key fields.',
-  low: 'AI is uncertain. Careful examination required.',
+const CONFIDENCE_DESCRIPTIONS = {
+  high: 'AI is confident. Reviewer can approve quickly.',
+  medium: 'AI has moderate confidence. Reviewer should verify key fields.',
+  low: 'AI is uncertain. Reviewer must examine carefully.',
 } as const
 
 const ICONS = {
@@ -45,10 +45,10 @@ export function ConfidenceBadge({ score, showScore = false, appliedRule }: Confi
   const badge = (
     <Badge
       className={cn('gap-1.5 cursor-default', STYLES[level])}
-      aria-label={`${ACTION_LABELS[level]}: ${pct}% confidence`}
+      aria-label={`${CONFIDENCE_LABELS[level]}: ${pct}%`}
     >
       <Icon className="size-3" />
-      {ACTION_LABELS[level]}
+      {CONFIDENCE_LABELS[level]}
       {showScore && <span className="opacity-80">({pct}%)</span>}
     </Badge>
   )
@@ -61,8 +61,8 @@ export function ConfidenceBadge({ score, showScore = false, appliedRule }: Confi
         </TooltipTrigger>
         <TooltipContent side="bottom" className="max-w-xs">
           <div className="flex flex-col gap-1">
-            <p className="font-medium">{ACTION_LABELS[level]} ({pct}%)</p>
-            <p className="text-xs text-muted-foreground">{ACTION_DESCRIPTIONS[level]}</p>
+            <p className="font-medium">{CONFIDENCE_LABELS[level]} ({pct}%)</p>
+            <p className="text-xs text-muted-foreground">{CONFIDENCE_DESCRIPTIONS[level]}</p>
             {appliedRule && (
               <p className="text-xs text-muted-foreground mt-1">
                 Rule: <span className="font-mono">{appliedRule}</span>

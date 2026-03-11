@@ -430,7 +430,7 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
               onChange={() => setShowAutoMatched(p => !p)}
               style={{ accentColor: 'oklch(0.45 0.18 145)' }}
             />
-            Auto-match Auto-Ready
+            Auto-match High Confidence
           </label>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -619,7 +619,7 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
               padding: '0.5rem 0.75rem 0.75rem 2rem',
               fontSize: '0.75rem', lineHeight: '1.5', color: 'oklch(0.4 0.01 260)',
             }}>
-              <p>Review potential duplicate pairs grouped by form type. Auto-Ready pairs are auto-matched. Click a group to see AI analysis, field comparison, and source documents.</p>
+              <p>Review potential duplicate pairs grouped by form type. High Confidence pairs are auto-matched. Click a group to see AI analysis, field comparison, and source documents.</p>
             </div>
           </details>
 
@@ -633,7 +633,7 @@ const avgConfidence = Math.round(group.averageConfidence * 100)
   const confColor = avgConfidence >= 90
   ? 'oklch(0.55 0.17 145)'
   : avgConfidence >= 70 ? 'oklch(0.65 0.14 80)' : 'oklch(0.6 0.18 15)'
-  const actionLabel = avgConfidence >= 90 ? 'Auto-Ready' : avgConfidence >= 70 ? 'Review' : 'Manual'
+  const actionLabel = avgConfidence >= 90 ? 'High' : avgConfidence >= 70 ? 'Moderate' : 'Low'
 
               return (
                 <div key={group.formType} style={{
@@ -792,7 +792,7 @@ backgroundColor: `${confColor} / 0.12`, color: confColor,
               ? Math.round(activeGroup.averageConfidence * 100)
               : 0
             const confColor = avgConf >= 90 ? 'oklch(0.55 0.17 145)' : avgConf >= 70 ? 'oklch(0.65 0.14 80)' : 'oklch(0.6 0.18 15)'
-            const panelActionLabel = avgConf >= 90 ? 'Auto-Ready' : avgConf >= 70 ? 'Review Suggested' : 'Manual Review'
+            const panelActionLabel = avgConf >= 90 ? 'High Confidence' : avgConf >= 70 ? 'Moderate Confidence' : 'Low Confidence'
             const mismatches = groupCompared.filter(v => !v.match)
             const matchType = firstRec?.itemType === 'DUPLICATE_DATA' ? (firstRec as DuplicateDataRecord).matchType : null
 
