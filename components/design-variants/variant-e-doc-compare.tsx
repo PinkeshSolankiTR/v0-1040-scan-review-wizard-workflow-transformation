@@ -846,6 +846,24 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
               Accept All
             </button>
           )}
+
+          {/* Next Step button */}
+          <button
+            type="button"
+            style={{
+              display: 'flex', alignItems: 'center', gap: '0.375rem',
+              padding: '0.375rem 0.875rem',
+              border: 'none',
+              borderRadius: '0.25rem',
+              backgroundColor: 'oklch(0.55 0.22 25)',
+              fontSize: '0.75rem', fontWeight: 700, color: 'oklch(1 0 0)',
+              cursor: 'pointer',
+              textTransform: 'uppercase', letterSpacing: '0.03em',
+            }}
+          >
+            Next Step
+            <ArrowRight style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} />
+          </button>
         </div>
       </header>
 
@@ -1028,25 +1046,6 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                 </div>
               )
             })}
-          </div>
-
-          {/* Next Step button at bottom */}
-          <div style={{ padding: '0.75rem', borderBlockStart: '0.0625rem solid oklch(0.91 0.005 260)' }}>
-            <button
-              type="button"
-              style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.375rem',
-                inlineSize: '100%', padding: '0.625rem',
-                border: 'none', borderRadius: '0.25rem',
-                backgroundColor: 'oklch(0.50 0.20 25)',
-                fontSize: '0.8125rem', fontWeight: 700, color: 'oklch(1 0 0)',
-                cursor: 'pointer',
-                textTransform: 'uppercase', letterSpacing: '0.04em',
-              }}
-            >
-              Next Step
-              <ArrowRight style={{ inlineSize: '0.875rem', blockSize: '0.875rem' }} />
-            </button>
           </div>
         </aside>
 
