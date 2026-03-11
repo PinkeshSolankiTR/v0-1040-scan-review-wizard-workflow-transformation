@@ -298,7 +298,16 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
           <div style={{ position: 'relative' }}>
             <button
               type="button"
-              onClick={() => setShowOverridePanel(p => !p)}
+              onClick={() => {
+                if (!showOverridePanel) {
+                  // Reset to step 1 when opening
+                  setOverrideStep('select')
+                  setSelectedDocument(null)
+                  setSelectedReason(null)
+                  setCustomReason('')
+                }
+                setShowOverridePanel(p => !p)
+              }}
               style={{
                 display: 'flex', alignItems: 'center', gap: '0.375rem',
                 padding: '0.375rem 0.75rem',
