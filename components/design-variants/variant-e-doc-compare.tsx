@@ -859,7 +859,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                     : <ChevronRight style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} />
                   }
                   <Sparkles style={{ inlineSize: '0.875rem', blockSize: '0.875rem' }} />
-                  AI Analysis
+                  What we found
                   {isGroupOverridden ? (
                     <span style={{
                       fontSize: '0.625rem', fontWeight: 700, fontFamily: 'var(--font-mono)',
