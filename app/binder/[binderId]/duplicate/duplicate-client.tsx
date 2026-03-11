@@ -844,8 +844,34 @@ backgroundColor: `${confColor} / 0.12`, color: confColor,
                 {expandedPanels.has('aiAnalysis') && (
                   <div style={{
                     padding: '0.625rem 0.75rem',
-                    backgroundColor: 'oklch(0.98 0.003 240)',
+                    backgroundColor: isGroupOverridden ? 'oklch(0.98 0.02 60)' : 'oklch(0.98 0.003 240)',
                   }}>
+                    {/* Override comparison table when user has overridden */}
+                    {isGroupOverridden && (
+                      <div style={{
+                        display: 'flex', flexDirection: 'column', gap: '0.25rem',
+                        padding: '0.5rem 0.625rem',
+                        marginBlockEnd: '0.625rem',
+                        borderRadius: '0.25rem',
+                        border: '0.0625rem solid oklch(0.82 0.08 60)',
+                        backgroundColor: 'oklch(0.96 0.04 60)',
+                      }}>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'oklch(0.4 0.14 60)' }}>
+                          User has overridden the Original classification
+                        </span>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.125rem' }}>
+                          <p style={{ fontSize: '0.6875rem', color: 'oklch(0.4 0.1 60)', margin: 0 }}>
+                            <strong>AI recommended:</strong>{' '}
+                            {aiOriginalId ?? 'Unknown'} = Original; all others = Duplicate
+                          </p>
+                          <p style={{ fontSize: '0.6875rem', color: 'oklch(0.4 0.1 60)', margin: 0 }}>
+                            <strong>User changed to:</strong>{' '}
+                            {effectiveOriginalId} = Original; all others = Duplicate
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Document tabs -- click to switch between docs */}
                     <nav style={{
                       display: 'flex', gap: '0.125rem',
