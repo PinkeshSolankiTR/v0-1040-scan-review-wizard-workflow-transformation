@@ -916,30 +916,32 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                       </div>
                     )}
 
-                    <ul style={{
-                      margin: 0, paddingInlineStart: '1.25rem',
-                      display: 'flex', flexDirection: 'column', gap: '0.375rem',
-                      listStyleType: 'disc',
-                    }}>
-                      {groupSuperseded?.decisionReason
-                        ?.split(/\.(?=\s+[A-Z])/)
-                        .map(s => s.trim())
-                        .filter(s => s.length > 0)
-                        .map(s => s.replace(/\.$/, ''))
-                        .map((sentence, i) => (
-                          <li key={`reason-${i}`} style={{ fontSize: '0.75rem', lineHeight: '1.5', color: 'oklch(0.3 0.01 260)' }}>
-                            {sentence}
+                    {/* Hide AI explanation after user applies override */}
+                    {!(activeGroup && flippedGroups.has(activeGroup.formType)) && (
+                      <ul style={{
+                        margin: 0, paddingInlineStart: '1.25rem',
+                        display: 'flex', flexDirection: 'column', gap: '0.375rem',
+                        listStyleType: 'disc',
+                      }}>
+                        {groupSuperseded?.decisionReason
+                          ?.split(/\.(?=\s+[A-Z])/)
+                          .map(s => s.trim())
+                          .filter(s => s.length > 0)
+                          .map(s => s.replace(/\.$/, ''))
+                          .map((sentence, i) => (
+                            <li key={`reason-${i}`} style={{ fontSize: '0.75rem', lineHeight: '1.5', color: 'oklch(0.3 0.01 260)' }}>
+                              {sentence}
+                            </li>
+                          ))
+                        }
+                        {groupSuperseded?.escalationReason && (
+                          <li style={{ fontSize: '0.75rem', lineHeight: '1.5', color: 'oklch(0.45 0.16 60)' }}>
+                            <strong style={{ color: 'oklch(0.5 0.16 60)' }}>Escalation:</strong>{' '}
+                            {groupSuperseded.escalationReason}
                           </li>
-                        ))
-                      }
-                      {groupSuperseded?.escalationReason && (
-                        <li style={{ fontSize: '0.75rem', lineHeight: '1.5', color: 'oklch(0.45 0.16 60)' }}>
-                          <strong style={{ color: 'oklch(0.5 0.16 60)' }}>Escalation:</strong>{' '}
-                          {groupSuperseded.escalationReason}
-                        </li>
-                      )}
-
-                    </ul>
+                        )}
+                      </ul>
+                    )}
                   </div>
                 )}
               </div>
