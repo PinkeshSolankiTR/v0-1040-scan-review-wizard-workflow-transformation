@@ -430,7 +430,7 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
               onChange={() => setShowAutoMatched(p => !p)}
               style={{ accentColor: 'oklch(0.45 0.18 145)' }}
             />
-            Auto-match &ge;90%
+            Auto-match Auto-Ready
           </label>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -619,7 +619,7 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
               padding: '0.5rem 0.75rem 0.75rem 2rem',
               fontSize: '0.75rem', lineHeight: '1.5', color: 'oklch(0.4 0.01 260)',
             }}>
-              <p>Review potential duplicate pairs grouped by form type. High-confidence pairs (&ge;90%) are auto-matched. Click a group to see AI analysis, field comparison, and source documents.</p>
+              <p>Review potential duplicate pairs grouped by form type. Auto-Ready pairs are auto-matched. Click a group to see AI analysis, field comparison, and source documents.</p>
             </div>
           </details>
 
@@ -629,10 +629,11 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
               const isExpanded = expandedGroups.has(group.formType)
               const isActiveGroup = gIdx === selectedGroupIdx
               const groupAllAccepted = group.records.every(r => decisions[getItemKey(r)] === 'accepted')
-              const avgConfidence = Math.round(group.averageConfidence * 100)
-              const confColor = avgConfidence >= 90
-                ? 'oklch(0.55 0.17 145)'
-                : avgConfidence >= 70 ? 'oklch(0.65 0.14 80)' : 'oklch(0.6 0.18 15)'
+const avgConfidence = Math.round(group.averageConfidence * 100)
+  const confColor = avgConfidence >= 90
+  ? 'oklch(0.55 0.17 145)'
+  : avgConfidence >= 70 ? 'oklch(0.65 0.14 80)' : 'oklch(0.6 0.18 15)'
+  const actionLabel = avgConfidence >= 90 ? 'Auto-Ready' : avgConfidence >= 70 ? 'Review' : 'Manual'
 
               return (
                 <div key={group.formType} style={{
@@ -667,10 +668,11 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
                         <span style={{
                           fontSize: '0.625rem', fontWeight: 700, fontFamily: 'var(--font-mono)',
                           padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem',
-                          backgroundColor: `${confColor} / 0.12`, color: confColor,
-                        }}>
-                          {avgConfidence}%
-                        </span>
+backgroundColor: `${confColor} / 0.12`, color: confColor,
+  }}
+  title={`${avgConfidence}% confidence`}>
+  {actionLabel}
+  </span>
                         <span style={{ fontSize: '0.625rem', fontWeight: 600, color: 'oklch(0.5 0.01 260)' }}>
                           {group.records.length} {group.records.length === 1 ? 'pair' : 'pairs'}
                         </span>
@@ -790,6 +792,7 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
               ? Math.round(activeGroup.averageConfidence * 100)
               : 0
             const confColor = avgConf >= 90 ? 'oklch(0.55 0.17 145)' : avgConf >= 70 ? 'oklch(0.65 0.14 80)' : 'oklch(0.6 0.18 15)'
+            const panelActionLabel = avgConf >= 90 ? 'Auto-Ready' : avgConf >= 70 ? 'Review Suggested' : 'Manual Review'
             const mismatches = groupCompared.filter(v => !v.match)
             const matchType = firstRec?.itemType === 'DUPLICATE_DATA' ? (firstRec as DuplicateDataRecord).matchType : null
 
@@ -814,13 +817,16 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
                   }
                   <Sparkles style={{ inlineSize: '0.875rem', blockSize: '0.875rem' }} />
                   AI Analysis
-                  <span style={{
-                    fontSize: '0.625rem', fontWeight: 700, fontFamily: 'var(--font-mono)',
-                    padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem',
-                    backgroundColor: `${confColor} / 0.12`, color: confColor,
-                    marginInlineStart: '0.25rem',
-                  }}>
-                    {avgConf}%
+                  <span 
+                    style={{
+                      fontSize: '0.625rem', fontWeight: 700,
+                      padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem',
+                      backgroundColor: `${confColor} / 0.12`, color: confColor,
+                      marginInlineStart: '0.25rem',
+                    }}
+                    title={`${avgConf}% confidence`}
+                  >
+                    {panelActionLabel}
                   </span>
                   {firstRec?.reviewRequired && (
                     <AlertTriangle style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.6 0.18 60)' }} />

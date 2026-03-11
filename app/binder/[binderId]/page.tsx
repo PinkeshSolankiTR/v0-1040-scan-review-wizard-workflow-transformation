@@ -32,15 +32,15 @@ function WizardCard({ summary, binderId }: { summary: WizardSummary; binderId: s
         <div className="grid grid-cols-3 gap-2 text-center">
           <div className="rounded-md bg-[var(--confidence-high)]/10 py-2">
             <p className="text-lg font-bold text-[var(--confidence-high)]">{summary.highConfidence}</p>
-            <p className="text-xs text-muted-foreground">High</p>
+            <p className="text-xs text-muted-foreground">Auto-Ready</p>
           </div>
           <div className="rounded-md bg-[var(--confidence-medium)]/10 py-2">
             <p className="text-lg font-bold text-[var(--confidence-medium)]">{summary.mediumConfidence}</p>
-            <p className="text-xs text-muted-foreground">Medium</p>
+            <p className="text-xs text-muted-foreground">Review</p>
           </div>
           <div className="rounded-md bg-[var(--confidence-low)]/10 py-2">
             <p className="text-lg font-bold text-[var(--confidence-low)]">{summary.lowConfidence}</p>
-            <p className="text-xs text-muted-foreground">Low</p>
+            <p className="text-xs text-muted-foreground">Manual</p>
           </div>
         </div>
         <Button variant="outline" size="sm" asChild className="w-full">
@@ -115,7 +115,7 @@ export default async function DashboardPage({
             </div>
             <div>
               <p className="text-2xl font-bold text-[var(--confidence-high)]">{autoApplied}</p>
-              <p className="text-xs text-muted-foreground">Auto-applied (High)</p>
+              <p className="text-xs text-muted-foreground">Auto-Ready</p>
             </div>
           </CardContent>
         </Card>
