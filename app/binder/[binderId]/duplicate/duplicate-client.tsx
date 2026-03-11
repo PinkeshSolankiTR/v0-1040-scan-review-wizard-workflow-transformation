@@ -634,6 +634,11 @@ const avgConfidence = Math.round(group.averageConfidence * 100)
   ? 'oklch(0.55 0.17 145)'
   : avgConfidence >= 70 ? 'oklch(0.65 0.14 80)' : 'oklch(0.6 0.18 15)'
   const actionLabel = avgConfidence >= 90 ? 'High' : avgConfidence >= 70 ? 'Moderate' : 'Low'
+  const actionTooltip = avgConfidence >= 90 
+    ? 'AI is confident. Reviewer can approve quickly.' 
+    : avgConfidence >= 70 
+      ? 'AI has moderate confidence. Reviewer should verify key fields.' 
+      : 'AI is uncertain. Reviewer must examine carefully.'
 
               return (
                 <div key={group.formType} style={{
@@ -670,7 +675,7 @@ const avgConfidence = Math.round(group.averageConfidence * 100)
                           padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem',
 backgroundColor: `${confColor} / 0.12`, color: confColor,
   }}
-  title={`${avgConfidence}% confidence`}>
+  title={actionTooltip}>
   {actionLabel}
   </span>
                         <span style={{ fontSize: '0.625rem', fontWeight: 600, color: 'oklch(0.5 0.01 260)' }}>
@@ -793,6 +798,11 @@ backgroundColor: `${confColor} / 0.12`, color: confColor,
               : 0
             const confColor = avgConf >= 90 ? 'oklch(0.55 0.17 145)' : avgConf >= 70 ? 'oklch(0.65 0.14 80)' : 'oklch(0.6 0.18 15)'
             const panelActionLabel = avgConf >= 90 ? 'High Confidence' : avgConf >= 70 ? 'Moderate Confidence' : 'Low Confidence'
+            const panelTooltip = avgConf >= 90 
+              ? 'AI is confident. Reviewer can approve quickly.' 
+              : avgConf >= 70 
+                ? 'AI has moderate confidence. Reviewer should verify key fields.' 
+                : 'AI is uncertain. Reviewer must examine carefully.'
             const mismatches = groupCompared.filter(v => !v.match)
             const matchType = firstRec?.itemType === 'DUPLICATE_DATA' ? (firstRec as DuplicateDataRecord).matchType : null
 
@@ -824,7 +834,7 @@ backgroundColor: `${confColor} / 0.12`, color: confColor,
                       backgroundColor: `${confColor} / 0.12`, color: confColor,
                       marginInlineStart: '0.25rem',
                     }}
-                    title={`${avgConf}% confidence`}
+                    title={panelTooltip}
                   >
                     {panelActionLabel}
                   </span>
