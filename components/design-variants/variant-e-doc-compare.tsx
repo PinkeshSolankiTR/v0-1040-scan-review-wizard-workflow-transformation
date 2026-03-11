@@ -19,6 +19,7 @@ import {
   FileText,
   Sparkles,
   Check,
+  CheckCircle2,
   Undo2,
   AlertTriangle,
   ArrowRight,
@@ -31,6 +32,10 @@ import {
   Maximize,
   Minimize2,
   Eye,
+  RefreshCw,
+  User,
+  FileEdit,
+  Info,
   Columns2,
 } from 'lucide-react'
 import type { SupersededRecord, OverrideDetail } from '@/lib/types'
@@ -918,29 +923,93 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
 
                     {/* Hide AI explanation after user applies override */}
                     {!(activeGroup && flippedGroups.has(activeGroup.formType)) && (
-                      <ul style={{
-                        margin: 0, paddingInlineStart: '1.25rem',
-                        display: 'flex', flexDirection: 'column', gap: '0.375rem',
-                        listStyleType: 'disc',
+                      <div style={{
+                        display: 'flex', flexDirection: 'column', gap: '0.5rem',
                       }}>
                         {groupSuperseded?.decisionReason
-                          ?.split(/\.(?=\s+[A-Z])/)
-                          .map(s => s.trim())
-                          .filter(s => s.length > 0)
-                          .map(s => s.replace(/\.$/, ''))
-                          .map((sentence, i) => (
-                            <li key={`reason-${i}`} style={{ fontSize: '0.75rem', lineHeight: '1.5', color: 'oklch(0.3 0.01 260)' }}>
-                              {sentence}
-                            </li>
-                          ))
+                          ?.split('||')
+                          .map(item => {
+                            const [type, text] = item.split('|')
+                            return { type, text }
+                          })
+                          .filter(item => item.text)
+                          .map((item, i) => {
+                            // Map type to icon and label
+                            const iconMap: Record<string, { icon: React.ReactNode; label: string; color: string }> = {
+                              'NEWER_VERSION': { 
+                                icon: <RefreshCw style={{ inlineSize: '0.875rem', blockSize: '0.875rem' }} />, 
+                                label: 'Found newer version', 
+                                color: 'oklch(0.45 0.15 145)' 
+                              },
+                              'SAME_RECIPIENT': { 
+                                icon: <User style={{ inlineSize: '0.875rem', blockSize: '0.875rem' }} />, 
+                                label: 'Same recipient', 
+                                color: 'oklch(0.45 0.12 250)' 
+                              },
+                              'UPDATED_VALUES': { 
+                                icon: <FileEdit style={{ inlineSize: '0.875rem', blockSize: '0.875rem' }} />, 
+                                label: 'Updated values', 
+                                color: 'oklch(0.5 0.14 60)' 
+                              },
+                              'CORRECTED_MARK': { 
+                                icon: <CheckCircle2 style={{ inlineSize: '0.875rem', blockSize: '0.875rem' }} />, 
+                                label: 'Corrected', 
+                                color: 'oklch(0.45 0.15 145)' 
+                              },
+                            }
+                            const config = iconMap[item.type] || { 
+                              icon: <Info style={{ inlineSize: '0.875rem', blockSize: '0.875rem' }} />, 
+                              label: 'Info', 
+                              color: 'oklch(0.5 0.01 260)' 
+                            }
+                            return (
+                              <div 
+                                key={`reason-${i}`} 
+                                style={{ 
+                                  display: 'flex', alignItems: 'flex-start', gap: '0.5rem',
+                                  padding: '0.375rem 0.5rem',
+                                  borderRadius: '0.25rem',
+                                  backgroundColor: 'oklch(0.97 0.005 260)',
+                                }}
+                              >
+                                <span style={{ color: config.color, flexShrink: 0, marginTop: '0.0625rem' }}>
+                                  {config.icon}
+                                </span>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.125rem' }}>
+                                  <span style={{ 
+                                    fontSize: '0.6875rem', fontWeight: 700, color: config.color,
+                                  }}>
+                                    {config.label}
+                                  </span>
+                                  <span style={{ fontSize: '0.75rem', color: 'oklch(0.35 0.01 260)', lineHeight: '1.4' }}>
+                                    {item.text}
+                                  </span>
+                                </div>
+                              </div>
+                            )
+                          })
                         }
                         {groupSuperseded?.escalationReason && (
-                          <li style={{ fontSize: '0.75rem', lineHeight: '1.5', color: 'oklch(0.45 0.16 60)' }}>
-                            <strong style={{ color: 'oklch(0.5 0.16 60)' }}>Escalation:</strong>{' '}
-                            {groupSuperseded.escalationReason}
-                          </li>
+                          <div style={{ 
+                            display: 'flex', alignItems: 'flex-start', gap: '0.5rem',
+                            padding: '0.375rem 0.5rem',
+                            borderRadius: '0.25rem',
+                            backgroundColor: 'oklch(0.97 0.04 60)',
+                          }}>
+                            <span style={{ color: 'oklch(0.5 0.16 60)', flexShrink: 0, marginTop: '0.0625rem' }}>
+                              <AlertTriangle style={{ inlineSize: '0.875rem', blockSize: '0.875rem' }} />
+                            </span>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.125rem' }}>
+                              <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.5 0.16 60)' }}>
+                                Escalation
+                              </span>
+                              <span style={{ fontSize: '0.75rem', color: 'oklch(0.35 0.01 260)', lineHeight: '1.4' }}>
+                                {groupSuperseded.escalationReason}
+                              </span>
+                            </div>
+                          </div>
                         )}
-                      </ul>
+                      </div>
                     )}
                   </div>
                 )}
