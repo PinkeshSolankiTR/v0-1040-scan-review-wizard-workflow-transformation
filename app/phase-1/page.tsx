@@ -11,6 +11,7 @@ import {
   Brain,
   RefreshCw,
   Monitor,
+  Map,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -226,6 +227,16 @@ export default function Phase1Page() {
               </strong>
               .
             </p>
+          </div>
+
+          {/* Delivery Roadmap link */}
+          <div className="mb-8">
+            <Button variant="outline" asChild>
+              <Link href="/phase-1/roadmap">
+                <Map className="size-3.5" />
+                Delivery Roadmap
+              </Link>
+            </Button>
           </div>
 
           {/* Wizard cards grid */}

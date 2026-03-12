@@ -10,6 +10,7 @@ import {
   Zap,
   FileText,
   Brain,
+  Map,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -35,6 +36,7 @@ const PHASES = [
     href: '/phase-1',
     prdHref: '/prd/phase-1',
     archHref: '/multi-agent-architecture',
+    roadmapHref: '/phase-1/roadmap',
     actionLabel: 'Explore Phase 1',
     available: true,
   },
@@ -142,6 +144,14 @@ function PhaseCard({
               <Link href={phase.archHref}>
                 <Brain className="size-3.5" />
                 Multi Agent Architecture
+              </Link>
+            </Button>
+          )}
+          {phase.roadmapHref && (
+            <Button variant="outline" size="sm" asChild className="w-full">
+              <Link href={phase.roadmapHref}>
+                <Map className="size-3.5" />
+                Delivery Roadmap
               </Link>
             </Button>
           )}
