@@ -127,27 +127,6 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
   }
   const hasRejectSelection = selectedRejectReasons.size > 0 || customRejectReason.trim().length > 0
 
-  // Derived: which page IDs are rejected in the active group
-  const rejectedPageIds = useMemo(() => {
-    if (!activeGroup) return new Set<string>()
-    const ids = new Set<string>()
-    for (const r of activeGroup.records) {
-      if (rejectedDocs.has(String(r.engagementPageId))) ids.add(String(r.engagementPageId))
-    }
-    return ids
-  }, [activeGroup, rejectedDocs])
-
-  // Effective records = group records minus rejected ones
-  const effectiveRecords = useMemo(() => {
-    if (!activeGroup) return []
-    return activeGroup.records.filter(r => !rejectedPageIds.has(String(r.engagementPageId)))
-  }, [activeGroup, rejectedPageIds])
-
-  // Is the entire group rejected (all docs rejected)?
-  const isGroupRejected = activeGroup ? effectiveRecords.length === 0 : false
-  // Are some docs rejected (partial)?
-  const hasPartialRejects = rejectedPageIds.size > 0 && !isGroupRejected
-
   /* 3-panel collapse/expand state: documents starts collapsed (thumbnails), others expanded */
   const [expandedPanels, setExpandedPanels] = useState<Set<PanelId>>(
     () => new Set<PanelId>(['aiAnalysis', 'fieldComparison'])
@@ -181,6 +160,27 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
   const [selectedGroupIdx, setSelectedGroupIdx] = useState(0)
 
   const activeGroup = groups[selectedGroupIdx] ?? groups[0]
+
+  // Derived: which page IDs are rejected in the active group
+  const rejectedPageIds = useMemo(() => {
+    if (!activeGroup) return new Set<string>()
+    const ids = new Set<string>()
+    for (const r of activeGroup.records) {
+      if (rejectedDocs.has(String(r.engagementPageId))) ids.add(String(r.engagementPageId))
+    }
+    return ids
+  }, [activeGroup, rejectedDocs])
+
+  // Effective records = group records minus rejected ones
+  const effectiveRecords = useMemo(() => {
+    if (!activeGroup) return []
+    return activeGroup.records.filter(r => !rejectedPageIds.has(String(r.engagementPageId)))
+  }, [activeGroup, rejectedPageIds])
+
+  // Is the entire group rejected (all docs rejected)?
+  const isGroupRejected = activeGroup ? effectiveRecords.length === 0 : false
+  // Are some docs rejected (partial)?
+  const hasPartialRejects = rejectedPageIds.size > 0 && !isGroupRejected
 
   const toggleGroup = (formType: string, gIdx: number) => {
     setSelectedGroupIdx(gIdx)
@@ -1965,7 +1965,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
 
           {/* ═══════════════════════════════════════════════════════════
               REJECTION SUMMARY CARD (shown when group is rejected)
-              ═══════════════════════════════════════════════════════════ */}
+              ════════════════════════════════════════════════════���══════ */}
           {/* Rejection info: full group rejected OR partial rejects */}
           {(isGroupRejected || hasPartialRejects) && (() => {
             const rejectedRecords = activeGroup?.records.filter(r => rejectedPageIds.has(String(r.engagementPageId))) ?? []
