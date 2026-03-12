@@ -44,6 +44,12 @@ import {
 } from 'lucide-react'
 import type { DuplicateRecord, DuplicateDataRecord, DuplicateDocRecord, OverrideDetail } from '@/lib/types'
 
+/* ── Predefined override reasons (matching superseded) ── */
+const OVERRIDE_REASONS = [
+  { id: 'corrected', label: 'Corrected form detected - should be retained' },
+  { id: 'more-data', label: 'More complete data exists on this document' },
+] as const
+
 /* ── Panel visibility ── */
 type PanelId = 'documents' | 'aiAnalysis' | 'fieldComparison'
 
@@ -230,6 +236,10 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
      For 3+ doc groups: step-based flow (select doc -> reason -> confirm)
      For 2-doc groups: direct reject all (reason -> confirm) */
   const [showRejectPanel, setShowRejectPanel] = useState(false)
+  const [overrideStep, setOverrideStep] = useState<'select' | 'reason'>('select')
+  const [pendingOverrideDocId, setPendingOverrideDocId] = useState<string | null>(null)
+  const [selectedOverrideReason, setSelectedOverrideReason] = useState<string | null>(null)
+  const [customOverrideReason, setCustomOverrideReason] = useState('')
   const [rejectStep, setRejectStep] = useState<'select' | 'reason'>('select')
   const [rejectTargetDocId, setRejectTargetDocId] = useState<string | null>(null)
   const [newOriginalAfterReject, setNewOriginalAfterReject] = useState<string | null>(null)
@@ -507,10 +517,14 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
   const aiOriginalId = useMemo(() => getAIOriginalId(groupDocs), [groupDocs])
 
   /* Pick a different doc as Original */
-  const handleSelectOriginal = (docId: string) => {
+  const handleSelectOriginal = (docId: string, reason: string | null) => {
     if (!activeGroup) return
 
-    /* If user selects the AI default again, remove the override */
+    const reasonText = reason
+      ? OVERRIDE_REASONS.find(r => r.id === reason)?.label ?? reason
+      : customOverrideReason || 'User override (no reason provided)'
+
+    // If selecting the same as AI original -> remove override
     if (docId === aiOriginalId) {
       setOverriddenOriginals(prev => {
         const next = new Map(prev)
@@ -524,6 +538,26 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
         return next
       })
     }
+
+    /* Log override for each record in the group */
+    for (const r of activeGroup.records) {
+      const key = getItemKey(r)
+      const originalDecision = getDecisionLabel(r)
+      const detail: OverrideDetail = {
+        originalAIDecision: `AI Original: ${aiOriginalId}; ${getRecordLabel(r)} = ${originalDecision}`,
+        userOverrideDecision: `User selected "${docId}" as Original`,
+        overrideReason: reasonText,
+        formType: r.documentRefA?.formType ?? 'Unknown',
+        fieldContext: r.comparedValues ?? [],
+      }
+      override(key, 'duplicate', r.confidenceLevel, detail)
+    }
+    setShowOverridePanel(false)
+    setOverrideStep('select')
+    setPendingOverrideDocId(null)
+    setSelectedOverrideReason(null)
+    setCustomOverrideReason('')
+  }
 
     /* Log override for each record in the group */
     for (const r of activeGroup.records) {
@@ -549,6 +583,10 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
       return next
     })
     setShowOverridePanel(false)
+    setOverrideStep('select')
+    setPendingOverrideDocId(null)
+    setSelectedOverrideReason(null)
+    setCustomOverrideReason('')
   }
 
   // Derived: which doc IDs are rejected in the active group
@@ -713,7 +751,13 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
           <div style={{ position: 'relative' }}>
             <button
               type="button"
-              onClick={() => setShowOverridePanel(p => !p)}
+              onClick={() => {
+                setShowOverridePanel(p => !p)
+                setOverrideStep('select')
+                setPendingOverrideDocId(null)
+                setSelectedOverrideReason(null)
+                setCustomOverrideReason('')
+              }}
               disabled={isGroupRejected || allGroupAccepted}
               style={{
                 display: 'flex', alignItems: 'center', gap: '0.375rem',
@@ -737,12 +781,12 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
               <ChevronDown style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
             </button>
 
-            {/* Radio selector popover */}
+            {/* Override popover -- 2-step: select doc, then reason */}
             {showOverridePanel && !allGroupAccepted && (
               <>
               {/* Invisible backdrop to close on outside click */}
               <div
-                onClick={() => setShowOverridePanel(false)}
+                onClick={() => { setShowOverridePanel(false); setOverrideStep('select'); }}
                 style={{ position: 'fixed', inset: 0, zIndex: 49 }}
                 aria-hidden="true"
               />
@@ -755,111 +799,248 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
                 backgroundColor: 'oklch(1 0 0)',
                 boxShadow: '0 0.25rem 0.75rem oklch(0 0 0 / 0.12)',
               }}>
-                <p style={{
-                  fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.35 0.01 260)',
-                  textTransform: 'uppercase', letterSpacing: '0.04em',
-                  marginBlockEnd: '0.5rem',
-                }}>
-                  Select the Original document
-                </p>
-                <p style={{
-                  fontSize: '0.625rem', color: 'oklch(0.5 0.01 260)',
-                  marginBlockEnd: '0.625rem', lineHeight: '1.4',
-                }}>
-                  Only 1 document can be Original. All others will be marked as Duplicate.
-                </p>
 
-                <fieldset style={{ border: 'none', padding: 0, margin: 0 }}>
-                  <legend className="sr-only">Select the Original document</legend>
-                  {effectiveDocs.map(doc => {
-                    const isSelected = doc.id === effectiveOriginalId
-                    const isAIChoice = doc.id === aiOriginalId
-                    const isCurrentOriginal = doc.id === effectiveOriginalId
-                    return (
-                      <label
-                        key={doc.id}
+                {/* Step 1: Select document */}
+                {overrideStep === 'select' && (
+                  <>
+                    <p style={{
+                      fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.35 0.01 260)',
+                      textTransform: 'uppercase', letterSpacing: '0.04em',
+                      marginBlockEnd: '0.5rem',
+                    }}>
+                      Select the Original document
+                    </p>
+                    <p style={{
+                      fontSize: '0.625rem', color: 'oklch(0.5 0.01 260)',
+                      marginBlockEnd: '0.625rem', lineHeight: '1.4',
+                    }}>
+                      Only 1 document can be Original. All others will be marked as Duplicate.
+                    </p>
+
+                    <fieldset style={{ border: 'none', padding: 0, margin: 0 }}>
+                      <legend className="sr-only">Select the Original document</legend>
+                      {effectiveDocs.map(doc => {
+                        const isSelected = (pendingOverrideDocId ?? effectiveOriginalId) === doc.id
+                        const isAIChoice = doc.id === aiOriginalId
+                        const isCurrentOriginal = doc.id === effectiveOriginalId && isGroupOverridden
+                        return (
+                          <label
+                            key={doc.id}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: '0.5rem',
+                              padding: '0.375rem 0.5rem', borderRadius: '0.25rem',
+                              cursor: 'pointer',
+                              backgroundColor: isSelected ? 'oklch(0.95 0.04 145)' : 'transparent',
+                            }}
+                          >
+                            <input
+                              type="radio"
+                              name="original-doc"
+                              checked={isSelected}
+                              onChange={() => setPendingOverrideDocId(doc.id)}
+                              style={{ accentColor: 'oklch(0.45 0.18 145)', flexShrink: 0 }}
+                            />
+                            <FileText style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem', color: 'oklch(0.45 0.01 260)', flexShrink: 0 }} />
+                            <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.25 0.01 260)' }}>
+                              {doc.label}
+                            </span>
+                            {isCurrentOriginal && (
+                              <span style={{
+                                marginInlineStart: 'auto', flexShrink: 0,
+                                fontSize: '0.5rem', fontWeight: 700, textTransform: 'uppercase',
+                                padding: '0.0625rem 0.25rem', borderRadius: '0.125rem',
+                                backgroundColor: 'oklch(0.94 0.04 145)',
+                                color: 'oklch(0.35 0.14 145)',
+                              }}>
+                                Current Original
+                              </span>
+                            )}
+                            {isAIChoice && !isCurrentOriginal && (
+                              <span style={{
+                                marginInlineStart: 'auto', flexShrink: 0,
+                                fontSize: '0.5rem', fontWeight: 700, textTransform: 'uppercase',
+                                padding: '0.0625rem 0.25rem', borderRadius: '0.125rem',
+                                backgroundColor: 'oklch(0.94 0.03 240)',
+                                color: 'oklch(0.45 0.08 240)',
+                              }}>
+                                AI Pick
+                              </span>
+                            )}
+                          </label>
+                        )
+                      })}
+                    </fieldset>
+
+                    {/* Action buttons */}
+                    <div style={{ display: 'flex', gap: '0.5rem', marginBlockStart: '0.75rem' }}>
+                      {isGroupOverridden && (
+                        <button
+                          type="button"
+                          onClick={handleUndoOverride}
+                          style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem',
+                            padding: '0.375rem 0.5rem',
+                            border: '0.0625rem solid oklch(0.88 0.01 260)',
+                            borderRadius: '0.25rem', backgroundColor: 'oklch(1 0 0)',
+                            fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.45 0.01 260)',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <Undo2 style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
+                          Undo Override
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setOverrideStep('reason')}
+                        disabled={!pendingOverrideDocId}
                         style={{
-                          display: 'flex', alignItems: 'center', gap: '0.5rem',
-                          padding: '0.375rem 0.5rem', borderRadius: '0.25rem',
+                          flex: 1,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem',
+                          padding: '0.375rem 0.5rem',
+                          border: 'none',
+                          borderRadius: '0.25rem',
+                          backgroundColor: !pendingOverrideDocId ? 'oklch(0.9 0.01 260)' : 'oklch(0.45 0.18 145)',
+                          fontSize: '0.6875rem', fontWeight: 600,
+                          color: !pendingOverrideDocId ? 'oklch(0.6 0.01 260)' : 'oklch(1 0 0)',
+                          cursor: !pendingOverrideDocId ? 'not-allowed' : 'pointer',
+                        }}
+                      >
+                        {isGroupOverridden ? 'Change Override' : 'Continue'}
+                        <ChevronRight style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                {/* Step 2: Select reason */}
+                {overrideStep === 'reason' && (
+                  <>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBlockEnd: '0.5rem' }}>
+                      <button
+                        type="button"
+                        onClick={() => setOverrideStep('select')}
+                        style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          padding: '0.25rem',
+                          border: 'none', borderRadius: '0.25rem',
+                          backgroundColor: 'transparent',
                           cursor: 'pointer',
-                          backgroundColor: isSelected ? 'oklch(0.95 0.04 145)' : 'transparent',
+                        }}
+                        aria-label="Go back"
+                      >
+                        <ChevronLeft style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.5 0.01 260)' }} />
+                      </button>
+                      <p style={{
+                        fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.35 0.01 260)',
+                        textTransform: 'uppercase', letterSpacing: '0.04em',
+                      }}>
+                        Why are you overriding?
+                      </p>
+                    </div>
+                    <p style={{
+                      fontSize: '0.625rem', color: 'oklch(0.5 0.01 260)',
+                      marginBlockEnd: '0.75rem', lineHeight: '1.4',
+                    }}>
+                      Help us improve AI accuracy by sharing why this override was needed.
+                    </p>
+
+                    <fieldset style={{ border: 'none', padding: 0, margin: 0 }}>
+                      <legend className="sr-only">Select override reason</legend>
+                      {OVERRIDE_REASONS.map(reason => (
+                        <label
+                          key={reason.id}
+                          style={{
+                            display: 'flex', alignItems: 'flex-start', gap: '0.5rem',
+                            padding: '0.5rem',
+                            borderRadius: '0.25rem',
+                            cursor: 'pointer',
+                            backgroundColor: selectedOverrideReason === reason.id ? 'oklch(0.95 0.04 145)' : 'transparent',
+                          }}
+                        >
+                          <input
+                            type="radio"
+                            name="override-reason"
+                            checked={selectedOverrideReason === reason.id}
+                            onChange={() => { setSelectedOverrideReason(reason.id); setCustomOverrideReason(''); }}
+                            style={{ accentColor: 'oklch(0.45 0.18 145)', flexShrink: 0, marginTop: '0.125rem' }}
+                          />
+                          <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.25 0.01 260)' }}>
+                            {reason.label}
+                          </span>
+                        </label>
+                      ))}
+
+                      {/* Custom reason option */}
+                      <label
+                        style={{
+                          display: 'flex', alignItems: 'flex-start', gap: '0.5rem',
+                          padding: '0.5rem',
+                          borderRadius: '0.25rem',
+                          cursor: 'pointer',
+                          backgroundColor: selectedOverrideReason === 'custom' ? 'oklch(0.95 0.04 145)' : 'transparent',
                         }}
                       >
                         <input
                           type="radio"
-                          name="original-doc"
-                          checked={isSelected}
-                          onChange={() => handleSelectOriginal(doc.id)}
-                          style={{ accentColor: 'oklch(0.45 0.18 145)', flexShrink: 0 }}
+                          name="override-reason"
+                          checked={selectedOverrideReason === 'custom'}
+                          onChange={() => setSelectedOverrideReason('custom')}
+                          style={{ accentColor: 'oklch(0.45 0.18 145)', flexShrink: 0, marginTop: '0.125rem' }}
                         />
-                        <FileText style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem', color: 'oklch(0.45 0.01 260)', flexShrink: 0 }} />
                         <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.25 0.01 260)' }}>
-                          {doc.label}
+                          Other (specify below)
                         </span>
-                        {isCurrentOriginal && (
-                          <span style={{
-                            marginInlineStart: 'auto', flexShrink: 0,
-                            fontSize: '0.5rem', fontWeight: 700, textTransform: 'uppercase',
-                            padding: '0.0625rem 0.25rem', borderRadius: '0.125rem',
-                            backgroundColor: 'oklch(0.94 0.04 145)',
-                            color: 'oklch(0.35 0.14 145)',
-                          }}>
-                            Current Original
-                          </span>
-                        )}
-                        {isAIChoice && !isCurrentOriginal && (
-                          <span style={{
-                            marginInlineStart: 'auto', flexShrink: 0,
-                            fontSize: '0.5rem', fontWeight: 700, textTransform: 'uppercase',
-                            padding: '0.0625rem 0.25rem', borderRadius: '0.125rem',
-                            backgroundColor: 'oklch(0.94 0.03 240)',
-                            color: 'oklch(0.45 0.08 240)',
-                          }}>
-                            AI pick
-                          </span>
-                        )}
                       </label>
-                    )
-                  })}
-                </fieldset>
 
-                {/* Action buttons */}
-                <div style={{ display: 'flex', gap: '0.5rem', marginBlockStart: '0.5rem' }}>
-                  {isGroupOverridden && (
-                    <button
-                      type="button"
-                      onClick={handleUndoOverride}
-                      style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem',
-                        padding: '0.375rem 0.5rem',
-                        border: '0.0625rem solid oklch(0.88 0.01 260)',
-                        borderRadius: '0.25rem', backgroundColor: 'oklch(1 0 0)',
-                        fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.45 0.01 260)',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      <Undo2 style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
-                      Undo Override
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setShowOverridePanel(false)}
-                    style={{
-                      flex: 1,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem',
-                      padding: '0.375rem 0.5rem',
-                      border: 'none',
-                      borderRadius: '0.25rem',
-                      backgroundColor: 'oklch(0.45 0.18 145)',
-                      fontSize: '0.6875rem', fontWeight: 600,
-                      color: 'oklch(1 0 0)',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Done
-                  </button>
-                </div>
+                      {/* Custom text input */}
+                      {selectedOverrideReason === 'custom' && (
+                        <textarea
+                          value={customOverrideReason}
+                          onChange={(e) => setCustomOverrideReason(e.target.value)}
+                          placeholder="Enter your reason for overriding..."
+                          style={{
+                            marginBlockStart: '0.5rem',
+                            inlineSize: '100%',
+                            minBlockSize: '3.5rem',
+                            padding: '0.5rem',
+                            border: '0.0625rem solid oklch(0.88 0.01 260)',
+                            borderRadius: '0.25rem',
+                            fontSize: '0.6875rem',
+                            resize: 'vertical',
+                          }}
+                        />
+                      )}
+                    </fieldset>
+
+                    {/* Confirm button */}
+                    <div style={{ display: 'flex', gap: '0.5rem', marginBlockStart: '0.75rem' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (pendingOverrideDocId) {
+                            handleSelectOriginal(pendingOverrideDocId, selectedOverrideReason)
+                          }
+                        }}
+                        disabled={!selectedOverrideReason && !customOverrideReason}
+                        style={{
+                          flex: 1,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem',
+                          padding: '0.375rem 0.5rem',
+                          border: 'none',
+                          borderRadius: '0.25rem',
+                          backgroundColor: (!selectedOverrideReason && !customOverrideReason) ? 'oklch(0.9 0.01 260)' : 'oklch(0.45 0.18 145)',
+                          fontSize: '0.6875rem', fontWeight: 600,
+                          color: (!selectedOverrideReason && !customOverrideReason) ? 'oklch(0.6 0.01 260)' : 'oklch(1 0 0)',
+                          cursor: (!selectedOverrideReason && !customOverrideReason) ? 'not-allowed' : 'pointer',
+                        }}
+                      >
+                        Confirm Override
+                      </button>
+                    </div>
+                  </>
+                )}
+
               </div>
               </>
             )}
