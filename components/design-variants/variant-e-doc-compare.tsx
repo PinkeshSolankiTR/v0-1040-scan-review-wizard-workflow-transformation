@@ -111,9 +111,13 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
   
   /* Rejection state -- per-document tracking.
      Key = engagementPageId, Value = { reason, detail, formType }
-     A rejected doc is removed from its group and moves to SPBinder. */
+     A rejected doc is removed from its group and moves to SPBinder.
+     For 3+ page groups: step-based flow (select doc -> reason -> confirm)
+     For 2-page groups: direct reject all (reason -> confirm) */
   const [showRejectPanel, setShowRejectPanel] = useState(false)
+  const [rejectStep, setRejectStep] = useState<'select' | 'reason'>('select')
   const [rejectTargetPageId, setRejectTargetPageId] = useState<string | null>(null) // null = reject all
+  const [newOriginalAfterReject, setNewOriginalAfterReject] = useState<string | null>(null) // if rejecting the Original, user picks new one
   const [selectedRejectReasons, setSelectedRejectReasons] = useState<Set<string>>(new Set())
   const [customRejectReason, setCustomRejectReason] = useState('')
   const [rejectedDocs, setRejectedDocs] = useState<Map<string, { reason: string; detail: string; formType: string }>>(new Map())
@@ -468,7 +472,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
     setCustomReason('')
   }
 
-  /* ── Reject handler: mark group as not qualifying for superseded review ── */
+  /* ── Reject handler: mark docs as not qualifying for superseded review ── */
   const handleRejectDoc = () => {
     if (!activeGroup) return
     const predefinedLabels = Array.from(selectedRejectReasons)
@@ -485,6 +489,22 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
         next.set(rejectTargetPageId, { reason: reasonLabel, detail, formType: activeGroup.formType })
         return next
       })
+
+      // If rejecting the Original and user picked a new Original, apply override
+      const isRejectingOriginal = activeGroup.originalRecord &&
+        String(activeGroup.originalRecord.engagementPageId) === rejectTargetPageId
+      if (isRejectingOriginal && newOriginalAfterReject) {
+        const newOrigIdx = activeGroup.supersededRecords.findIndex(
+          s => String(s.engagementPageId) === newOriginalAfterReject
+        )
+        if (newOrigIdx >= 0) {
+          setFlippedGroups(prev => {
+            const next = new Map(prev)
+            next.set(activeGroup.formType, newOrigIdx)
+            return next
+          })
+        }
+      }
     } else {
       // Reject all: every doc in the group
       setRejectedDocs(prev => {
@@ -498,7 +518,9 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
     
     // Reset state
     setShowRejectPanel(false)
+    setRejectStep('select')
     setRejectTargetPageId(null)
+    setNewOriginalAfterReject(null)
     setSelectedRejectReasons(new Set())
     setCustomRejectReason('')
     setSelectedSupersededIdx(0)
@@ -918,7 +940,10 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
               type="button"
               onClick={() => {
                 if (!showRejectPanel) {
-                  setRejectTargetPageId(null) // null = reject all
+                  const isMultiPage = effectiveRecords.length > 2
+                  setRejectStep(isMultiPage ? 'select' : 'reason')
+                  setRejectTargetPageId(isMultiPage ? null : null) // null = reject all for 2-page
+                  setNewOriginalAfterReject(null)
                   setSelectedRejectReasons(new Set())
                   setCustomRejectReason('')
                 }
@@ -929,7 +954,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                 display: 'flex', alignItems: 'center', gap: '0.375rem',
                 padding: '0.375rem 0.75rem', border: '0.0625rem solid oklch(0.88 0.04 25)',
                 borderRadius: '0.25rem',
-                backgroundColor: isGroupRejected ? 'oklch(0.94 0.04 25)' : 'oklch(1 0 0)',
+                backgroundColor: isGroupRejected ? 'oklch(0.94 0.04 25)' : hasPartialRejects ? 'oklch(0.97 0.02 25)' : 'oklch(1 0 0)',
                 fontSize: '0.75rem', fontWeight: 600,
                 color: (isGroupRejected || allGroupAccepted) ? 'oklch(0.45 0.14 25)' : 'oklch(0.55 0.14 25)',
                 cursor: (isGroupRejected || allGroupAccepted) ? 'not-allowed' : 'pointer',
@@ -938,139 +963,325 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
               aria-expanded={showRejectPanel}
             >
               <X style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem' }} />
-              {isGroupRejected ? 'Rejected' : hasPartialRejects ? 'Reject All' : 'Reject'}
+              {isGroupRejected ? 'Rejected' : hasPartialRejects ? `Reject (${rejectedPageIds.size} rejected)` : 'Reject'}
               {!isGroupRejected && !allGroupAccepted && <ChevronDown style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />}
             </button>
             
             {/* Reject Panel Popover */}
-            {showRejectPanel && !isGroupRejected && !allGroupAccepted && (
+            {showRejectPanel && !isGroupRejected && !allGroupAccepted && (() => {
+              const isMultiPage = effectiveRecords.length > 2
+              // Determine if selected reject target is the current Original
+              const currentOriginalPageId = effectiveOriginal ? String(effectiveOriginal.engagementPageId) : null
+              const isRejectingOriginal = rejectTargetPageId !== null && rejectTargetPageId === currentOriginalPageId
+              // Remaining docs after potential rejection (for new Original selection)
+              const remainingAfterReject = rejectTargetPageId
+                ? effectiveRecords.filter(r => String(r.engagementPageId) !== rejectTargetPageId)
+                : []
+              // Can proceed from select step?
+              const canProceedFromSelect = rejectTargetPageId !== null && (!isRejectingOriginal || newOriginalAfterReject !== null)
+
+              return (
               <>
                 <div
-                  onClick={() => { setShowRejectPanel(false); setRejectTargetPageId(null); }}
+                  onClick={() => { setShowRejectPanel(false); setRejectTargetPageId(null); setNewOriginalAfterReject(null); setRejectStep('select'); }}
                   style={{ position: 'fixed', inset: 0, zIndex: 49 }}
                   aria-hidden="true"
                 />
                 <div style={{
                   position: 'absolute', insetBlockStart: '100%', insetInlineEnd: 0,
                   marginBlockStart: '0.25rem', zIndex: 50,
-                  inlineSize: 'max-content', minInlineSize: '18rem',
+                  inlineSize: 'max-content', minInlineSize: '20rem',
                   padding: '0.75rem', borderRadius: '0.375rem',
                   border: '0.0625rem solid oklch(0.88 0.01 260)',
                   backgroundColor: 'oklch(1 0 0)',
                   boxShadow: '0 0.25rem 0.75rem oklch(0 0 0 / 0.12)',
                 }}>
-                  <p style={{
-                    fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.35 0.01 260)',
-                    textTransform: 'uppercase', letterSpacing: '0.04em',
-                    marginBlockEnd: '0.5rem',
-                  }}>
-                    {rejectTargetPageId
-                      ? `Reject Page ${activeGroup?.records.find(r => String(r.engagementPageId) === rejectTargetPageId)?.documentRef?.pageNumber ?? rejectTargetPageId}`
-                      : 'Reject All Documents'}
-                  </p>
-                  <p style={{
-                    fontSize: '0.625rem', color: 'oklch(0.5 0.01 260)',
-                    marginBlockEnd: '0.75rem', lineHeight: '1.4',
-                  }}>
-                    {rejectTargetPageId
-                      ? 'This document will be moved to SPBinder. Remaining documents will continue in this group.'
-                      : 'All documents in this group will be moved to SPBinder.'}
-                  </p>
+                  {/* ── Step 1: Select document (3+ pages only) ── */}
+                  {isMultiPage && rejectStep === 'select' && (
+                    <>
+                      <p style={{
+                        fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.35 0.01 260)',
+                        textTransform: 'uppercase', letterSpacing: '0.04em',
+                        marginBlockEnd: '0.25rem',
+                      }}>
+                        Select Document to Reject
+                      </p>
+                      <p style={{
+                        fontSize: '0.625rem', color: 'oklch(0.5 0.01 260)',
+                        marginBlockEnd: '0.625rem', lineHeight: '1.4',
+                      }}>
+                        Choose which document does not belong in this group. It will be moved to SPBinder.
+                      </p>
 
-                  <fieldset style={{ border: 'none', padding: 0, margin: 0 }}>
-                    <legend className="sr-only">Select rejection reasons</legend>
-                    {REJECTION_REASONS.map((reason) => (
-                      <label
-                        key={reason.id}
-                        style={{
-                          display: 'flex', alignItems: 'flex-start', gap: '0.5rem',
-                          padding: '0.5rem',
-                          borderRadius: '0.25rem',
-                          cursor: 'pointer',
-                          backgroundColor: selectedRejectReasons.has(reason.id) ? 'oklch(0.95 0.02 25)' : 'transparent',
-                        }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedRejectReasons.has(reason.id)}
-                          onChange={() => toggleRejectReason(reason.id)}
-                          style={{ accentColor: 'oklch(0.5 0.14 25)', flexShrink: 0, marginTop: '0.125rem' }}
-                        />
-                        <div>
-                          <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.25 0.01 260)', display: 'block' }}>
-                            {reason.label}
-                          </span>
-                          <span style={{ fontSize: '0.5625rem', color: 'oklch(0.5 0.01 260)' }}>
-                            {reason.description}
-                          </span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                        {effectiveRecords.map(r => {
+                          const pageId = String(r.engagementPageId)
+                          const isSelected = rejectTargetPageId === pageId
+                          const isOrig = pageId === currentOriginalPageId
+                          return (
+                            <label
+                              key={pageId}
+                              style={{
+                                display: 'flex', alignItems: 'center', gap: '0.5rem',
+                                padding: '0.5rem 0.625rem', borderRadius: '0.25rem',
+                                cursor: 'pointer',
+                                border: isSelected ? '0.0625rem solid oklch(0.7 0.14 25)' : '0.0625rem solid oklch(0.91 0.01 260)',
+                                backgroundColor: isSelected ? 'oklch(0.97 0.02 25)' : 'oklch(1 0 0)',
+                              }}
+                            >
+                              <input
+                                type="radio" name="reject-doc"
+                                checked={isSelected}
+                                onChange={() => {
+                                  setRejectTargetPageId(pageId)
+                                  setNewOriginalAfterReject(null) // reset new original pick
+                                }}
+                                style={{ accentColor: 'oklch(0.5 0.14 25)', flexShrink: 0 }}
+                              />
+                              <FileText style={{ inlineSize: '0.875rem', blockSize: '0.875rem', color: 'oklch(0.5 0.01 260)', flexShrink: 0 }} />
+                              <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.25 0.01 260)' }}>
+                                {r.documentRef?.formType ?? 'Document'} (Page {r.documentRef?.pageNumber ?? r.engagementPageId})
+                              </span>
+                              {isOrig && (
+                                <span style={{
+                                  marginInlineStart: 'auto',
+                                  fontSize: '0.5625rem', fontWeight: 700,
+                                  padding: '0.0625rem 0.3125rem', borderRadius: '0.125rem',
+                                  backgroundColor: 'oklch(0.94 0.04 145)', color: 'oklch(0.35 0.14 145)',
+                                }}>
+                                  Current Original
+                                </span>
+                              )}
+                            </label>
+                          )
+                        })}
+                      </div>
+
+                      {/* If rejecting Original, ask for new Original */}
+                      {isRejectingOriginal && remainingAfterReject.length > 0 && (
+                        <div style={{
+                          marginBlockStart: '0.625rem', paddingBlockStart: '0.625rem',
+                          borderBlockStart: '0.0625rem solid oklch(0.91 0.01 260)',
+                        }}>
+                          <p style={{
+                            fontSize: '0.625rem', fontWeight: 700, color: 'oklch(0.5 0.14 60)',
+                            textTransform: 'uppercase', letterSpacing: '0.04em',
+                            marginBlockEnd: '0.375rem',
+                          }}>
+                            Select New Original
+                          </p>
+                          <p style={{
+                            fontSize: '0.5625rem', color: 'oklch(0.5 0.01 260)',
+                            marginBlockEnd: '0.375rem', lineHeight: '1.4',
+                          }}>
+                            You are rejecting the current Original. Choose which remaining document should become the new Original.
+                          </p>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                            {remainingAfterReject.map(r => {
+                              const pageId = String(r.engagementPageId)
+                              return (
+                                <label
+                                  key={pageId}
+                                  style={{
+                                    display: 'flex', alignItems: 'center', gap: '0.5rem',
+                                    padding: '0.375rem 0.5rem', borderRadius: '0.25rem',
+                                    cursor: 'pointer',
+                                    border: newOriginalAfterReject === pageId ? '0.0625rem solid oklch(0.7 0.14 145)' : '0.0625rem solid oklch(0.91 0.01 260)',
+                                    backgroundColor: newOriginalAfterReject === pageId ? 'oklch(0.97 0.02 145)' : 'oklch(1 0 0)',
+                                  }}
+                                >
+                                  <input
+                                    type="radio" name="new-original"
+                                    checked={newOriginalAfterReject === pageId}
+                                    onChange={() => setNewOriginalAfterReject(pageId)}
+                                    style={{ accentColor: 'oklch(0.45 0.18 145)', flexShrink: 0 }}
+                                  />
+                                  <FileText style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.5 0.01 260)', flexShrink: 0 }} />
+                                  <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.25 0.01 260)' }}>
+                                    {r.documentRef?.formType ?? 'Document'} (Page {r.documentRef?.pageNumber ?? r.engagementPageId})
+                                  </span>
+                                </label>
+                              )
+                            })}
+                          </div>
                         </div>
-                      </label>
-                    ))}
-                    
-                    {/* Custom reason option */}
-                    <label
-                      style={{
-                        display: 'flex', alignItems: 'flex-start', gap: '0.5rem',
-                        padding: '0.5rem',
-                        borderRadius: '0.25rem',
-                        cursor: 'pointer',
-                        backgroundColor: selectedRejectReasons.has('custom') ? 'oklch(0.95 0.02 25)' : 'transparent',
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedRejectReasons.has('custom')}
-                        onChange={() => toggleRejectReason('custom')}
-                        style={{ accentColor: 'oklch(0.5 0.14 25)', flexShrink: 0, marginTop: '0.125rem' }}
-                      />
-                      <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.25 0.01 260)' }}>
-                        Other (specify below)
-                      </span>
-                    </label>
-                    
-                    {selectedRejectReasons.has('custom') && (
-                      <textarea
-                        value={customRejectReason}
-                        onChange={(e) => setCustomRejectReason(e.target.value)}
-                        placeholder="Enter your reason for rejecting..."
-                        style={{
-                          marginBlockStart: '0.5rem',
-                          inlineSize: '100%',
-                          minBlockSize: '3.5rem',
-                          padding: '0.5rem',
-                          border: '0.0625rem solid oklch(0.88 0.01 260)',
-                          borderRadius: '0.25rem',
-                          fontSize: '0.6875rem',
-                          resize: 'vertical',
-                        }}
-                      />
-                    )}
-                  </fieldset>
+                      )}
 
-                  <div style={{ display: 'flex', gap: '0.5rem', marginBlockStart: '0.75rem' }}>
-                    <button
-                      type="button"
-                      onClick={handleRejectDoc}
-                      disabled={!hasRejectSelection}
-                      style={{
-                        flex: 1,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem',
-                        padding: '0.375rem 0.5rem',
-                        border: 'none',
-                        borderRadius: '0.25rem',
-                        backgroundColor: !hasRejectSelection ? 'oklch(0.9 0.01 260)' : 'oklch(0.55 0.14 25)',
-                        fontSize: '0.6875rem', fontWeight: 600,
-                        color: !hasRejectSelection ? 'oklch(0.6 0.01 260)' : 'oklch(1 0 0)',
-                        cursor: !hasRejectSelection ? 'not-allowed' : 'pointer',
-                      }}
-                    >
-                      <X style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
-                      Confirm Rejection
-                    </button>
-                  </div>
+                      <div style={{ display: 'flex', gap: '0.5rem', marginBlockStart: '0.75rem' }}>
+                        <button
+                          type="button"
+                          onClick={() => setRejectStep('reason')}
+                          disabled={!canProceedFromSelect}
+                          style={{
+                            flex: 1,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem',
+                            padding: '0.375rem 0.5rem', border: 'none', borderRadius: '0.25rem',
+                            backgroundColor: !canProceedFromSelect ? 'oklch(0.9 0.01 260)' : 'oklch(0.55 0.14 25)',
+                            fontSize: '0.6875rem', fontWeight: 600,
+                            color: !canProceedFromSelect ? 'oklch(0.6 0.01 260)' : 'oklch(1 0 0)',
+                            cursor: !canProceedFromSelect ? 'not-allowed' : 'pointer',
+                          }}
+                        >
+                          Next: Provide Reason
+                          <ChevronRight style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
+                        </button>
+                      </div>
+
+                      {/* Undo existing rejections if any */}
+                      {hasPartialRejects && (
+                        <button
+                          type="button"
+                          onClick={handleUndoRejectAll}
+                          style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem',
+                            inlineSize: '100%', marginBlockStart: '0.5rem',
+                            padding: '0.375rem 0.5rem',
+                            border: '0.0625rem solid oklch(0.88 0.01 260)', borderRadius: '0.25rem',
+                            backgroundColor: 'oklch(1 0 0)',
+                            fontSize: '0.625rem', fontWeight: 600, color: 'oklch(0.5 0.01 260)',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <Undo2 style={{ inlineSize: '0.5rem', blockSize: '0.5rem' }} />
+                          Undo All Rejections ({rejectedPageIds.size})
+                        </button>
+                      )}
+                    </>
+                  )}
+
+                  {/* ── Step 2 (or only step for 2-page groups): Reason ── */}
+                  {(rejectStep === 'reason' || !isMultiPage) && (
+                    <>
+                      {isMultiPage && (
+                        <button
+                          type="button"
+                          onClick={() => setRejectStep('select')}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: '0.25rem',
+                            marginBlockEnd: '0.5rem',
+                            padding: 0, border: 'none', background: 'none',
+                            fontSize: '0.625rem', fontWeight: 600, color: 'oklch(0.5 0.01 260)',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <ChevronLeft style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
+                          Back to selection
+                        </button>
+                      )}
+                      <p style={{
+                        fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.35 0.01 260)',
+                        textTransform: 'uppercase', letterSpacing: '0.04em',
+                        marginBlockEnd: '0.25rem',
+                      }}>
+                        {rejectTargetPageId && isMultiPage
+                          ? `Reject Page ${activeGroup?.records.find(r => String(r.engagementPageId) === rejectTargetPageId)?.documentRef?.pageNumber ?? rejectTargetPageId}`
+                          : 'Reject All Documents'}
+                      </p>
+                      <p style={{
+                        fontSize: '0.625rem', color: 'oklch(0.5 0.01 260)',
+                        marginBlockEnd: '0.625rem', lineHeight: '1.4',
+                      }}>
+                        {rejectTargetPageId && isMultiPage
+                          ? 'This document will be moved to SPBinder. Remaining documents will continue in this group.'
+                          : 'All documents in this group will be moved to SPBinder.'}
+                      </p>
+
+                      <fieldset style={{ border: 'none', padding: 0, margin: 0 }}>
+                        <legend className="sr-only">Select rejection reasons</legend>
+                        {REJECTION_REASONS.map((reason) => (
+                          <label
+                            key={reason.id}
+                            style={{
+                              display: 'flex', alignItems: 'flex-start', gap: '0.5rem',
+                              padding: '0.5rem',
+                              borderRadius: '0.25rem',
+                              cursor: 'pointer',
+                              backgroundColor: selectedRejectReasons.has(reason.id) ? 'oklch(0.95 0.02 25)' : 'transparent',
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedRejectReasons.has(reason.id)}
+                              onChange={() => toggleRejectReason(reason.id)}
+                              style={{ accentColor: 'oklch(0.5 0.14 25)', flexShrink: 0, marginTop: '0.125rem' }}
+                            />
+                            <div>
+                              <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.25 0.01 260)', display: 'block' }}>
+                                {reason.label}
+                              </span>
+                              <span style={{ fontSize: '0.5625rem', color: 'oklch(0.5 0.01 260)' }}>
+                                {reason.description}
+                              </span>
+                            </div>
+                          </label>
+                        ))}
+                        
+                        <label
+                          style={{
+                            display: 'flex', alignItems: 'flex-start', gap: '0.5rem',
+                            padding: '0.5rem',
+                            borderRadius: '0.25rem',
+                            cursor: 'pointer',
+                            backgroundColor: selectedRejectReasons.has('custom') ? 'oklch(0.95 0.02 25)' : 'transparent',
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedRejectReasons.has('custom')}
+                            onChange={() => toggleRejectReason('custom')}
+                            style={{ accentColor: 'oklch(0.5 0.14 25)', flexShrink: 0, marginTop: '0.125rem' }}
+                          />
+                          <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.25 0.01 260)' }}>
+                            Other (specify below)
+                          </span>
+                        </label>
+                        
+                        {selectedRejectReasons.has('custom') && (
+                          <textarea
+                            value={customRejectReason}
+                            onChange={(e) => setCustomRejectReason(e.target.value)}
+                            placeholder="Enter your reason for rejecting..."
+                            style={{
+                              marginBlockStart: '0.5rem',
+                              inlineSize: '100%',
+                              minBlockSize: '3.5rem',
+                              padding: '0.5rem',
+                              border: '0.0625rem solid oklch(0.88 0.01 260)',
+                              borderRadius: '0.25rem',
+                              fontSize: '0.6875rem',
+                              resize: 'vertical',
+                            }}
+                          />
+                        )}
+                      </fieldset>
+
+                      <div style={{ display: 'flex', gap: '0.5rem', marginBlockStart: '0.75rem' }}>
+                        <button
+                          type="button"
+                          onClick={handleRejectDoc}
+                          disabled={!hasRejectSelection}
+                          style={{
+                            flex: 1,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem',
+                            padding: '0.375rem 0.5rem',
+                            border: 'none',
+                            borderRadius: '0.25rem',
+                            backgroundColor: !hasRejectSelection ? 'oklch(0.9 0.01 260)' : 'oklch(0.55 0.14 25)',
+                            fontSize: '0.6875rem', fontWeight: 600,
+                            color: !hasRejectSelection ? 'oklch(0.6 0.01 260)' : 'oklch(1 0 0)',
+                            cursor: !hasRejectSelection ? 'not-allowed' : 'pointer',
+                          }}
+                        >
+                          <X style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
+                          Confirm Rejection
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
               </>
-            )}
+              )
+            })()}
           </div>
 
           {isGroupRejected ? (
@@ -1631,63 +1842,21 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                             {rejectedPageIds.has(String(r.engagementPageId)) ? (
                               <span style={{
                                 marginInlineStart: 'auto', flexShrink: 0,
-                                display: 'flex', alignItems: 'center', gap: '0.25rem',
+                                fontSize: '0.5625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em',
+                                padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem',
+                                backgroundColor: 'oklch(0.92 0.02 260)', color: 'oklch(0.45 0.01 260)',
                               }}>
-                                <span style={{
-                                  fontSize: '0.5625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em',
-                                  padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem',
-                                  backgroundColor: 'oklch(0.92 0.02 260)', color: 'oklch(0.45 0.01 260)',
-                                  textDecoration: 'line-through',
-                                }}>
-                                  SPBinder
-                                </span>
-                                <button
-                                  type="button"
-                                  title="Undo rejection"
-                                  onClick={(e) => { e.stopPropagation(); handleUndoRejectDoc(String(r.engagementPageId)) }}
-                                  style={{
-                                    display: 'flex', alignItems: 'center', padding: '0.125rem',
-                                    border: 'none', background: 'none', cursor: 'pointer',
-                                    color: 'oklch(0.5 0.01 260)',
-                                  }}
-                                >
-                                  <Undo2 style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
-                                </button>
+                                Rejected
                               </span>
                             ) : (
                               <span style={{
                                 marginInlineStart: 'auto', flexShrink: 0,
-                                display: 'flex', alignItems: 'center', gap: '0.25rem',
+                                fontSize: '0.5625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em',
+                                padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem',
+                                backgroundColor: isSup ? 'oklch(0.94 0.04 25)' : 'oklch(0.94 0.04 145)',
+                                color: isSup ? 'oklch(0.45 0.18 25)' : 'oklch(0.35 0.14 145)',
                               }}>
-                                <span style={{
-                                  fontSize: '0.5625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em',
-                                  padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem',
-                                  backgroundColor: isSup ? 'oklch(0.94 0.04 25)' : 'oklch(0.94 0.04 145)',
-                                  color: isSup ? 'oklch(0.45 0.18 25)' : 'oklch(0.35 0.14 145)',
-                                }}>
-                                  {isSup ? 'Superseded' : 'Original'}
-                                </span>
-                                <button
-                                  type="button"
-                                  title={`Reject Pg ${r.documentRef?.pageNumber ?? r.engagementPageId} (move to SPBinder)`}
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    setRejectTargetPageId(String(r.engagementPageId))
-                                    setSelectedRejectReasons(new Set())
-                                    setCustomRejectReason('')
-                                    setShowRejectPanel(true)
-                                  }}
-                                  style={{
-                                    display: 'flex', alignItems: 'center', padding: '0.125rem',
-                                    border: 'none', background: 'none', cursor: 'pointer',
-                                    color: 'oklch(0.6 0.14 25)',
-                                    opacity: 0.5,
-                                  }}
-                                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.opacity = '1' }}
-                                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.opacity = '0.5' }}
-                                >
-                                  <X style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
-                                </button>
+                                {isSup ? 'Superseded' : 'Original'}
                               </span>
                             )}
                           </button>
