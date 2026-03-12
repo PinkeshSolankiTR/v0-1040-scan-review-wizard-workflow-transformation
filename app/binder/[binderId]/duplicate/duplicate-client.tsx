@@ -13,6 +13,7 @@ import { useDecisions } from '@/contexts/decision-context'
 import { useLearnedRules } from '@/contexts/learned-rules-context'
 import {
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   FileText,
   Sparkles,
@@ -225,11 +226,17 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
   const [overriddenOriginals, setOverriddenOriginals] = useState<Map<string, string>>(new Map())
   const [showOverridePanel, setShowOverridePanel] = useState(false)
   
-  /* Rejection panel state */
+  /* Rejection panel state
+     For 3+ doc groups: step-based flow (select doc -> reason -> confirm)
+     For 2-doc groups: direct reject all (reason -> confirm) */
   const [showRejectPanel, setShowRejectPanel] = useState(false)
+  const [rejectStep, setRejectStep] = useState<'select' | 'reason'>('select')
+  const [rejectTargetDocId, setRejectTargetDocId] = useState<string | null>(null)
+  const [newOriginalAfterReject, setNewOriginalAfterReject] = useState<string | null>(null)
   const [selectedRejectReasons, setSelectedRejectReasons] = useState<Set<string>>(new Set())
   const [customRejectReason, setCustomRejectReason] = useState('')
   const [rejectedGroups, setRejectedGroups] = useState<Map<string, { reason: string; detail: string }>>(new Map())
+  const [rejectedDocs, setRejectedDocs] = useState<Map<string, { reason: string; detail: string; formType: string }>>(new Map())
 
   const toggleRejectReason = (id: string) => {
     setSelectedRejectReasons(prev => {
@@ -549,8 +556,26 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
     setShowOverridePanel(false)
   }
 
-  /* ── Reject handler: mark group as not qualifying for duplicate review ── */
-  const handleRejectGroup = () => {
+  // Derived: which doc IDs are rejected in the active group
+  const rejectedDocIds = useMemo(() => {
+    if (!activeGroup) return new Set<string>()
+    const ids = new Set<string>()
+    for (const doc of groupDocs) {
+      if (rejectedDocs.has(doc.id)) ids.add(doc.id)
+    }
+    return ids
+  }, [activeGroup, groupDocs, rejectedDocs])
+
+  // Effective docs = group docs minus rejected ones
+  const effectiveDocs = useMemo(() => {
+    return groupDocs.filter(d => !rejectedDocIds.has(d.id))
+  }, [groupDocs, rejectedDocIds])
+
+  const isGroupRejected = activeGroup ? rejectedGroups.has(activeGroup.formType) : false
+  const hasPartialRejects = rejectedDocIds.size > 0 && !isGroupRejected
+
+  /* ── Reject handler: mark docs/group as not qualifying for duplicate review ── */
+  const handleRejectDoc = () => {
     if (!activeGroup) return
     const predefinedLabels = Array.from(selectedRejectReasons)
       .filter(id => id !== 'custom')
@@ -558,29 +583,67 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
     const allLabels = [...predefinedLabels, ...(selectedRejectReasons.has('custom') && customRejectReason.trim() ? [customRejectReason.trim()] : [])]
     const reasonLabel = allLabels.length > 0 ? allLabels.join('; ') : 'Other'
     const detail = allLabels.join('. ')
-    
-    setRejectedGroups(prev => {
-      const next = new Map(prev)
-      next.set(activeGroup.formType, { reason: reasonLabel, detail })
-      return next
-    })
-    
+
+    if (rejectTargetDocId) {
+      // Partial reject: single document
+      setRejectedDocs(prev => {
+        const next = new Map(prev)
+        next.set(rejectTargetDocId, { reason: reasonLabel, detail, formType: activeGroup.formType })
+        return next
+      })
+
+      // If rejecting the current Original, apply the new original selection
+      const isRejectingOriginal = rejectTargetDocId === effectiveOriginalId
+      if (isRejectingOriginal && newOriginalAfterReject) {
+        setOverriddenOriginals(prev => {
+          const next = new Map(prev)
+          next.set(activeGroup.formType, newOriginalAfterReject)
+          return next
+        })
+      }
+    } else {
+      // Reject all: entire group
+      setRejectedGroups(prev => {
+        const next = new Map(prev)
+        next.set(activeGroup.formType, { reason: reasonLabel, detail })
+        return next
+      })
+    }
+
     // Reset state
     setShowRejectPanel(false)
+    setRejectStep('select')
+    setRejectTargetDocId(null)
+    setNewOriginalAfterReject(null)
     setSelectedRejectReasons(new Set())
     setCustomRejectReason('')
   }
 
   const handleUndoReject = () => {
     if (!activeGroup) return
+    // Undo group-level rejection
     setRejectedGroups(prev => {
       const next = new Map(prev)
       next.delete(activeGroup.formType)
       return next
     })
+    // Undo all per-doc rejections in this group
+    setRejectedDocs(prev => {
+      const next = new Map(prev)
+      for (const doc of groupDocs) {
+        next.delete(doc.id)
+      }
+      return next
+    })
   }
 
-  const isGroupRejected = activeGroup ? rejectedGroups.has(activeGroup.formType) : false
+  const handleUndoRejectDoc = (docId: string) => {
+    setRejectedDocs(prev => {
+      const next = new Map(prev)
+      next.delete(docId)
+      return next
+    })
+  }
 
   /** Is a specific document the "Original" based on current effective selection? */
   const isDocOriginal = (docLabel: string | undefined) => docLabel === effectiveOriginalId
@@ -759,6 +822,10 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
               type="button"
               onClick={() => {
                 if (!showRejectPanel) {
+                  const isMultiDoc = effectiveDocs.length > 2
+                  setRejectStep(isMultiDoc ? 'select' : 'reason')
+                  setRejectTargetDocId(isMultiDoc ? null : null)
+                  setNewOriginalAfterReject(null)
                   setSelectedRejectReasons(new Set())
                   setCustomRejectReason('')
                 }
@@ -768,9 +835,9 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
               style={{
                 display: 'flex', alignItems: 'center', gap: '0.375rem',
                 padding: '0.375rem 0.75rem',
-                border: '0.0625rem solid oklch(0.82 0.08 25)',
+                border: '0.0625rem solid oklch(0.88 0.04 25)',
                 borderRadius: '0.25rem',
-                backgroundColor: isGroupRejected ? 'oklch(0.94 0.04 25)' : 'oklch(1 0 0)',
+                backgroundColor: isGroupRejected ? 'oklch(0.94 0.04 25)' : hasPartialRejects ? 'oklch(0.97 0.02 25)' : 'oklch(1 0 0)',
                 fontSize: '0.75rem', fontWeight: 600,
                 color: (isGroupRejected || allGroupAccepted) ? 'oklch(0.45 0.14 25)' : 'oklch(0.55 0.14 25)',
                 cursor: (isGroupRejected || allGroupAccepted) ? 'not-allowed' : 'pointer',
@@ -779,138 +846,359 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
               aria-expanded={showRejectPanel}
             >
               <X style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem' }} />
-              {isGroupRejected ? 'Rejected' : 'Reject'}
+              {isGroupRejected ? 'Rejected' : hasPartialRejects ? `Reject (${rejectedDocIds.size} rejected)` : 'Reject'}
               {!isGroupRejected && !allGroupAccepted && <ChevronDown style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />}
             </button>
             
             {/* Reject Panel Popover */}
-            {showRejectPanel && !isGroupRejected && !allGroupAccepted && (
+            {showRejectPanel && !isGroupRejected && !allGroupAccepted && (() => {
+              const isMultiDoc = effectiveDocs.length > 2
+              const currentOriginalDocId = effectiveOriginalId
+              const isRejectingOriginal = rejectTargetDocId !== null && rejectTargetDocId === currentOriginalDocId
+              const remainingAfterReject = rejectTargetDocId
+                ? effectiveDocs.filter(d => d.id !== rejectTargetDocId)
+                : []
+              const canProceedFromSelect = rejectTargetDocId !== null && (!isRejectingOriginal || newOriginalAfterReject !== null)
+
+              return (
               <>
                 <div
-                  onClick={() => { setShowRejectPanel(false); setSelectedRejectReasons(new Set()); }}
+                  onClick={() => { setShowRejectPanel(false); setRejectTargetDocId(null); setNewOriginalAfterReject(null); setRejectStep('select'); }}
                   style={{ position: 'fixed', inset: 0, zIndex: 49 }}
                   aria-hidden="true"
                 />
                 <div style={{
                   position: 'absolute', insetBlockStart: '100%', insetInlineEnd: 0,
                   marginBlockStart: '0.25rem', zIndex: 50,
-                  inlineSize: 'max-content', minInlineSize: '18rem',
+                  inlineSize: 'max-content', minInlineSize: '20rem',
                   padding: '0.75rem', borderRadius: '0.375rem',
                   border: '0.0625rem solid oklch(0.88 0.01 260)',
                   backgroundColor: 'oklch(1 0 0)',
                   boxShadow: '0 0.25rem 0.75rem oklch(0 0 0 / 0.12)',
                 }}>
-                  <p style={{
-                    fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.35 0.01 260)',
-                    textTransform: 'uppercase', letterSpacing: '0.04em',
-                    marginBlockEnd: '0.5rem',
-                  }}>
-                    Why does this not qualify?
-                  </p>
-                  <p style={{
-                    fontSize: '0.625rem', color: 'oklch(0.5 0.01 260)',
-                    marginBlockEnd: '0.75rem', lineHeight: '1.4',
-                  }}>
-                    Help improve AI by explaining why these documents should not be in the duplicate review.
-                  </p>
-
-                  <fieldset style={{ border: 'none', padding: 0, margin: 0 }}>
-                    <legend className="sr-only">Select rejection reasons</legend>
-                    {REJECTION_REASONS.map((reason) => (
-                      <label
-                        key={reason.id}
-                        style={{
-                          display: 'flex', alignItems: 'flex-start', gap: '0.5rem',
-                          padding: '0.5rem',
-                          borderRadius: '0.25rem',
-                          cursor: 'pointer',
-                          backgroundColor: selectedRejectReasons.has(reason.id) ? 'oklch(0.95 0.02 25)' : 'transparent',
-                        }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedRejectReasons.has(reason.id)}
-                          onChange={() => toggleRejectReason(reason.id)}
-                          style={{ accentColor: 'oklch(0.5 0.14 25)', flexShrink: 0, marginTop: '0.125rem' }}
-                        />
-                        <div>
-                          <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.25 0.01 260)', display: 'block' }}>
-                            {reason.label}
-                          </span>
-                          <span style={{ fontSize: '0.5625rem', color: 'oklch(0.5 0.01 260)' }}>
-                            {reason.description}
-                          </span>
+                  {/* Already rejected docs with undo */}
+                  {hasPartialRejects && rejectStep === 'select' && (() => {
+                    const rejectedDocsList = groupDocs.filter(d => rejectedDocIds.has(d.id))
+                    return (
+                      <div style={{
+                        marginBlockEnd: '0.625rem',
+                        paddingBlockEnd: '0.625rem',
+                        borderBlockEnd: '0.0625rem solid oklch(0.91 0.01 260)',
+                      }}>
+                        <p style={{
+                          fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.5 0.01 260)',
+                          textTransform: 'uppercase', letterSpacing: '0.04em',
+                          marginBlockEnd: '0.375rem',
+                        }}>
+                          Rejected ({rejectedDocsList.length})
+                        </p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                          {rejectedDocsList.map(doc => {
+                            const rejectInfo = rejectedDocs.get(doc.id)
+                            return (
+                              <div key={doc.id} style={{
+                                display: 'flex', alignItems: 'center', gap: '0.5rem',
+                                padding: '0.375rem 0.625rem', borderRadius: '0.25rem',
+                                backgroundColor: 'oklch(0.97 0.01 260)',
+                                border: '0.0625rem solid oklch(0.91 0.01 260)',
+                              }}>
+                                <FileText style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.5 0.01 260)', flexShrink: 0 }} />
+                                <div style={{ flex: 1, minInlineSize: 0 }}>
+                                  <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.4 0.01 260)' }}>
+                                    {doc.label} (Pg {doc.pageNumber})
+                                  </span>
+                                  {rejectInfo && (
+                                    <span style={{ fontSize: '0.5625rem', color: 'oklch(0.55 0.01 260)', marginInlineStart: '0.375rem' }}>
+                                      {rejectInfo.reason}
+                                    </span>
+                                  )}
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleUndoRejectDoc(doc.id)}
+                                  style={{
+                                    display: 'flex', alignItems: 'center', gap: '0.25rem',
+                                    padding: '0.1875rem 0.5rem',
+                                    border: '0.0625rem solid oklch(0.85 0.01 260)',
+                                    borderRadius: '0.1875rem',
+                                    backgroundColor: 'oklch(1 0 0)',
+                                    fontSize: '0.5625rem', fontWeight: 600, color: 'oklch(0.45 0.01 260)',
+                                    cursor: 'pointer', flexShrink: 0,
+                                  }}
+                                >
+                                  <Undo2 style={{ inlineSize: '0.5rem', blockSize: '0.5rem' }} />
+                                  Undo
+                                </button>
+                              </div>
+                            )
+                          })}
                         </div>
-                      </label>
-                    ))}
-                    
-                    {/* Custom reason option */}
-                    <label
-                      style={{
-                        display: 'flex', alignItems: 'flex-start', gap: '0.5rem',
-                        padding: '0.5rem',
-                        borderRadius: '0.25rem',
-                        cursor: 'pointer',
-                        backgroundColor: selectedRejectReasons.has('custom') ? 'oklch(0.95 0.02 25)' : 'transparent',
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedRejectReasons.has('custom')}
-                        onChange={() => toggleRejectReason('custom')}
-                        style={{ accentColor: 'oklch(0.5 0.14 25)', flexShrink: 0, marginTop: '0.125rem' }}
-                      />
-                      <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.25 0.01 260)' }}>
-                        Other (specify below)
-                      </span>
-                    </label>
-                    
-                    {selectedRejectReasons.has('custom') && (
-                      <textarea
-                        value={customRejectReason}
-                        onChange={(e) => setCustomRejectReason(e.target.value)}
-                        placeholder="Enter your reason for rejecting..."
-                        style={{
-                          marginBlockStart: '0.5rem',
-                          inlineSize: '100%',
-                          minBlockSize: '3.5rem',
-                          padding: '0.5rem',
-                          border: '0.0625rem solid oklch(0.88 0.01 260)',
-                          borderRadius: '0.25rem',
-                          fontSize: '0.6875rem',
-                          resize: 'vertical',
-                        }}
-                      />
-                    )}
-                  </fieldset>
+                      </div>
+                    )
+                  })()}
 
-                  <div style={{ display: 'flex', gap: '0.5rem', marginBlockStart: '0.75rem' }}>
-                    <button
-                      type="button"
-                      onClick={handleRejectGroup}
-                      disabled={!hasRejectSelection}
-                      style={{
-                        flex: 1,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem',
-                        padding: '0.375rem 0.5rem',
-                        border: 'none',
-                        borderRadius: '0.25rem',
-                        backgroundColor: !hasRejectSelection ? 'oklch(0.9 0.01 260)' : 'oklch(0.55 0.14 25)',
-                        fontSize: '0.6875rem', fontWeight: 600,
-                        color: !hasRejectSelection ? 'oklch(0.6 0.01 260)' : 'oklch(1 0 0)',
-                        cursor: !hasRejectSelection ? 'not-allowed' : 'pointer',
-                      }}
-                    >
-                      <X style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
-                      Confirm Rejection
-                    </button>
-                  </div>
+                  {/* Step 1: Select document (3+ docs only) */}
+                  {isMultiDoc && rejectStep === 'select' && (
+                    <>
+                      <p style={{
+                        fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.35 0.01 260)',
+                        textTransform: 'uppercase', letterSpacing: '0.04em',
+                        marginBlockEnd: '0.25rem',
+                      }}>
+                        {hasPartialRejects ? 'Reject Another Document' : 'Select Document to Reject'}
+                      </p>
+                      <p style={{
+                        fontSize: '0.625rem', color: 'oklch(0.5 0.01 260)',
+                        marginBlockEnd: '0.625rem', lineHeight: '1.4',
+                      }}>
+                        Choose which document does not belong in this group. It will be moved to SPBinder.
+                      </p>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                        {effectiveDocs.map(doc => {
+                          const isSelected = rejectTargetDocId === doc.id
+                          const isOrig = doc.id === currentOriginalDocId
+                          return (
+                            <label
+                              key={doc.id}
+                              style={{
+                                display: 'flex', alignItems: 'center', gap: '0.5rem',
+                                padding: '0.5rem 0.625rem', borderRadius: '0.25rem',
+                                cursor: 'pointer',
+                                border: isSelected ? '0.0625rem solid oklch(0.7 0.14 25)' : '0.0625rem solid oklch(0.91 0.01 260)',
+                                backgroundColor: isSelected ? 'oklch(0.97 0.02 25)' : 'oklch(1 0 0)',
+                              }}
+                            >
+                              <input
+                                type="radio" name="reject-doc"
+                                checked={isSelected}
+                                onChange={() => { setRejectTargetDocId(doc.id); setNewOriginalAfterReject(null); }}
+                                style={{ accentColor: 'oklch(0.5 0.14 25)', flexShrink: 0 }}
+                              />
+                              <FileText style={{ inlineSize: '0.875rem', blockSize: '0.875rem', color: 'oklch(0.5 0.01 260)', flexShrink: 0 }} />
+                              <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.25 0.01 260)' }}>
+                                {doc.label} (Pg {doc.pageNumber})
+                              </span>
+                              {isOrig && (
+                                <span style={{
+                                  marginInlineStart: 'auto',
+                                  fontSize: '0.5625rem', fontWeight: 700,
+                                  padding: '0.0625rem 0.3125rem', borderRadius: '0.125rem',
+                                  backgroundColor: 'oklch(0.94 0.04 145)', color: 'oklch(0.35 0.14 145)',
+                                }}>
+                                  Current Original
+                                </span>
+                              )}
+                            </label>
+                          )
+                        })}
+                      </div>
+
+                      {/* If rejecting Original, ask for new Original */}
+                      {isRejectingOriginal && remainingAfterReject.length > 0 && (
+                        <div style={{
+                          marginBlockStart: '0.625rem', paddingBlockStart: '0.625rem',
+                          borderBlockStart: '0.0625rem solid oklch(0.91 0.01 260)',
+                        }}>
+                          <p style={{
+                            fontSize: '0.625rem', fontWeight: 700, color: 'oklch(0.5 0.14 60)',
+                            textTransform: 'uppercase', letterSpacing: '0.04em',
+                            marginBlockEnd: '0.375rem',
+                          }}>
+                            Select New Original
+                          </p>
+                          <p style={{
+                            fontSize: '0.5625rem', color: 'oklch(0.5 0.01 260)',
+                            marginBlockEnd: '0.375rem', lineHeight: '1.4',
+                          }}>
+                            You are rejecting the current Original. Choose which remaining document should become the new Original.
+                          </p>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                            {remainingAfterReject.map(doc => (
+                              <label
+                                key={doc.id}
+                                style={{
+                                  display: 'flex', alignItems: 'center', gap: '0.5rem',
+                                  padding: '0.375rem 0.5rem', borderRadius: '0.25rem',
+                                  cursor: 'pointer',
+                                  border: newOriginalAfterReject === doc.id ? '0.0625rem solid oklch(0.7 0.14 145)' : '0.0625rem solid oklch(0.91 0.01 260)',
+                                  backgroundColor: newOriginalAfterReject === doc.id ? 'oklch(0.97 0.02 145)' : 'oklch(1 0 0)',
+                                }}
+                              >
+                                <input
+                                  type="radio" name="new-original"
+                                  checked={newOriginalAfterReject === doc.id}
+                                  onChange={() => setNewOriginalAfterReject(doc.id)}
+                                  style={{ accentColor: 'oklch(0.45 0.18 145)', flexShrink: 0 }}
+                                />
+                                <FileText style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.5 0.01 260)', flexShrink: 0 }} />
+                                <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.25 0.01 260)' }}>
+                                  {doc.label} (Pg {doc.pageNumber})
+                                </span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div style={{ display: 'flex', gap: '0.5rem', marginBlockStart: '0.75rem' }}>
+                        <button
+                          type="button"
+                          onClick={() => setRejectStep('reason')}
+                          disabled={!canProceedFromSelect}
+                          style={{
+                            flex: 1,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem',
+                            padding: '0.375rem 0.5rem', border: 'none', borderRadius: '0.25rem',
+                            backgroundColor: !canProceedFromSelect ? 'oklch(0.9 0.01 260)' : 'oklch(0.55 0.14 25)',
+                            fontSize: '0.6875rem', fontWeight: 600,
+                            color: !canProceedFromSelect ? 'oklch(0.6 0.01 260)' : 'oklch(1 0 0)',
+                            cursor: !canProceedFromSelect ? 'not-allowed' : 'pointer',
+                          }}
+                        >
+                          Next: Provide Reason
+                          <ChevronRight style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
+                        </button>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Step 2 (or only step for 2-doc groups): Reason */}
+                  {(rejectStep === 'reason' || !isMultiDoc) && (
+                    <>
+                      {isMultiDoc && (
+                        <button
+                          type="button"
+                          onClick={() => setRejectStep('select')}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: '0.25rem',
+                            marginBlockEnd: '0.5rem',
+                            padding: 0, border: 'none', background: 'none',
+                            fontSize: '0.625rem', fontWeight: 600, color: 'oklch(0.5 0.01 260)',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <ChevronLeft style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
+                          Back to selection
+                        </button>
+                      )}
+                      <p style={{
+                        fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.35 0.01 260)',
+                        textTransform: 'uppercase', letterSpacing: '0.04em',
+                        marginBlockEnd: '0.25rem',
+                      }}>
+                        {rejectTargetDocId && isMultiDoc
+                          ? `Reject ${effectiveDocs.find(d => d.id === rejectTargetDocId)?.label ?? 'Document'}`
+                          : 'Reject All Documents'}
+                      </p>
+                      <p style={{
+                        fontSize: '0.625rem', color: 'oklch(0.5 0.01 260)',
+                        marginBlockEnd: '0.625rem', lineHeight: '1.4',
+                      }}>
+                        {rejectTargetDocId && isMultiDoc
+                          ? 'This document will be moved to SPBinder. Remaining documents will continue in this group.'
+                          : 'All documents in this group will be moved to SPBinder.'}
+                      </p>
+
+                      <fieldset style={{ border: 'none', padding: 0, margin: 0 }}>
+                        <legend className="sr-only">Select rejection reasons</legend>
+                        {REJECTION_REASONS.map((reason) => (
+                          <label
+                            key={reason.id}
+                            style={{
+                              display: 'flex', alignItems: 'flex-start', gap: '0.5rem',
+                              padding: '0.5rem',
+                              borderRadius: '0.25rem',
+                              cursor: 'pointer',
+                              backgroundColor: selectedRejectReasons.has(reason.id) ? 'oklch(0.95 0.02 25)' : 'transparent',
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={selectedRejectReasons.has(reason.id)}
+                              onChange={() => toggleRejectReason(reason.id)}
+                              style={{ accentColor: 'oklch(0.5 0.14 25)', flexShrink: 0, marginTop: '0.125rem' }}
+                            />
+                            <div>
+                              <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.25 0.01 260)', display: 'block' }}>
+                                {reason.label}
+                              </span>
+                              <span style={{ fontSize: '0.5625rem', color: 'oklch(0.5 0.01 260)' }}>
+                                {reason.description}
+                              </span>
+                            </div>
+                          </label>
+                        ))}
+                        
+                        <label
+                          style={{
+                            display: 'flex', alignItems: 'flex-start', gap: '0.5rem',
+                            padding: '0.5rem',
+                            borderRadius: '0.25rem',
+                            cursor: 'pointer',
+                            backgroundColor: selectedRejectReasons.has('custom') ? 'oklch(0.95 0.02 25)' : 'transparent',
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedRejectReasons.has('custom')}
+                            onChange={() => toggleRejectReason('custom')}
+                            style={{ accentColor: 'oklch(0.5 0.14 25)', flexShrink: 0, marginTop: '0.125rem' }}
+                          />
+                          <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.25 0.01 260)' }}>
+                            Other (specify below)
+                          </span>
+                        </label>
+                        
+                        {selectedRejectReasons.has('custom') && (
+                          <textarea
+                            value={customRejectReason}
+                            onChange={(e) => setCustomRejectReason(e.target.value)}
+                            placeholder="Enter your reason for rejecting..."
+                            style={{
+                              marginBlockStart: '0.5rem',
+                              inlineSize: '100%',
+                              minBlockSize: '3.5rem',
+                              padding: '0.5rem',
+                              border: '0.0625rem solid oklch(0.88 0.01 260)',
+                              borderRadius: '0.25rem',
+                              fontSize: '0.6875rem',
+                              resize: 'vertical',
+                            }}
+                          />
+                        )}
+                      </fieldset>
+
+                      <div style={{ display: 'flex', gap: '0.5rem', marginBlockStart: '0.75rem' }}>
+                        <button
+                          type="button"
+                          onClick={handleRejectDoc}
+                          disabled={!hasRejectSelection}
+                          style={{
+                            flex: 1,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem',
+                            padding: '0.375rem 0.5rem',
+                            border: 'none',
+                            borderRadius: '0.25rem',
+                            backgroundColor: !hasRejectSelection ? 'oklch(0.9 0.01 260)' : 'oklch(0.55 0.14 25)',
+                            fontSize: '0.6875rem', fontWeight: 600,
+                            color: !hasRejectSelection ? 'oklch(0.6 0.01 260)' : 'oklch(1 0 0)',
+                            cursor: !hasRejectSelection ? 'not-allowed' : 'pointer',
+                          }}
+                        >
+                          <X style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
+                          Confirm Rejection
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
               </>
-            )}
+              )
+            })()}
           </div>
 
-          {isGroupRejected ? (
+          {(isGroupRejected || hasPartialRejects) ? (
             <button
               type="button"
               onClick={handleUndoReject}
@@ -923,7 +1211,7 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
               }}
             >
               <Undo2 style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem' }} />
-              Undo Rejection
+              Undo Rejection{hasPartialRejects && !isGroupRejected ? ` (${rejectedDocIds.size})` : ''}
             </button>
           ) : null}
 
@@ -1279,6 +1567,8 @@ const avgConfidence = Math.round(group.averageConfidence * 100)
       : 'AI is uncertain. Reviewer must examine carefully.'
               const isThisGroupRejected = rejectedGroups.has(group.formType)
               const rejectionInfo = rejectedGroups.get(group.formType)
+              const thisGroupDocs = getUniqueDocsInGroup(group.records)
+              const thisGroupRejectedCount = thisGroupDocs.filter(d => rejectedDocs.has(d.id)).length
 
               return (
                 <div key={group.formType} style={{
@@ -1376,6 +1666,16 @@ const avgConfidence = Math.round(group.averageConfidence * 100)
                             {group.unmatchedRecords.length} unmatched
                           </span>
                         )}
+                        {thisGroupRejectedCount > 0 && !isThisGroupRejected && (
+                          <span style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '0.125rem',
+                            fontSize: '0.5625rem', fontWeight: 600,
+                            padding: '0.0625rem 0.25rem', borderRadius: '0.125rem',
+                            backgroundColor: 'oklch(0.92 0.02 260)', color: 'oklch(0.5 0.01 260)',
+                          }}>
+                            {thisGroupRejectedCount} rejected
+                          </span>
+                        )}
 
                       </div>
                     </div>
@@ -1396,6 +1696,7 @@ const avgConfidence = Math.round(group.averageConfidence * 100)
                           const docIsOriginal = groupOverrideId
                             ? doc.id === groupOverrideId
                             : doc.aiOriginal
+                          const isDocRejected = rejectedDocs.has(doc.id)
                           const isActive = isActiveGroup && selectedDocId === doc.id
                           return (
                             <button
@@ -1411,6 +1712,7 @@ const avgConfidence = Math.round(group.averageConfidence * 100)
                                 border: 'none', cursor: 'pointer', textAlign: 'start',
                                 backgroundColor: isActive ? 'oklch(0.96 0.01 240)' : 'transparent',
                                 borderInlineStart: isActive ? '0.125rem solid oklch(0.5 0.18 240)' : '0.125rem solid transparent',
+                                opacity: isDocRejected ? 0.6 : 1,
                               }}
                             >
                               <FileText style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem', color: 'oklch(0.5 0.01 260)', flexShrink: 0 }} />
@@ -1418,6 +1720,7 @@ const avgConfidence = Math.round(group.averageConfidence * 100)
                                 fontSize: '0.6875rem', fontWeight: isActive ? 700 : 500,
                                 color: 'oklch(0.25 0.01 260)',
                                 overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                textDecoration: isDocRejected ? 'line-through' : 'none',
                               }}>
                                 {doc.label}
                               </span>
@@ -1425,10 +1728,10 @@ const avgConfidence = Math.round(group.averageConfidence * 100)
                                 marginInlineStart: 'auto', flexShrink: 0,
                                 fontSize: '0.5625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em',
                                 padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem',
-                                backgroundColor: docIsOriginal ? 'oklch(0.94 0.04 145)' : 'oklch(0.94 0.04 25)',
-                                color: docIsOriginal ? 'oklch(0.35 0.14 145)' : 'oklch(0.45 0.18 25)',
+                                backgroundColor: isDocRejected ? 'oklch(0.92 0.04 25)' : docIsOriginal ? 'oklch(0.94 0.04 145)' : 'oklch(0.94 0.04 25)',
+                                color: isDocRejected ? 'oklch(0.5 0.16 25)' : docIsOriginal ? 'oklch(0.35 0.14 145)' : 'oklch(0.45 0.18 25)',
                               }}>
-                                {docIsOriginal ? 'Original' : 'Duplicate'}
+                                {isDocRejected ? 'Rejected' : docIsOriginal ? 'Original' : 'Duplicate'}
                               </span>
                             </button>
                           )
@@ -1547,25 +1850,30 @@ const avgConfidence = Math.round(group.averageConfidence * 100)
                           </div>
                         </div>
 
-                        {/* Rejection reason */}
-                        <div style={{
-                          padding: '0.5rem 0.75rem',
-                          borderRadius: '0.25rem',
-                          border: '0.0625rem solid oklch(0.88 0.01 260)',
-                          backgroundColor: 'oklch(0.98 0.003 260)',
-                        }}>
-                          <span style={{ fontSize: '0.625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'oklch(0.5 0.01 260)' }}>
-                            Reason
-                          </span>
-                          <p style={{ fontSize: '0.6875rem', color: 'oklch(0.3 0.01 260)', margin: '0.25rem 0 0 0', fontWeight: 600 }}>
-                            {panelRejectionInfo.reason}
-                          </p>
-                          {panelRejectionInfo.detail && panelRejectionInfo.detail !== panelRejectionInfo.reason && (
-                            <p style={{ fontSize: '0.6875rem', color: 'oklch(0.4 0.01 260)', margin: '0.125rem 0 0 0', fontStyle: 'italic' }}>
-                              {panelRejectionInfo.detail}
+                        {/* Rejection reason inline */}
+                        {panelRejectionInfo && (
+                          <div style={{
+                            marginBlockStart: '0.5rem',
+                            padding: '0.5rem 0.625rem',
+                            borderRadius: '0.25rem',
+                            backgroundColor: 'oklch(1 0 0)',
+                            border: '0.0625rem solid oklch(0.88 0.01 260)',
+                          }}>
+                            <span style={{
+                              fontSize: '0.5625rem', fontWeight: 700,
+                              textTransform: 'uppercase', letterSpacing: '0.04em',
+                              color: 'oklch(0.5 0.01 260)',
+                            }}>
+                              Reason
+                            </span>
+                            <p style={{
+                              margin: '0.125rem 0 0', fontSize: '0.6875rem', fontWeight: 600,
+                              color: 'oklch(0.3 0.01 260)', lineHeight: 1.4,
+                            }}>
+                              {panelRejectionInfo.reason}
                             </p>
-                          )}
-                        </div>
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -1766,91 +2074,7 @@ const avgConfidence = Math.round(group.averageConfidence * 100)
             )
           })()}
 
-          {/* ═══ REJECTION SUMMARY CARD (shown when rejected) ═══ */}
-          {isGroupRejected && (() => {
-            const rejectionData = activeGroup ? rejectedGroups.get(activeGroup.formType) : null
-            return (
-              <div style={{
-                margin: '1rem 0.75rem',
-                padding: '1.25rem',
-                borderRadius: '0.5rem',
-                border: '0.0625rem solid oklch(0.88 0.04 25)',
-                backgroundColor: 'oklch(0.98 0.008 25)',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
-                  <div style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    inlineSize: '2.25rem', blockSize: '2.25rem', flexShrink: 0,
-                    borderRadius: '50%',
-                    backgroundColor: 'oklch(0.93 0.04 25)',
-                  }}>
-                    <X style={{ inlineSize: '1.125rem', blockSize: '1.125rem', color: 'oklch(0.5 0.16 25)' }} />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <h3 style={{
-                      margin: 0, fontSize: '0.875rem', fontWeight: 700,
-                      color: 'oklch(0.35 0.08 25)',
-                    }}>
-                      Classification Rejected
-                    </h3>
-                    <p style={{
-                      margin: '0.25rem 0 0', fontSize: '0.75rem', fontWeight: 500,
-                      color: 'oklch(0.45 0.01 260)',
-                    }}>
-                      {activeGroup?.formType ?? 'This group'} has been rejected.
-                    </p>
-
-                    {rejectionData && (
-                      <div style={{
-                        marginBlockStart: '0.75rem',
-                        padding: '0.625rem 0.75rem',
-                        borderRadius: '0.375rem',
-                        backgroundColor: 'oklch(1 0 0)',
-                        border: '0.0625rem solid oklch(0.91 0.01 260)',
-                      }}>
-                        <span style={{
-                          fontSize: '0.625rem', fontWeight: 700,
-                          textTransform: 'uppercase', letterSpacing: '0.04em',
-                          color: 'oklch(0.5 0.01 260)',
-                        }}>
-                          Reason
-                        </span>
-                        <p style={{
-                          margin: '0.25rem 0 0', fontSize: '0.75rem', fontWeight: 500,
-                          color: 'oklch(0.3 0.01 260)', lineHeight: 1.5,
-                        }}>
-                          {rejectionData.reason}
-                        </p>
-                      </div>
-                    )}
-
-                    <div style={{
-                      display: 'flex', alignItems: 'center', gap: '0.5rem',
-                      marginBlockStart: '0.875rem',
-                    }}>
-                      <button
-                        type="button"
-                        onClick={handleUndoReject}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: '0.375rem',
-                          padding: '0.375rem 0.75rem',
-                          border: '0.0625rem solid oklch(0.85 0.01 260)',
-                          borderRadius: '0.25rem',
-                          backgroundColor: 'oklch(1 0 0)',
-                          fontSize: '0.6875rem', fontWeight: 600,
-                          color: 'oklch(0.4 0.01 260)',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        <Undo2 style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} />
-                        Undo Rejection
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )
-          })()}
+          {/* Rejection summary is now shown inline in the Review Outcome panel above */}
 
           {/* ═══ PANEL 2: Field Comparison (hidden when rejected) ═══ */}
           {!isGroupRejected && comparedValues.length > 0 && (
