@@ -432,16 +432,25 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
 
   const isGroupRejected = activeGroup ? rejectedGroups.has(activeGroup.formType) : false
 
-  /* ── Field comparison data for the active group ── */
-  const comparedValues = useMemo(() => {
-    if (!activeGroup) return []
-    const all = activeGroup.records.flatMap(r => r.comparedValues ?? [])
-    return all.filter((v, i, arr) => arr.findIndex(x => x.field === v.field) === i)
-  }, [activeGroup])
+  /* ── Selected superseded record index (for multi-page groups) ── */
+  const [selectedSupersededIdx, setSelectedSupersededIdx] = useState(0)
+
+  // Reset to first superseded when group changes
+  useEffect(() => {
+    setSelectedSupersededIdx(0)
+  }, [activeGroupIdx])
 
   /* ── Determine left/right docs ── */
-  const leftDoc = activeGroup?.supersededRecords[0] ?? null
+  const supersededList = activeGroup?.supersededRecords ?? []
+  const safeIdx = Math.min(selectedSupersededIdx, Math.max(0, supersededList.length - 1))
+  const leftDoc = supersededList[safeIdx] ?? null
   const rightDoc = activeGroup?.originalRecord ?? null
+
+  /* ── Field comparison data for the selected pair ── */
+  const comparedValues = useMemo(() => {
+    if (!leftDoc) return []
+    return leftDoc.comparedValues ?? []
+  }, [leftDoc])
 
   return (
     <div style={{
@@ -1385,16 +1394,22 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                         const isSup = isFlipped
                           ? r.decisionType !== 'Superseded'
                           : r.decisionType === 'Superseded'
+                        const supIdx = group.supersededRecords.findIndex(s => s.engagementPageId === r.engagementPageId)
+                        const isSelectedSup = gIdx === activeGroupIdx && supIdx >= 0 && supIdx === selectedSupersededIdx
                         return (
                           <button
                             key={r.engagementPageId}
                             type="button"
-                            onClick={() => selectGroup(gIdx)}
+                            onClick={() => {
+                              selectGroup(gIdx)
+                              if (supIdx >= 0) setSelectedSupersededIdx(supIdx)
+                            }}
                             style={{
                               display: 'flex', alignItems: 'center', gap: '0.375rem',
                               inlineSize: '100%', padding: '0.375rem 0.75rem 0.375rem 2rem',
                               border: 'none', cursor: 'pointer', textAlign: 'start',
-                              backgroundColor: 'transparent',
+                              backgroundColor: isSelectedSup ? 'oklch(0.95 0.02 240)' : 'transparent',
+                              borderInlineStart: isSelectedSup ? '0.125rem solid oklch(0.5 0.15 240)' : '0.125rem solid transparent',
                             }}
                           >
                             <input
@@ -1413,9 +1428,18 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                               onChange={() => {}}
                             />
                             <FileText style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem', color: 'oklch(0.5 0.01 260)', flexShrink: 0 }} />
-                            <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'oklch(0.25 0.01 260)' }}>
-                              {r.engagementPageId} ({r.documentRef?.pageNumber})
+                            <span style={{ fontSize: '0.75rem', fontWeight: isSelectedSup ? 600 : 500, color: 'oklch(0.25 0.01 260)' }}>
+                              Pg {r.documentRef?.pageNumber ?? r.engagementPageId}
                             </span>
+                            {r.documentRef?.formLabel && (
+                              <span style={{
+                                fontSize: '0.5625rem', color: 'oklch(0.5 0.01 260)',
+                                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                maxInlineSize: '6rem',
+                              }}>
+                                {r.documentRef.formLabel.replace(group.formType, '').replace(/[()]/g, '').trim() || ''}
+                              </span>
+                            )}
                             <span style={{
                               marginInlineStart: 'auto', flexShrink: 0,
                               fontSize: '0.5625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em',
@@ -1783,6 +1807,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                   <FileText style={{ inlineSize: '0.875rem', blockSize: '0.875rem', flexShrink: 0, color: 'oklch(0.45 0.01 260)' }} />
                   <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.3 0.01 260)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {leftDoc?.documentRef?.formLabel ?? 'Document A'}
+                    {supersededList.length > 1 ? ` (${safeIdx + 1}/${supersededList.length})` : ''}
                   </span>
                   <span style={{
                     marginInlineStart: 'auto', flexShrink: 0,
@@ -1830,6 +1855,50 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
               }}>
                 {/* Left PDF viewer */}
                 <div style={{ overflow: 'auto', padding: '0.5rem' }}>
+                  {/* Page selector tabs for multi-page superseded groups */}
+                  {supersededList.length > 1 && (
+                    <div style={{
+                      display: 'flex', gap: '0.25rem', marginBlockEnd: '0.375rem',
+                      padding: '0.25rem',
+                      backgroundColor: 'oklch(0.96 0.005 260)',
+                      borderRadius: '0.25rem',
+                      border: '0.0625rem solid oklch(0.91 0.005 260)',
+                    }}>
+                      {supersededList.map((sr, sIdx) => (
+                        <button
+                          key={sr.engagementPageId}
+                          type="button"
+                          onClick={() => setSelectedSupersededIdx(sIdx)}
+                          style={{
+                            flex: 1,
+                            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.0625rem',
+                            padding: '0.3125rem 0.5rem',
+                            border: sIdx === safeIdx ? '0.0625rem solid oklch(0.7 0.1 240)' : '0.0625rem solid transparent',
+                            borderRadius: '0.1875rem',
+                            backgroundColor: sIdx === safeIdx ? 'oklch(1 0 0)' : 'transparent',
+                            boxShadow: sIdx === safeIdx ? '0 0.0625rem 0.1875rem oklch(0 0 0 / 0.08)' : 'none',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease',
+                          }}
+                        >
+                          <span style={{
+                            fontSize: '0.6875rem', fontWeight: sIdx === safeIdx ? 700 : 500,
+                            color: sIdx === safeIdx ? 'oklch(0.35 0.12 240)' : 'oklch(0.45 0.01 260)',
+                          }}>
+                            Pg {sr.documentRef?.pageNumber ?? sr.engagementPageId}
+                          </span>
+                          <span style={{
+                            fontSize: '0.5625rem', fontWeight: 500,
+                            color: sIdx === safeIdx ? 'oklch(0.5 0.06 240)' : 'oklch(0.55 0.01 260)',
+                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                            maxInlineSize: '8rem',
+                          }}>
+                            {sr.documentRef?.formLabel?.replace(activeGroup?.formType ?? '', '').replace(/[()]/g, '').trim() || 'Superseded'}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   {leftDoc?.documentRef ? (
                     <PdfPageViewer
                       documentRef={leftDoc.documentRef}
