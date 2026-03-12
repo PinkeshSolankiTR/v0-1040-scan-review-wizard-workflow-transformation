@@ -99,8 +99,8 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
   const { addRuleFromOverride } = useLearnedRules()
   const groups = useMemo(() => groupByFormType(data), [data])
 
-  /* Track local flipped labels per group (key = formType) */
-  const [flippedGroups, setFlippedGroups] = useState<Set<string>>(new Set())
+  /* Track local flipped labels per group (key = formType, value = superseded index that was overridden) */
+  const [flippedGroups, setFlippedGroups] = useState<Map<string, number>>(new Map())
   
   /* Override panel state - two-step flow */
   const [showOverridePanel, setShowOverridePanel] = useState(false)
@@ -389,11 +389,11 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
     ? OVERRIDE_REASONS.find(r => r.id === reason)?.label ?? reason 
     : customReason || 'User override (no reason provided)'
   
-  // Toggle the flip state
+  // Toggle the flip state -- store which superseded index was overridden
   setFlippedGroups(prev => {
-  const next = new Set(prev)
+  const next = new Map(prev)
   if (isAlreadyFlipped) next.delete(activeGroup.formType)
-  else next.add(activeGroup.formType)
+  else next.set(activeGroup.formType, selectedSupersededIdx)
   return next
   })
   
@@ -423,7 +423,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
   const handleUndoOverride = () => {
     if (!activeGroup) return
     setFlippedGroups(prev => {
-      const next = new Set(prev)
+      const next = new Map(prev)
       next.delete(activeGroup.formType)
       return next
     })
@@ -552,7 +552,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
               aria-expanded={showOverridePanel}
             >
               <ArrowLeftRight style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem' }} />
-              {activeGroup && flippedGroups.has(activeGroup.formType) ? 'Override Active' : 'Override Classification'}
+              {activeGroup && flippedGroups.has(activeGroup.formType) ? `Override Active (Pg ${supersededList[flippedGroups.get(activeGroup.formType) ?? 0]?.documentRef?.pageNumber ?? ''})` : 'Override Classification'}
               <ChevronDown style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
             </button>
             
@@ -640,7 +640,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
 
                       {/* Action buttons */}
                       <div style={{ display: 'flex', gap: '0.5rem', marginBlockStart: '0.75rem' }}>
-                        {activeGroup && flippedGroups.has(activeGroup.formType) ? (
+                        {activeGroup && flippedGroups.has(activeGroup.formType) && flippedGroups.get(activeGroup.formType) === selectedSupersededIdx ? (
                           <button
                             type="button"
                             onClick={handleUndoOverride}
@@ -1439,9 +1439,11 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                       {group.records.map((r) => {
                         const recordKey = `sup-pg${r.engagementPageId}`
                         const isAccepted = decisions[recordKey] === 'accepted'
-                        const isFlipped = flippedGroups.has(group.formType)
+                        const flippedIdx = flippedGroups.get(group.formType)
+                        const isFlipped = flippedIdx !== undefined
                         const supIdx = group.supersededRecords.findIndex(s => s.engagementPageId === r.engagementPageId)
-                        // When overridden: selected superseded flips to Original, actual Original flips to Superseded,
+                        // When overridden: only the specific superseded record that was overridden
+                        // flips to Original, actual Original flips to Superseded,
                         // all other superseded records stay Superseded
                         let isSup: boolean
                         if (!isFlipped) {
@@ -1449,8 +1451,8 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                         } else if (r.decisionType === 'Original') {
                           // The original becomes superseded when flipped
                           isSup = true
-                        } else if (supIdx === selectedSupersededIdx) {
-                          // Only the selected superseded record becomes original
+                        } else if (supIdx === flippedIdx) {
+                          // Only the specific superseded record that was overridden becomes original
                           isSup = false
                         } else {
                           // All other superseded records stay superseded
@@ -1548,7 +1550,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                 ? 'AI has moderate confidence. Reviewer should verify key fields.' 
                 : 'AI is uncertain. Reviewer must examine carefully.'
             const mismatches = groupCompared.filter(v => !v.match)
-            const isGroupOverridden = activeGroup ? flippedGroups.has(activeGroup.formType) : false
+            const isGroupOverridden = activeGroup ? flippedGroups.has(activeGroup.formType) && flippedGroups.get(activeGroup.formType) === selectedSupersededIdx : false
             const panelGroupRejected = activeGroup ? rejectedGroups.has(activeGroup.formType) : false
             const panelRejectionInfo = activeGroup ? rejectedGroups.get(activeGroup.formType) : undefined
 
@@ -1699,7 +1701,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
 
                     {/* Hide AI explanation after user applies override or rejects */}
                     {/* Compact icon + text explanation */}
-                    {!panelGroupRejected && !(activeGroup && flippedGroups.has(activeGroup.formType)) && (
+                    {!panelGroupRejected && !(activeGroup && flippedGroups.has(activeGroup.formType) && flippedGroups.get(activeGroup.formType) === selectedSupersededIdx) && (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                         {groupSuperseded?.decisionReason
                           ?.split('||')
@@ -2051,7 +2053,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                   {leftDoc?.documentRef ? (
                     <PdfPageViewer
                       documentRef={leftDoc.documentRef}
-                      stamp={activeGroup && flippedGroups.has(activeGroup.formType) ? 'ORIGINAL' : 'SUPERSEDED'}
+                      stamp={activeGroup && flippedGroups.get(activeGroup.formType) === safeIdx ? 'ORIGINAL' : 'SUPERSEDED'}
                       height="30rem"
                     />
                   ) : (
@@ -2101,7 +2103,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                   {rightDoc?.documentRef ? (
                     <PdfPageViewer
                       documentRef={rightDoc.documentRef}
-                      stamp={activeGroup && flippedGroups.has(activeGroup.formType) ? 'SUPERSEDED' : 'ORIGINAL'}
+                      stamp={activeGroup && flippedGroups.has(activeGroup.formType) && flippedGroups.get(activeGroup.formType) === safeIdx ? 'SUPERSEDED' : 'ORIGINAL'}
                       height="30rem"
                     />
                   ) : (
