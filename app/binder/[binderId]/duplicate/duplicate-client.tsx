@@ -731,7 +731,9 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
               aria-expanded={showOverridePanel}
             >
               <FlipHorizontal style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem' }} />
-              {isGroupOverridden ? 'Override Active' : 'Override Classification'}
+              {isGroupOverridden
+                ? `Override Active (${effectiveDocs.find(d => d.id === effectiveOriginalId)?.label ?? ''} is now Original)`
+                : 'Override Classification'}
               <ChevronDown style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
             </button>
 
@@ -821,23 +823,43 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
                   })}
                 </fieldset>
 
-                {isGroupOverridden && (
+                {/* Action buttons */}
+                <div style={{ display: 'flex', gap: '0.5rem', marginBlockStart: '0.5rem' }}>
+                  {isGroupOverridden && (
+                    <button
+                      type="button"
+                      onClick={handleUndoOverride}
+                      style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem',
+                        padding: '0.375rem 0.5rem',
+                        border: '0.0625rem solid oklch(0.88 0.01 260)',
+                        borderRadius: '0.25rem', backgroundColor: 'oklch(1 0 0)',
+                        fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.45 0.01 260)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <Undo2 style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
+                      Undo Override
+                    </button>
+                  )}
                   <button
                     type="button"
-                    onClick={handleUndoOverride}
+                    onClick={() => setShowOverridePanel(false)}
                     style={{
-                      display: 'flex', alignItems: 'center', gap: '0.25rem',
-                      marginBlockStart: '0.5rem', padding: '0.25rem 0.5rem',
-                      border: '0.0625rem solid oklch(0.88 0.01 260)',
-                      borderRadius: '0.25rem', backgroundColor: 'oklch(1 0 0)',
-                      fontSize: '0.625rem', fontWeight: 600, color: 'oklch(0.45 0.01 260)',
-                      cursor: 'pointer', inlineSize: '100%', justifyContent: 'center',
+                      flex: 1,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem',
+                      padding: '0.375rem 0.5rem',
+                      border: 'none',
+                      borderRadius: '0.25rem',
+                      backgroundColor: 'oklch(0.45 0.18 145)',
+                      fontSize: '0.6875rem', fontWeight: 600,
+                      color: 'oklch(1 0 0)',
+                      cursor: 'pointer',
                     }}
                   >
-                    <Undo2 style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
-                    Reset to AI Selection
+                    Done
                   </button>
-                )}
+                </div>
               </div>
               </>
             )}
