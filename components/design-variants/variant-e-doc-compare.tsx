@@ -1794,21 +1794,26 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                         } else {
                           isSup = true // all other superseded stay superseded
                         }
-                        const isSelectedSup = gIdx === selectedGroupIdx && supIdx >= 0 && supIdx === selectedSupersededIdx
+                        // Match against the effective supersededList (accounts for overrides + rejections)
+                        const effectiveSupIdx = isSup ? supersededList.findIndex(s => s.engagementPageId === r.engagementPageId) : -1
+                        const isSelectedSup = gIdx === selectedGroupIdx && effectiveSupIdx >= 0 && effectiveSupIdx === safeIdx
+                        // Highlight the Original record when it's the active group
+                        const isSelectedOrig = gIdx === selectedGroupIdx && !isSup && !rejectedPageIds.has(String(r.engagementPageId))
+                        const isHighlighted = isSelectedSup || isSelectedOrig
                         return (
                           <button
                             key={r.engagementPageId}
                             type="button"
                             onClick={() => {
                               selectGroup(gIdx)
-                              if (supIdx >= 0) setSelectedSupersededIdx(supIdx)
+                              if (effectiveSupIdx >= 0) setSelectedSupersededIdx(effectiveSupIdx)
                             }}
                             style={{
                               display: 'flex', alignItems: 'center', gap: '0.375rem',
                               inlineSize: '100%', padding: '0.375rem 0.75rem 0.375rem 2rem',
                               border: 'none', cursor: 'pointer', textAlign: 'start',
-                              backgroundColor: isSelectedSup ? 'oklch(0.95 0.02 240)' : 'transparent',
-                              borderInlineStart: isSelectedSup ? '0.125rem solid oklch(0.5 0.15 240)' : '0.125rem solid transparent',
+                              backgroundColor: isHighlighted ? 'oklch(0.95 0.02 240)' : 'transparent',
+                              borderInlineStart: isHighlighted ? '0.125rem solid oklch(0.5 0.15 240)' : '0.125rem solid transparent',
                             }}
                           >
                             <input
@@ -1827,7 +1832,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                               onChange={() => {}}
                             />
                             <FileText style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem', color: 'oklch(0.5 0.01 260)', flexShrink: 0 }} />
-                            <span style={{ fontSize: '0.75rem', fontWeight: isSelectedSup ? 600 : 500, color: 'oklch(0.25 0.01 260)' }}>
+                            <span style={{ fontSize: '0.75rem', fontWeight: isHighlighted ? 600 : 500, color: 'oklch(0.25 0.01 260)' }}>
                               Pg {r.documentRef?.pageNumber ?? r.engagementPageId}
                             </span>
                             {r.documentRef?.formLabel && (
