@@ -188,6 +188,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
       }
     }
     logAuditEntry('individual_accept', [activeGroup.formType])
+    pushUndoEntry('individual_accept', [activeGroup.formType], `Accept ${activeGroup.formType}`)
 
     // If this group was overridden, feed the override into the learned rules pipeline
     if (isFlipped) {
@@ -208,10 +209,35 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
     }
   }
 
+  /* ── Undo stack for batch reversal ── */
+  const [undoStack, setUndoStack] = useState<Array<{
+    action: 'individual_accept' | 'high_confidence_bulk' | 'bulk_accept' | 'bulk_accept_with_warning' | 'sidebar_checkbox'
+    groups: string[]
+    label: string
+  }>>([])
+
+  const pushUndoEntry = (action: typeof undoStack[number]['action'], groupKeys: string[], label: string) => {
+    setUndoStack(prev => [...prev, { action, groups: groupKeys, label }])
+  }
+
+  const handleUndoLastAction = () => {
+    if (undoStack.length === 0) return
+    const last = undoStack[undoStack.length - 1]
+    for (const groupKey of last.groups) {
+      const group = groups.find(g => g.formType === groupKey)
+      if (group) {
+        for (const r of group.records) {
+          undo(`sup-pg${r.engagementPageId}`, 'superseded', r.confidenceLevel)
+        }
+      }
+    }
+    setUndoStack(prev => prev.slice(0, -1))
+  }
+
   /* ── Audit log for acceptance actions ── */
   const [auditLog, setAuditLog] = useState<Array<{
     timestamp: string
-    action: 'individual_accept' | 'high_confidence_bulk' | 'bulk_accept' | 'bulk_accept_with_warning'
+    action: 'individual_accept' | 'high_confidence_bulk' | 'bulk_accept' | 'bulk_accept_with_warning' | 'sidebar_checkbox'
     groups: string[]
     groupCount: number
   }>>([])
@@ -281,6 +307,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
       groupKeys.push(g.formType)
     }
     logAuditEntry('high_confidence_bulk', groupKeys)
+    pushUndoEntry('high_confidence_bulk', groupKeys, `Accept High Confidence (${groupKeys.length})`)
     setShowAcceptDropdown(false)
   }
 
@@ -305,11 +332,13 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
       }
       groupKeys.push(g.formType)
     }
-    logAuditEntry(unreviewedModLow.length > 0 ? 'bulk_accept_with_warning' : 'bulk_accept', groupKeys)
+    const actionType = unreviewedModLow.length > 0 ? 'bulk_accept_with_warning' as const : 'bulk_accept' as const
+    logAuditEntry(actionType, groupKeys)
+    pushUndoEntry(actionType, groupKeys, `Accept Remaining (${groupKeys.length})`)
     setShowBulkWarning(false)
     setShowAcceptDropdown(false)
   }
-
+  
   const handleUndoGroup = () => {
     if (!activeGroup) return
     for (const r of activeGroup.records) {
@@ -918,10 +947,13 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
               <Undo2 style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem' }} />
               Undo Rejection
             </button>
-          ) : allGroupAccepted ? (
+          ) : null}
+
+          {/* Undo last action button */}
+          {undoStack.length > 0 && (
             <button
               type="button"
-              onClick={handleUndoGroup}
+              onClick={handleUndoLastAction}
               style={{
                 display: 'flex', alignItems: 'center', gap: '0.375rem',
                 padding: '0.375rem 0.75rem', border: '0.0625rem solid oklch(0.88 0.01 260)',
@@ -929,11 +961,12 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                 fontSize: '0.75rem', fontWeight: 600, color: 'oklch(0.45 0.01 260)',
                 cursor: 'pointer',
               }}
+              title={`Undo: ${undoStack[undoStack.length - 1].label}`}
             >
               <Undo2 style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem' }} />
-              Undo Group
+              Undo: {undoStack[undoStack.length - 1].label}
             </button>
-          ) : null}
+          )}
 
           {/* Accept dropdown - 3-tier grouped button */}
           <div ref={acceptDropdownRef} style={{ position: 'relative' }}>
@@ -1275,9 +1308,29 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                     }}
                   >
                     <input
-                      type="checkbox" checked={groupAccepted} readOnly
+                      type="checkbox" checked={groupAccepted}
                       aria-label={`${group.formType} group accepted`}
-                      style={{ inlineSize: '0.875rem', blockSize: '0.875rem', accentColor: 'oklch(0.45 0.18 145)', flexShrink: 0, marginBlockStart: '0.0625rem' }}
+                      style={{ inlineSize: '0.875rem', blockSize: '0.875rem', accentColor: 'oklch(0.45 0.18 145)', flexShrink: 0, marginBlockStart: '0.0625rem', cursor: 'pointer' }}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        if (isThisGroupRejected) return
+                        if (groupAccepted) {
+                          for (const r of group.records) {
+                            undo(`sup-pg${r.engagementPageId}`, 'superseded', r.confidenceLevel)
+                          }
+                        } else {
+                          for (const r of group.records) {
+                            const key = `sup-pg${r.engagementPageId}`
+                            if (decisions[key] !== 'accepted') {
+                              accept(key, 'superseded', r.confidenceLevel, 'manual')
+                            }
+                          }
+                          logAuditEntry('sidebar_checkbox', [group.formType])
+                          pushUndoEntry('sidebar_checkbox', [group.formType], `Accept ${group.formType}`)
+                        }
+                      }}
+                      onChange={() => {}}
+                      disabled={isThisGroupRejected}
                     />
                     <div style={{ flex: '1 1 0', minInlineSize: 0 }}>
                       <span style={{
@@ -1345,9 +1398,19 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                             }}
                           >
                             <input
-                              type="checkbox" checked={isAccepted} readOnly
+                              type="checkbox" checked={isAccepted}
                               aria-label={`Page ${r.engagementPageId} accepted`}
-                              style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem', accentColor: 'oklch(0.45 0.18 145)', flexShrink: 0 }}
+                              style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem', accentColor: 'oklch(0.45 0.18 145)', flexShrink: 0, cursor: 'pointer' }}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                const key = `sup-pg${r.engagementPageId}`
+                                if (isAccepted) {
+                                  undo(key, 'superseded', r.confidenceLevel)
+                                } else {
+                                  accept(key, 'superseded', r.confidenceLevel, 'manual')
+                                }
+                              }}
+                              onChange={() => {}}
                             />
                             <FileText style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem', color: 'oklch(0.5 0.01 260)', flexShrink: 0 }} />
                             <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'oklch(0.25 0.01 260)' }}>

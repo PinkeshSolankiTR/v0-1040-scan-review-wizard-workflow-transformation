@@ -72,19 +72,17 @@ function getDecisionLabel(r: DuplicateRecord): string {
  * isRecordMatched: determines if record goes to "Matched" bucket.
  *  1. User explicitly accepted => matched
  *  2. User explicitly rejected => unmatched
- *  3. AI confidence >= 0.9 AND showAutoMatched => matched
- */
-function isRecordMatched(
+  *  3. Removed auto-match -- only explicit decisions count
+  */
+  function isRecordMatched(
   r: DuplicateRecord,
   key: string,
   decisions: Record<string, string>,
-  showAutoMatched: boolean
-): boolean {
+  ): boolean {
   if (decisions[key] === 'accepted') return true
   if (decisions[key] === 'rejected') return false
-  if (showAutoMatched && r.confidenceLevel >= 0.9) return true
   return false
-}
+  }
 
 /* ── Form category grouping ── */
 
@@ -98,11 +96,10 @@ interface FormCategoryGroup {
   averageConfidence: number
 }
 
-function groupByFormCategory(
+  function groupByFormCategory(
   data: DuplicateRecord[],
   decisions: Record<string, string>,
-  showAutoMatched: boolean
-): FormCategoryGroup[] {
+  ): FormCategoryGroup[] {
   const map = new Map<string, DuplicateRecord[]>()
   for (const r of data) {
     const key = r.documentRefA?.formType ?? 'Unknown'
@@ -111,8 +108,8 @@ function groupByFormCategory(
   }
   const groups: FormCategoryGroup[] = []
   for (const [formType, records] of map.entries()) {
-    const matched = records.filter(r => isRecordMatched(r, getItemKey(r), decisions, showAutoMatched))
-    const unmatched = records.filter(r => !isRecordMatched(r, getItemKey(r), decisions, showAutoMatched))
+  const matched = records.filter(r => isRecordMatched(r, getItemKey(r), decisions))
+  const unmatched = records.filter(r => !isRecordMatched(r, getItemKey(r), decisions))
     const entityParts = records[0].documentRefA?.formLabel?.replace(formType, '').replace(/[()]/g, '').trim()
     groups.push({
       formType,
@@ -234,8 +231,7 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
   const [customRejectReason, setCustomRejectReason] = useState('')
   const [rejectedGroups, setRejectedGroups] = useState<Map<string, { reason: string; detail: string }>>(new Map())
 
-  const [showAutoMatched, setShowAutoMatched] = useState(true)
-  const groups = useMemo(() => groupByFormCategory(data, decisions, showAutoMatched), [data, decisions, showAutoMatched])
+  const groups = useMemo(() => groupByFormCategory(data, decisions), [data, decisions])
 
   /* Per-document selection within a group */
   const [selectedDocId, setSelectedDocId] = useState<string | null>(() => {
@@ -316,10 +312,35 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
     ? activeGroup.records.every(r => decisions[getItemKey(r)] === 'accepted')
     : false
 
+  /* ── Undo stack for batch reversal ── */
+  const [undoStack, setUndoStack] = useState<Array<{
+    action: 'individual_accept' | 'high_confidence_bulk' | 'bulk_accept' | 'bulk_accept_with_warning' | 'sidebar_checkbox'
+    groups: string[]
+    label: string
+  }>>([])
+
+  const pushUndoEntry = (action: typeof undoStack[number]['action'], groupKeys: string[], label: string) => {
+    setUndoStack(prev => [...prev, { action, groups: groupKeys, label }])
+  }
+
+  const handleUndoLastAction = () => {
+    if (undoStack.length === 0) return
+    const last = undoStack[undoStack.length - 1]
+    for (const groupKey of last.groups) {
+      const group = groups.find(g => g.formType === groupKey)
+      if (group) {
+        for (const r of group.records) {
+          undo(getItemKey(r), 'duplicate', r.confidenceLevel)
+        }
+      }
+    }
+    setUndoStack(prev => prev.slice(0, -1))
+  }
+
   /* ── Audit log for acceptance actions ── */
   const [auditLog, setAuditLog] = useState<Array<{
     timestamp: string
-    action: 'individual_accept' | 'high_confidence_bulk' | 'bulk_accept' | 'bulk_accept_with_warning'
+    action: 'individual_accept' | 'high_confidence_bulk' | 'bulk_accept' | 'bulk_accept_with_warning' | 'sidebar_checkbox'
     groups: string[]
     groupCount: number
   }>>([])
@@ -381,6 +402,7 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
       }
     }
     logAuditEntry('individual_accept', [activeGroup.formType])
+    pushUndoEntry('individual_accept', [activeGroup.formType], `Accept ${activeGroup.formType}`)
   }
 
   /* Tier 1: Accept High Confidence */
@@ -396,6 +418,7 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
       groupKeys.push(g.formType)
     }
     logAuditEntry('high_confidence_bulk', groupKeys)
+    pushUndoEntry('high_confidence_bulk', groupKeys, `Accept High Confidence (${groupKeys.length})`)
     setShowAcceptDropdown(false)
   }
 
@@ -420,7 +443,9 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
       }
       groupKeys.push(g.formType)
     }
-    logAuditEntry(unreviewedModLow.length > 0 ? 'bulk_accept_with_warning' : 'bulk_accept', groupKeys)
+    const actionType = unreviewedModLow.length > 0 ? 'bulk_accept_with_warning' as const : 'bulk_accept' as const
+    logAuditEntry(actionType, groupKeys)
+    pushUndoEntry(actionType, groupKeys, `Accept Remaining (${groupKeys.length})`)
     setShowBulkWarning(false)
     setShowAcceptDropdown(false)
   }
@@ -569,21 +594,7 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
             {data.length}
           </span>
 
-          {/* Auto-match toggle */}
-          <label style={{
-            display: 'flex', alignItems: 'center', gap: '0.375rem',
-            marginInlineStart: '0.75rem',
-            fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.45 0.01 260)',
-            cursor: 'pointer',
-          }}>
-            <input
-              type="checkbox"
-              checked={showAutoMatched}
-              onChange={() => setShowAutoMatched(p => !p)}
-              style={{ accentColor: 'oklch(0.45 0.18 145)' }}
-            />
-            Auto-match High Confidence
-          </label>
+
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           {/* Override Classification */}
@@ -880,10 +891,13 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
               <Undo2 style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem' }} />
               Undo Rejection
             </button>
-          ) : allGroupAccepted ? (
+          ) : null}
+
+          {/* Undo last action button */}
+          {undoStack.length > 0 && (
             <button
               type="button"
-              onClick={handleUndoGroup}
+              onClick={handleUndoLastAction}
               style={{
                 display: 'flex', alignItems: 'center', gap: '0.375rem',
                 padding: '0.375rem 0.75rem', border: '0.0625rem solid oklch(0.88 0.01 260)',
@@ -891,11 +905,12 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
                 fontSize: '0.75rem', fontWeight: 600, color: 'oklch(0.45 0.01 260)',
                 cursor: 'pointer',
               }}
+              title={`Undo: ${undoStack[undoStack.length - 1].label}`}
             >
               <Undo2 style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem' }} />
-              Unmatch Group
+              Undo: {undoStack[undoStack.length - 1].label}
             </button>
-          ) : null}
+          )}
 
           {/* Accept dropdown - 3-tier grouped button */}
           <div ref={acceptDropdownRef} style={{ position: 'relative' }}>
@@ -1232,9 +1247,29 @@ const avgConfidence = Math.round(group.averageConfidence * 100)
                     }}
                   >
                     <input
-                      type="checkbox" checked={groupAllAccepted} readOnly
+                      type="checkbox" checked={groupAllAccepted}
                       aria-label={`${group.formType} group matched`}
-                      style={{ inlineSize: '0.875rem', blockSize: '0.875rem', accentColor: 'oklch(0.45 0.18 145)', flexShrink: 0, marginBlockStart: '0.0625rem' }}
+                      style={{ inlineSize: '0.875rem', blockSize: '0.875rem', accentColor: 'oklch(0.45 0.18 145)', flexShrink: 0, marginBlockStart: '0.0625rem', cursor: 'pointer' }}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        if (isThisGroupRejected) return
+                        if (groupAllAccepted) {
+                          for (const r of group.records) {
+                            undo(getItemKey(r), 'duplicate', r.confidenceLevel)
+                          }
+                        } else {
+                          for (const r of group.records) {
+                            const key = getItemKey(r)
+                            if (decisions[key] !== 'accepted') {
+                              accept(key, 'duplicate', r.confidenceLevel, 'manual')
+                            }
+                          }
+                          logAuditEntry('sidebar_checkbox', [group.formType])
+                          pushUndoEntry('sidebar_checkbox', [group.formType], `Accept ${group.formType}`)
+                        }
+                      }}
+                      onChange={() => {}}
+                      disabled={isThisGroupRejected}
                     />
                     <div style={{ flex: '1 1 0', minInlineSize: 0 }}>
                       <span style={{
