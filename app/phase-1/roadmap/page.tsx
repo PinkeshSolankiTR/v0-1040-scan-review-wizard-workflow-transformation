@@ -4,324 +4,391 @@ import Link from 'next/link'
 import { useState, useMemo } from 'react'
 import useSWR from 'swr'
 import {
-  Sparkles,
-  ArrowLeft,
-  ChevronDown,
-  ChevronRight,
-  Layers,
-  Hash,
-  Crosshair,
-  Wrench,
-  ExternalLink,
-  RefreshCw,
-  Loader2,
-  AlertTriangle,
-  CloudOff,
-  User,
-  Tag,
-  FolderGit2,
-  MapPin,
-  Search,
-  LayoutList,
-  Filter,
+  Sparkles, ArrowLeft, ChevronDown, ChevronRight, Layers, Hash,
+  Crosshair, Wrench, ExternalLink, RefreshCw, Loader2, AlertTriangle,
+  CloudOff, User, Tag, FolderGit2, MapPin, Search, Filter,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { ROADMAP as STATIC_ROADMAP, type Feature as StaticFeature, type Spike as StaticSpike } from './roadmap-data'
-import type { RoadmapEpic, RoadmapFeature, RoadmapSpike } from '@/app/api/ado-query/route'
+import type { AdoWorkItemFlat, AdoQueryResponse } from '@/app/api/ado-query/route'
 
-/* ── Data Fetcher ── */
-const fetcher = (url: string) => fetch(url).then(r => r.json())
+/* ── Fetcher ── */
+const fetcher = (url: string) =>
+  fetch(url).then(r => {
+    if (!r.ok) throw new Error(`HTTP ${r.status}`)
+    return r.json()
+  })
 
-/* ── State color + style ── */
+/* ── State styling ── */
 function stateStyle(state: string): React.CSSProperties {
   const s = state.toLowerCase()
-  if (s === 'done' || s === 'closed' || s === 'completed' || s === 'resolved')
+  if (['done', 'closed', 'completed', 'resolved'].includes(s))
     return { backgroundColor: 'oklch(0.92 0.06 145)', color: 'oklch(0.3 0.14 145)' }
-  if (s === 'active' || s === 'in progress' || s === 'committed')
+  if (['active', 'in progress', 'committed'].includes(s))
     return { backgroundColor: 'oklch(0.92 0.06 240)', color: 'oklch(0.3 0.14 240)' }
-  if (s === 'new' || s === 'proposed')
+  if (['new', 'proposed'].includes(s))
     return { backgroundColor: 'oklch(0.94 0.01 260)', color: 'oklch(0.45 0.01 260)' }
-  if (s === 'removed' || s === 'cut')
+  if (['removed', 'cut'].includes(s))
     return { backgroundColor: 'oklch(0.94 0.04 25)', color: 'oklch(0.4 0.18 25)' }
   return { backgroundColor: 'oklch(0.94 0.01 260)', color: 'oklch(0.45 0.01 260)' }
 }
 
-/* Work item type badge color */
+function isDone(s: string) { return ['done', 'closed', 'completed', 'resolved'].includes(s.toLowerCase()) }
+function isActive(s: string) { return ['active', 'in progress', 'committed'].includes(s.toLowerCase()) }
+
+/* ── Work Item Type styling ── */
 function typeStyle(wit: string): React.CSSProperties {
   const w = wit.toLowerCase()
   if (w === 'epic') return { backgroundColor: 'oklch(0.92 0.06 290)', color: 'oklch(0.35 0.18 290)' }
   if (w === 'feature') return { backgroundColor: 'oklch(0.92 0.06 240)', color: 'oklch(0.35 0.14 240)' }
-  if (w === 'spike' || w === 'task' || w === 'user story' || w === 'product backlog item')
+  if (['spike', 'task', 'user story', 'product backlog item'].includes(w))
     return { backgroundColor: 'oklch(0.93 0.04 60)', color: 'oklch(0.4 0.14 60)' }
   if (w === 'bug') return { backgroundColor: 'oklch(0.93 0.06 25)', color: 'oklch(0.4 0.18 25)' }
   return { backgroundColor: 'oklch(0.94 0.01 260)', color: 'oklch(0.45 0.01 260)' }
 }
 
-/* ── Live Spike Row (table-style) ── */
-function LiveWorkItemRow({ item, depth = 0 }: { item: RoadmapSpike; depth?: number }) {
-  const [open, setOpen] = useState(false)
-  const indent = depth * 1.25
+/* ── Accent colors for epics ── */
+const ACCENT_COLORS = [
+  'oklch(0.55 0.18 290)', 'oklch(0.55 0.15 250)', 'oklch(0.55 0.17 200)',
+  'oklch(0.55 0.17 145)', 'oklch(0.55 0.17 165)', 'oklch(0.6 0.15 60)',
+  'oklch(0.55 0.15 330)', 'oklch(0.55 0.17 110)', 'oklch(0.55 0.15 20)',
+  'oklch(0.5 0.14 280)', 'oklch(0.5 0.14 220)', 'oklch(0.5 0.14 170)',
+  'oklch(0.5 0.14 50)',
+]
+
+/* ──────────────────────────────────────────────
+   LIVE: Work item tree node (recursive)
+   ────────────────────────────────────────────── */
+function WorkItemNode({
+  item,
+  allItems,
+  depth = 0,
+}: {
+  item: AdoWorkItemFlat
+  allItems: Map<number, AdoWorkItemFlat>
+  depth?: number
+}) {
+  const [open, setOpen] = useState(depth < 2)
+  const children = item.childIds.map(id => allItems.get(id)).filter(Boolean) as AdoWorkItemFlat[]
+  const hasChildren = children.length > 0
+
+  const doneChildren = children.filter(c => isDone(c.state)).length
+  const progressPct = children.length > 0 ? Math.round((doneChildren / children.length) * 100) : null
+
+  const depthColors = [
+    'oklch(0.97 0.005 260)', // depth 0 - lightest
+    'oklch(0.98 0.003 260)', // depth 1
+    'oklch(1 0 0)',           // depth 2+
+  ]
+  const bgColor = depthColors[Math.min(depth, depthColors.length - 1)]
 
   return (
-    <>
-      <tr
-        className="border-b border-border hover:bg-muted/30 transition-colors cursor-pointer group"
+    <div
+      style={{
+        borderLeft: depth > 0 ? '0.125rem solid oklch(0.9 0.01 260)' : 'none',
+        marginLeft: depth > 0 ? '0.75rem' : '0',
+      }}
+    >
+      {/* Work item row */}
+      <div
+        className="group flex items-start gap-2 px-3 py-2.5 transition-colors hover:bg-muted/40 cursor-pointer"
+        style={{ backgroundColor: bgColor }}
         onClick={() => setOpen(p => !p)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen(p => !p) } }}
       >
-        {/* Expand + ID */}
-        <td className="px-3 py-2.5 whitespace-nowrap" style={{ paddingLeft: `${0.75 + indent}rem` }}>
-          <div className="flex items-center gap-1.5">
-            <span className="text-muted-foreground">
-              {open ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
-            </span>
-            <span className="text-[0.6875rem] font-mono text-muted-foreground">{item.id}</span>
-          </div>
-        </td>
-        {/* Type */}
-        <td className="px-3 py-2.5 whitespace-nowrap">
-          <span
-            className="inline-flex items-center rounded-sm px-1.5 py-0 text-[0.5625rem] font-semibold"
-            style={typeStyle(item.workItemType)}
-          >
-            {item.workItemType}
-          </span>
-        </td>
+        {/* Expand toggle */}
+        <span className="shrink-0 mt-0.5 text-muted-foreground" style={{ width: '0.875rem' }}>
+          {hasChildren ? (
+            open ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />
+          ) : (
+            <span className="block size-1.5 rounded-full bg-border mx-auto mt-1" />
+          )}
+        </span>
+
+        {/* Type badge */}
+        <span
+          className="inline-flex items-center rounded-sm px-1.5 py-0 text-[0.5625rem] font-semibold shrink-0 mt-0.5"
+          style={typeStyle(item.workItemType)}
+        >
+          {item.workItemType}
+        </span>
+
+        {/* ID */}
+        <span className="text-[0.6875rem] font-mono text-muted-foreground shrink-0 mt-px">{item.id}</span>
+
         {/* Title */}
-        <td className="px-3 py-2.5">
-          <span className="text-sm font-medium text-foreground leading-snug">{item.title}</span>
-        </td>
+        <span className="text-sm font-medium text-foreground leading-snug flex-1 min-w-0">{item.title}</span>
+
         {/* State */}
-        <td className="px-3 py-2.5 whitespace-nowrap">
-          <span
-            className="inline-flex items-center rounded-sm px-1.5 py-0 text-[0.5625rem] font-semibold"
-            style={stateStyle(item.state)}
-          >
-            {item.state || 'N/A'}
-          </span>
-        </td>
+        <span
+          className="inline-flex items-center rounded-sm px-1.5 py-0 text-[0.5625rem] font-semibold shrink-0"
+          style={stateStyle(item.state)}
+        >
+          {item.state || 'N/A'}
+        </span>
+
         {/* Assigned To */}
-        <td className="px-3 py-2.5 whitespace-nowrap">
-          {item.assignedTo ? (
-            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-              <User className="size-3 shrink-0" />
-              <span className="truncate max-w-[10rem]">{item.assignedTo}</span>
-            </span>
-          ) : (
-            <span className="text-xs text-muted-foreground/40">Unassigned</span>
-          )}
-        </td>
-        {/* Iteration */}
-        <td className="px-3 py-2.5 whitespace-nowrap">
-          {item.iterationPath ? (
-            <span className="text-[0.6875rem] text-muted-foreground truncate block max-w-[12rem]" title={item.iterationPath}>
-              {item.iterationPath.split('\\').pop()}
-            </span>
-          ) : (
-            <span className="text-xs text-muted-foreground/40">--</span>
-          )}
-        </td>
-        {/* Link */}
-        <td className="px-3 py-2.5 text-center">
-          <a
-            href={item.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={e => e.stopPropagation()}
-            className="text-muted-foreground hover:text-foreground transition-colors"
-            title="Open in Azure DevOps"
-          >
-            <ExternalLink className="size-3" />
-          </a>
-        </td>
-      </tr>
-      {/* Expanded detail row */}
-      {open && (
-        <tr className="bg-muted/20">
-          <td colSpan={7} className="px-3 py-3" style={{ paddingLeft: `${1.75 + indent}rem` }}>
-            <div className="flex flex-col gap-2">
-              {item.description ? (
-                <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-line max-w-prose">
-                  {item.description}
-                </p>
-              ) : (
-                <p className="text-xs text-muted-foreground/50 italic">No description available.</p>
-              )}
-              <div className="flex items-center gap-4 flex-wrap text-[0.625rem] text-muted-foreground">
-                {item.areaPath && (
-                  <span className="flex items-center gap-1">
-                    <MapPin className="size-2.5" />
-                    Area: {item.areaPath}
-                  </span>
-                )}
-                {item.iterationPath && (
-                  <span className="flex items-center gap-1">
-                    <FolderGit2 className="size-2.5" />
-                    Iteration: {item.iterationPath}
-                  </span>
-                )}
-              </div>
-              {item.tags.length > 0 && (
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <Tag className="size-2.5 text-muted-foreground" />
-                  {item.tags.map(t => (
-                    <Badge key={t} variant="outline" className="text-[0.5rem] px-1 py-0">
-                      {t}
-                    </Badge>
-                  ))}
-                </div>
-              )}
-            </div>
-          </td>
-        </tr>
-      )}
-    </>
-  )
-}
-
-/* ── Live Feature Section (table + expandable children) ── */
-function LiveFeatureSection({ feature }: { feature: RoadmapFeature }) {
-  const [expanded, setExpanded] = useState(true)
-  const sc = stateStyle(feature.state)
-  const doneCount = feature.spikes.filter(s => ['done', 'closed', 'completed', 'resolved'].includes(s.state.toLowerCase())).length
-  const progressPct = feature.spikes.length > 0 ? Math.round((doneCount / feature.spikes.length) * 100) : 0
-
-  return (
-    <div className="mb-6">
-      {/* Feature header bar */}
-      <button
-        type="button"
-        onClick={() => setExpanded(p => !p)}
-        className="flex w-full items-center gap-3 px-4 py-3 rounded-t-lg border border-border transition-colors hover:bg-muted/40"
-        style={{
-          borderLeft: `0.25rem solid ${feature.accentColor}`,
-          backgroundColor: expanded ? 'var(--muted)' : undefined,
-        }}
-      >
-        {expanded ? <ChevronDown className="size-4 text-muted-foreground shrink-0" /> : <ChevronRight className="size-4 text-muted-foreground shrink-0" />}
-
-        {/* Feature ID + Type */}
-        <span className="text-[0.6875rem] font-mono text-muted-foreground shrink-0">#{feature.id}</span>
-        <span
-          className="inline-flex items-center rounded-sm px-1.5 py-0 text-[0.5625rem] font-semibold shrink-0"
-          style={typeStyle('feature')}
-        >
-          Feature
-        </span>
-
-        {/* Title */}
-        <span className="text-sm font-semibold text-foreground leading-snug text-left flex-1 min-w-0 truncate">
-          {feature.title}
-        </span>
-
-        {/* State */}
-        <span
-          className="inline-flex items-center rounded-sm px-1.5 py-0 text-[0.5625rem] font-semibold shrink-0"
-          style={sc}
-        >
-          {feature.state || 'N/A'}
-        </span>
-
-        {/* Assigned */}
-        {feature.assignedTo && (
-          <span className="flex items-center gap-1 text-[0.625rem] text-muted-foreground shrink-0">
-            <User className="size-3" />
-            {feature.assignedTo}
+        {item.assignedTo ? (
+          <span className="flex items-center gap-1 text-[0.625rem] text-muted-foreground shrink-0 max-w-[9rem] truncate" title={item.assignedTo}>
+            <User className="size-3 shrink-0" />
+            {item.assignedTo.split(' ').slice(0, 2).join(' ')}
           </span>
+        ) : (
+          <span className="text-[0.625rem] text-muted-foreground/30 shrink-0" style={{ minWidth: '5rem' }}>Unassigned</span>
         )}
 
-        {/* Child count + progress */}
-        <span className="flex items-center gap-1 shrink-0">
-          <LayoutList className="size-3 text-muted-foreground" />
-          <span className="text-[0.6875rem] font-semibold text-muted-foreground">
-            {feature.spikes.length}
-          </span>
+        {/* Iteration (last segment) */}
+        <span className="text-[0.625rem] text-muted-foreground shrink-0 max-w-[8rem] truncate" title={item.iterationPath}>
+          {item.iterationPath ? item.iterationPath.split('\\').pop() : '--'}
         </span>
 
-        {/* Progress bar */}
-        <div className="flex items-center gap-1.5 shrink-0" style={{ inlineSize: '4.5rem' }}>
-          <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'oklch(0.92 0.01 260)' }}>
-            <div
-              className="h-full rounded-full transition-all"
-              style={{
-                inlineSize: `${progressPct}%`,
-                backgroundColor: progressPct === 100 ? 'oklch(0.55 0.18 145)' : feature.accentColor,
-              }}
-            />
+        {/* Progress if has children */}
+        {progressPct !== null && (
+          <div className="flex items-center gap-1 shrink-0" style={{ width: '4rem' }}>
+            <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ backgroundColor: 'oklch(0.92 0.01 260)' }}>
+              <div
+                className="h-full rounded-full"
+                style={{
+                  width: `${progressPct}%`,
+                  backgroundColor: progressPct === 100 ? 'oklch(0.5 0.18 145)' : 'oklch(0.5 0.14 240)',
+                }}
+              />
+            </div>
+            <span className="text-[0.5rem] font-mono text-muted-foreground">{progressPct}%</span>
           </div>
-          <span className="text-[0.5625rem] font-mono text-muted-foreground">{progressPct}%</span>
-        </div>
+        )}
 
         {/* ADO link */}
         <a
-          href={feature.url}
+          href={item.url}
           target="_blank"
           rel="noopener noreferrer"
           onClick={e => e.stopPropagation()}
-          className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
-          title="Open Feature in Azure DevOps"
+          className="text-muted-foreground/40 hover:text-foreground transition-colors shrink-0"
+          title="Open in Azure DevOps"
         >
           <ExternalLink className="size-3" />
         </a>
-      </button>
+      </div>
 
-      {/* Expanded: Feature description + children table */}
-      {expanded && (
-        <div className="border border-t-0 border-border rounded-b-lg overflow-hidden">
-          {/* Feature metadata */}
-          {(feature.description || feature.tags.length > 0) && (
-            <div className="px-4 py-3 border-b border-border bg-muted/20">
-              {feature.description && (
-                <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-line max-w-prose mb-2">
-                  {feature.description}
-                </p>
-              )}
-              {feature.tags.length > 0 && (
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <Tag className="size-2.5 text-muted-foreground" />
-                  {feature.tags.map(t => (
-                    <Badge key={t} variant="outline" className="text-[0.5625rem] px-1.5 py-0">{t}</Badge>
-                  ))}
-                </div>
-              )}
-            </div>
+      {/* Expanded detail row */}
+      {open && !hasChildren && (item.description || item.tags.length > 0 || item.areaPath) && (
+        <div className="px-4 py-2.5 border-t border-border/40" style={{ marginLeft: '2rem', backgroundColor: 'oklch(0.98 0.003 260)' }}>
+          {item.description && (
+            <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-line max-w-prose mb-1.5">
+              {item.description.length > 400 ? item.description.slice(0, 400) + '...' : item.description}
+            </p>
           )}
+          <div className="flex items-center gap-4 flex-wrap text-[0.5625rem] text-muted-foreground/70">
+            {item.areaPath && (
+              <span className="flex items-center gap-1"><MapPin className="size-2.5" />{item.areaPath}</span>
+            )}
+            {item.iterationPath && (
+              <span className="flex items-center gap-1"><FolderGit2 className="size-2.5" />{item.iterationPath}</span>
+            )}
+            {item.tags.length > 0 && (
+              <span className="flex items-center gap-1">
+                <Tag className="size-2.5" />
+                {item.tags.join(', ')}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
-          {/* Children table */}
-          {feature.spikes.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="border-b border-border bg-muted/40">
-                    <th className="px-3 py-2 text-[0.625rem] font-semibold text-muted-foreground uppercase tracking-wider" style={{ minWidth: '7rem' }}>ID</th>
-                    <th className="px-3 py-2 text-[0.625rem] font-semibold text-muted-foreground uppercase tracking-wider" style={{ minWidth: '5rem' }}>Type</th>
-                    <th className="px-3 py-2 text-[0.625rem] font-semibold text-muted-foreground uppercase tracking-wider">Title</th>
-                    <th className="px-3 py-2 text-[0.625rem] font-semibold text-muted-foreground uppercase tracking-wider" style={{ minWidth: '5rem' }}>State</th>
-                    <th className="px-3 py-2 text-[0.625rem] font-semibold text-muted-foreground uppercase tracking-wider" style={{ minWidth: '8rem' }}>Assigned To</th>
-                    <th className="px-3 py-2 text-[0.625rem] font-semibold text-muted-foreground uppercase tracking-wider" style={{ minWidth: '7rem' }}>Iteration</th>
-                    <th className="px-3 py-2 text-[0.625rem] font-semibold text-muted-foreground uppercase tracking-wider text-center" style={{ minWidth: '2rem' }}></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {feature.spikes.map(spike => (
-                    <LiveWorkItemRow key={spike.id} item={spike} />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="px-4 py-6 text-center">
-              <p className="text-xs text-muted-foreground/60 italic">No child work items.</p>
-            </div>
-          )}
+      {/* Children */}
+      {open && hasChildren && (
+        <div className="border-t border-border/30">
+          {children.map(child => (
+            <WorkItemNode key={child.id} item={child} allItems={allItems} depth={depth + 1} />
+          ))}
         </div>
       )}
     </div>
   )
 }
 
-/* ── Static components (unchanged) ── */
+/* ──────────────────────────────────────────────
+   LIVE: Epic accordion section
+   ────────────────────────────────────────────── */
+function EpicSection({
+  epic,
+  allItems,
+  accentColor,
+}: {
+  epic: AdoWorkItemFlat
+  allItems: Map<number, AdoWorkItemFlat>
+  accentColor: string
+}) {
+  const [expanded, setExpanded] = useState(true)
+  const children = epic.childIds.map(id => allItems.get(id)).filter(Boolean) as AdoWorkItemFlat[]
+
+  // Count all descendants recursively
+  const countDescendants = (item: AdoWorkItemFlat): { total: number; done: number; active: number } => {
+    let total = 0, done = 0, active = 0
+    for (const cid of item.childIds) {
+      const child = allItems.get(cid)
+      if (!child) continue
+      total++
+      if (isDone(child.state)) done++
+      if (isActive(child.state)) active++
+      const sub = countDescendants(child)
+      total += sub.total
+      done += sub.done
+      active += sub.active
+    }
+    return { total, done, active }
+  }
+  const stats = countDescendants(epic)
+  const progressPct = stats.total > 0 ? Math.round((stats.done / stats.total) * 100) : 0
+
+  return (
+    <div className="mb-4 rounded-lg border border-border overflow-hidden">
+      {/* Epic header */}
+      <button
+        type="button"
+        onClick={() => setExpanded(p => !p)}
+        className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-muted/40"
+        style={{
+          borderLeft: `0.25rem solid ${accentColor}`,
+          backgroundColor: expanded ? 'oklch(0.97 0.005 260)' : undefined,
+        }}
+      >
+        {expanded
+          ? <ChevronDown className="size-4 text-muted-foreground shrink-0" />
+          : <ChevronRight className="size-4 text-muted-foreground shrink-0" />
+        }
+
+        <span
+          className="inline-flex items-center rounded-sm px-1.5 py-0 text-[0.5625rem] font-semibold shrink-0"
+          style={typeStyle(epic.workItemType)}
+        >
+          {epic.workItemType}
+        </span>
+        <span className="text-[0.6875rem] font-mono text-muted-foreground shrink-0">{epic.id}</span>
+
+        <span className="text-sm font-semibold text-foreground leading-snug flex-1 min-w-0 truncate">
+          {epic.title}
+        </span>
+
+        <span
+          className="inline-flex items-center rounded-sm px-1.5 py-0 text-[0.5625rem] font-semibold shrink-0"
+          style={stateStyle(epic.state)}
+        >
+          {epic.state}
+        </span>
+
+        {epic.assignedTo && (
+          <span className="flex items-center gap-1 text-[0.625rem] text-muted-foreground shrink-0">
+            <User className="size-3" />
+            {epic.assignedTo.split(' ').slice(0, 2).join(' ')}
+          </span>
+        )}
+
+        {/* Stats: children count */}
+        <span className="text-[0.625rem] text-muted-foreground shrink-0">
+          {children.length} children / {stats.total} total
+        </span>
+
+        {/* Progress bar */}
+        <div className="flex items-center gap-1 shrink-0" style={{ width: '5rem' }}>
+          <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'oklch(0.92 0.01 260)' }}>
+            <div
+              className="h-full rounded-full"
+              style={{
+                width: `${progressPct}%`,
+                backgroundColor: progressPct === 100 ? 'oklch(0.5 0.18 145)' : accentColor,
+              }}
+            />
+          </div>
+          <span className="text-[0.5625rem] font-mono text-muted-foreground">{progressPct}%</span>
+        </div>
+
+        <a
+          href={epic.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={e => e.stopPropagation()}
+          className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
+          title="Open in Azure DevOps"
+        >
+          <ExternalLink className="size-3" />
+        </a>
+      </button>
+
+      {/* Expanded content */}
+      {expanded && (
+        <>
+          {/* Epic metadata */}
+          {(epic.description || epic.tags.length > 0) && (
+            <div className="px-4 py-2.5 border-t border-border bg-muted/20">
+              {epic.description && (
+                <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-line max-w-prose mb-1.5">
+                  {epic.description.length > 500 ? epic.description.slice(0, 500) + '...' : epic.description}
+                </p>
+              )}
+              <div className="flex items-center gap-3 flex-wrap text-[0.5625rem] text-muted-foreground/70">
+                {epic.iterationPath && (
+                  <span className="flex items-center gap-1"><FolderGit2 className="size-2.5" />{epic.iterationPath}</span>
+                )}
+                {epic.areaPath && (
+                  <span className="flex items-center gap-1"><MapPin className="size-2.5" />{epic.areaPath}</span>
+                )}
+                {epic.tags.length > 0 && (
+                  <span className="flex items-center gap-1">
+                    <Tag className="size-2.5" />
+                    {epic.tags.join(', ')}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Quick stats row */}
+          <div className="flex items-center gap-0 border-t border-border bg-muted/30 text-center divide-x divide-border">
+            <div className="flex-1 px-3 py-2">
+              <p className="text-base font-bold text-foreground">{children.length}</p>
+              <p className="text-[0.5625rem] text-muted-foreground">Direct Children</p>
+            </div>
+            <div className="flex-1 px-3 py-2">
+              <p className="text-base font-bold text-foreground">{stats.total}</p>
+              <p className="text-[0.5625rem] text-muted-foreground">Total Items</p>
+            </div>
+            <div className="flex-1 px-3 py-2">
+              <p className="text-base font-bold" style={{ color: 'oklch(0.4 0.16 145)' }}>{stats.done}</p>
+              <p className="text-[0.5625rem] text-muted-foreground">Done</p>
+            </div>
+            <div className="flex-1 px-3 py-2">
+              <p className="text-base font-bold" style={{ color: 'oklch(0.4 0.14 240)' }}>{stats.active}</p>
+              <p className="text-[0.5625rem] text-muted-foreground">Active</p>
+            </div>
+          </div>
+
+          {/* Children tree */}
+          <div className="border-t border-border">
+            {children.length > 0 ? (
+              children.map(child => (
+                <WorkItemNode key={child.id} item={child} allItems={allItems} depth={0} />
+              ))
+            ) : (
+              <div className="px-4 py-6 text-center">
+                <p className="text-xs text-muted-foreground/50 italic">No child work items.</p>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+/* ──────────────────────────────────────────────
+   STATIC: components (unchanged from before)
+   ────────────────────────────────────────────── */
 function StaticSpikeRow({ spike }: { spike: StaticSpike }) {
   const [open, setOpen] = useState(false)
   return (
@@ -406,73 +473,97 @@ function StaticFeatureCard({ feature }: { feature: StaticFeature }) {
   )
 }
 
-/* ── Sub-tab type ── */
+/* ──────────────────────────────────────────────
+   MAIN PAGE
+   ────────────────────────────────────────────── */
 type RoadmapTab = 'ado' | 'static'
 type StateFilter = 'all' | 'active' | 'done' | 'new'
 
-/* ── Main Page ── */
 export default function DeliveryRoadmapPage() {
   const [activeTab, setActiveTab] = useState<RoadmapTab>('ado')
   const [searchQuery, setSearchQuery] = useState('')
   const [stateFilter, setStateFilter] = useState<StateFilter>('all')
 
-  const { data, error, isLoading, mutate } = useSWR('/api/ado-query', fetcher, {
+  const { data, error, isLoading, mutate } = useSWR<AdoQueryResponse>('/api/ado-query', fetcher, {
     revalidateOnFocus: false,
     dedupingInterval: 60_000,
   })
 
-  const isLive = !error && data?.epic
-  const epic: RoadmapEpic | null = isLive ? data.epic : null
+  const isLive = !error && !!data?.items
 
-  /* Static data */
-  const staticWizardFeatures = STATIC_ROADMAP.features.filter(f => f.category === 'wizard')
-  const staticCrossCuttingFeatures = STATIC_ROADMAP.features.filter(f => f.category === 'cross-cutting')
+  /* Build lookup map + identify root items (epics / top-level) */
+  const { allItems, rootItems, stats } = useMemo(() => {
+    const allMap = new Map<number, AdoWorkItemFlat>()
+    if (!data?.items) return { allItems: allMap, rootItems: [] as AdoWorkItemFlat[], stats: { total: 0, done: 0, active: 0, epics: 0, types: new Map<string, number>() } }
 
-  /* Filtered live features */
-  const filteredFeatures = useMemo(() => {
-    if (!epic) return []
-    let features = epic.features
+    for (const item of data.items) allMap.set(item.id, item)
 
-    // State filter
+    // Root items = those without a parent (or parent not in the dataset)
+    const roots = data.items.filter(i => i.parentId === null || !allMap.has(i.parentId))
+
+    // Global stats
+    let total = data.items.length
+    let done = 0
+    let active = 0
+    const types = new Map<string, number>()
+    for (const item of data.items) {
+      if (isDone(item.state)) done++
+      if (isActive(item.state)) active++
+      types.set(item.workItemType, (types.get(item.workItemType) ?? 0) + 1)
+    }
+
+    return {
+      allItems: allMap,
+      rootItems: roots,
+      stats: { total, done, active, epics: roots.length, types },
+    }
+  }, [data])
+
+  /* Filter root items */
+  const filteredRoots = useMemo(() => {
+    let items = rootItems
+
     if (stateFilter !== 'all') {
-      features = features.filter(f => {
-        const s = f.state.toLowerCase()
-        if (stateFilter === 'done') return ['done', 'closed', 'completed', 'resolved'].includes(s)
-        if (stateFilter === 'active') return ['active', 'in progress', 'committed'].includes(s)
+      items = items.filter(item => {
+        const s = item.state.toLowerCase()
+        if (stateFilter === 'done') return isDone(s)
+        if (stateFilter === 'active') return isActive(s)
         if (stateFilter === 'new') return ['new', 'proposed'].includes(s)
         return true
       })
     }
 
-    // Search filter
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase()
-      features = features.filter(f =>
-        f.title.toLowerCase().includes(q) ||
-        f.id.includes(q) ||
-        f.assignedTo.toLowerCase().includes(q) ||
-        f.spikes.some(s =>
-          s.title.toLowerCase().includes(q) ||
-          s.id.includes(q) ||
-          s.assignedTo.toLowerCase().includes(q)
-        )
-      )
+      const matchesTree = (item: AdoWorkItemFlat): boolean => {
+        if (
+          item.title.toLowerCase().includes(q) ||
+          String(item.id).includes(q) ||
+          item.assignedTo.toLowerCase().includes(q) ||
+          item.workItemType.toLowerCase().includes(q) ||
+          item.tags.some(t => t.toLowerCase().includes(q))
+        ) return true
+        return item.childIds.some(cid => {
+          const child = allItems.get(cid)
+          return child ? matchesTree(child) : false
+        })
+      }
+      items = items.filter(matchesTree)
     }
 
-    return features
-  }, [epic, stateFilter, searchQuery])
+    return items
+  }, [rootItems, stateFilter, searchQuery, allItems])
 
-  /* Summary stats */
-  const totalSpikes = epic?.features.reduce((sum, f) => sum + f.spikes.length, 0) ?? 0
-  const doneSpikes = epic?.features.reduce((sum, f) =>
-    sum + f.spikes.filter(s => ['done', 'closed', 'completed', 'resolved'].includes(s.state.toLowerCase())).length, 0) ?? 0
-  const activeSpikes = epic?.features.reduce((sum, f) =>
-    sum + f.spikes.filter(s => ['active', 'in progress', 'committed'].includes(s.state.toLowerCase())).length, 0) ?? 0
+  /* Static data */
+  const staticWizardFeatures = STATIC_ROADMAP.features.filter(f => f.category === 'wizard')
+  const staticCrossCuttingFeatures = STATIC_ROADMAP.features.filter(f => f.category === 'cross-cutting')
 
   const tabs: { id: RoadmapTab; label: string; sublabel: string }[] = [
     { id: 'ado', label: 'Azure DevOps (Live)', sublabel: 'Real-time from ADO query' },
     { id: 'static', label: 'Static Roadmap', sublabel: 'Original CSV-based data' },
   ]
+
+  const progressPct = stats.total > 0 ? Math.round((stats.done / stats.total) * 100) : 0
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -508,20 +599,20 @@ export default function DeliveryRoadmapPage() {
           {/* Sub-tabs */}
           <nav className="flex items-stretch gap-0 mb-8 border-b border-border" role="tablist" aria-label="Roadmap data source">
             {tabs.map(tab => {
-              const isActive = activeTab === tab.id
+              const isTabActive = activeTab === tab.id
               return (
                 <button
                   key={tab.id}
                   role="tab"
                   type="button"
-                  aria-selected={isActive}
+                  aria-selected={isTabActive}
                   onClick={() => setActiveTab(tab.id)}
                   className="relative flex flex-col gap-0.5 px-5 py-3 text-left transition-colors"
-                  style={{ color: isActive ? 'var(--foreground)' : 'var(--muted-foreground)' }}
+                  style={{ color: isTabActive ? 'var(--foreground)' : 'var(--muted-foreground)' }}
                 >
                   <span className="text-sm font-semibold leading-tight">{tab.label}</span>
                   <span className="text-[0.625rem] leading-tight opacity-70">{tab.sublabel}</span>
-                  {isActive && (
+                  {isTabActive && (
                     <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full" style={{ backgroundColor: 'var(--foreground)' }} />
                   )}
                 </button>
@@ -546,6 +637,11 @@ export default function DeliveryRoadmapPage() {
                     Live from ADO
                   </Badge>
                 )}
+                {isLive && data?.fetchedAt && (
+                  <span className="text-[0.5625rem] text-muted-foreground/60">
+                    Fetched {new Date(data.fetchedAt).toLocaleTimeString()}
+                  </span>
+                )}
                 {error && (
                   <Badge variant="outline" className="text-[0.5625rem] gap-1 py-0 border-amber-400 text-amber-700">
                     <CloudOff className="size-2.5" />
@@ -556,7 +652,7 @@ export default function DeliveryRoadmapPage() {
                   <button
                     type="button"
                     onClick={() => mutate()}
-                    className="flex items-center gap-1 text-[0.625rem] font-medium text-muted-foreground hover:text-foreground transition-colors"
+                    className="flex items-center gap-1 text-[0.625rem] font-medium text-muted-foreground hover:text-foreground transition-colors ml-auto"
                     title="Refresh data from Azure DevOps"
                   >
                     <RefreshCw className="size-3" />
@@ -572,7 +668,7 @@ export default function DeliveryRoadmapPage() {
                   <div>
                     <p className="text-sm font-medium text-amber-900">Could not connect to Azure DevOps</p>
                     <p className="text-xs text-amber-700 mt-0.5">
-                      Check your network connection and PAT validity. You can view the static roadmap data in the other tab.
+                      Check your network connection and PAT validity. View the Static Roadmap tab for cached data.
                     </p>
                     <button type="button" onClick={() => mutate()} className="text-xs font-medium text-amber-800 hover:underline mt-1">Try again</button>
                   </div>
@@ -588,95 +684,65 @@ export default function DeliveryRoadmapPage() {
               )}
 
               {/* Live content */}
-              {!isLoading && isLive && epic && (
+              {!isLoading && isLive && (
                 <>
-                  {/* Epic summary card -- horizontal dashboard strip */}
+                  {/* Dashboard strip */}
                   <div className="mb-6 rounded-lg border border-border overflow-hidden">
-                    <div className="flex items-stretch">
-                      {/* Epic info */}
-                      <div className="flex-1 px-5 py-4 border-r border-border">
-                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <span
-                            className="inline-flex items-center rounded-sm px-1.5 py-0 text-[0.5625rem] font-semibold"
-                            style={typeStyle('epic')}
-                          >
-                            Epic
-                          </span>
-                          <span className="text-[0.6875rem] font-mono text-muted-foreground">#{epic.id}</span>
-                          <span
-                            className="inline-flex items-center rounded-sm px-1.5 py-0 text-[0.5625rem] font-semibold"
-                            style={stateStyle(epic.state)}
-                          >
-                            {epic.state}
-                          </span>
-                          <a
-                            href={epic.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-muted-foreground hover:text-foreground transition-colors"
-                            title="Open Epic in Azure DevOps"
-                          >
-                            <ExternalLink className="size-3" />
-                          </a>
+                    <div className="flex items-stretch divide-x divide-border">
+                      {/* Summary info */}
+                      <div className="flex-1 px-5 py-4">
+                        <p className="text-[0.625rem] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Query Results</p>
+                        <div className="flex items-center gap-3 flex-wrap">
+                          {Array.from(stats.types.entries()).map(([type, count]) => (
+                            <span key={type} className="flex items-center gap-1">
+                              <span
+                                className="inline-flex items-center rounded-sm px-1.5 py-0 text-[0.5rem] font-semibold"
+                                style={typeStyle(type)}
+                              >
+                                {type}
+                              </span>
+                              <span className="text-sm font-bold text-foreground">{count}</span>
+                            </span>
+                          ))}
                         </div>
-                        <h2 className="text-base font-bold text-foreground leading-snug text-balance">
-                          {epic.title}
-                        </h2>
-                        {epic.description && (
-                          <p className="text-xs text-muted-foreground mt-1 leading-relaxed line-clamp-2">
-                            {epic.description}
-                          </p>
-                        )}
                       </div>
-
-                      {/* Stats strip */}
-                      <div className="flex items-center gap-0 shrink-0">
-                        <div className="flex flex-col items-center justify-center px-5 py-4 border-r border-border" style={{ minWidth: '5rem' }}>
-                          <p className="text-xl font-bold text-foreground">{epic.features.length}</p>
-                          <p className="text-[0.625rem] text-muted-foreground">Features</p>
-                        </div>
-                        <div className="flex flex-col items-center justify-center px-5 py-4 border-r border-border" style={{ minWidth: '5rem' }}>
-                          <p className="text-xl font-bold text-foreground">{totalSpikes}</p>
-                          <p className="text-[0.625rem] text-muted-foreground">Work Items</p>
-                        </div>
-                        <div className="flex flex-col items-center justify-center px-5 py-4 border-r border-border" style={{ minWidth: '5rem' }}>
-                          <p className="text-xl font-bold" style={{ color: 'oklch(0.45 0.18 145)' }}>{doneSpikes}</p>
-                          <p className="text-[0.625rem] text-muted-foreground">Done</p>
-                        </div>
-                        <div className="flex flex-col items-center justify-center px-5 py-4" style={{ minWidth: '5rem' }}>
-                          <p className="text-xl font-bold" style={{ color: 'oklch(0.45 0.14 240)' }}>{activeSpikes}</p>
-                          <p className="text-[0.625rem] text-muted-foreground">Active</p>
-                        </div>
+                      {/* Stat cells */}
+                      <div className="flex flex-col items-center justify-center px-5 py-3" style={{ minWidth: '5rem' }}>
+                        <p className="text-xl font-bold text-foreground">{stats.total}</p>
+                        <p className="text-[0.5625rem] text-muted-foreground">Total</p>
+                      </div>
+                      <div className="flex flex-col items-center justify-center px-5 py-3" style={{ minWidth: '5rem' }}>
+                        <p className="text-xl font-bold" style={{ color: 'oklch(0.4 0.16 145)' }}>{stats.done}</p>
+                        <p className="text-[0.5625rem] text-muted-foreground">Done</p>
+                      </div>
+                      <div className="flex flex-col items-center justify-center px-5 py-3" style={{ minWidth: '5rem' }}>
+                        <p className="text-xl font-bold" style={{ color: 'oklch(0.4 0.14 240)' }}>{stats.active}</p>
+                        <p className="text-[0.5625rem] text-muted-foreground">Active</p>
                       </div>
                     </div>
 
-                    {/* Overall progress bar */}
-                    {totalSpikes > 0 && (
+                    {/* Overall progress */}
+                    {stats.total > 0 && (
                       <div className="px-5 py-2 border-t border-border bg-muted/30 flex items-center gap-3">
-                        <span className="text-[0.625rem] font-semibold text-muted-foreground uppercase tracking-wider">Progress</span>
+                        <span className="text-[0.5625rem] font-semibold text-muted-foreground uppercase tracking-wider">Progress</span>
                         <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'oklch(0.92 0.01 260)' }}>
                           <div
                             className="h-full rounded-full transition-all"
-                            style={{
-                              inlineSize: `${Math.round((doneSpikes / totalSpikes) * 100)}%`,
-                              backgroundColor: 'oklch(0.5 0.18 145)',
-                            }}
+                            style={{ width: `${progressPct}%`, backgroundColor: 'oklch(0.5 0.18 145)' }}
                           />
                         </div>
-                        <span className="text-[0.6875rem] font-mono text-muted-foreground">
-                          {Math.round((doneSpikes / totalSpikes) * 100)}%
-                        </span>
+                        <span className="text-[0.6875rem] font-mono text-muted-foreground">{progressPct}%</span>
                       </div>
                     )}
                   </div>
 
-                  {/* Toolbar: search + filter */}
+                  {/* Toolbar */}
                   <div className="flex items-center gap-3 mb-6">
                     <div className="relative flex-1 max-w-sm">
                       <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground pointer-events-none" />
                       <input
                         type="text"
-                        placeholder="Search features, work items, assignees..."
+                        placeholder="Search by title, ID, assignee, type, tag..."
                         value={searchQuery}
                         onChange={e => setSearchQuery(e.target.value)}
                         className="w-full rounded-md border border-border bg-background px-3 py-1.5 pl-8 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring"
@@ -701,17 +767,24 @@ export default function DeliveryRoadmapPage() {
                       ))}
                     </div>
                     <span className="text-[0.625rem] text-muted-foreground ml-auto">
-                      Showing {filteredFeatures.length} of {epic.features.length} features
+                      {filteredRoots.length} of {rootItems.length} top-level items
                     </span>
                   </div>
 
-                  {/* Feature sections */}
-                  {filteredFeatures.length > 0 ? (
-                    filteredFeatures.map(f => <LiveFeatureSection key={f.id} feature={f} />)
+                  {/* Epic/root item sections */}
+                  {filteredRoots.length > 0 ? (
+                    filteredRoots.map((root, idx) => (
+                      <EpicSection
+                        key={root.id}
+                        epic={root}
+                        allItems={allItems}
+                        accentColor={ACCENT_COLORS[idx % ACCENT_COLORS.length]}
+                      />
+                    ))
                   ) : (
                     <div className="flex flex-col items-center justify-center py-12 gap-2">
                       <Search className="size-8 text-muted-foreground/30" />
-                      <p className="text-sm text-muted-foreground">No features match your filters.</p>
+                      <p className="text-sm text-muted-foreground">No items match your filters.</p>
                       <button
                         type="button"
                         onClick={() => { setSearchQuery(''); setStateFilter('all') }}
@@ -723,7 +796,7 @@ export default function DeliveryRoadmapPage() {
                   )}
 
                   <p className="text-center text-xs text-muted-foreground/50 mt-8">
-                    Live data from Azure DevOps query #{QUERY_ID.slice(0, 8)}... -- all fields rendered directly from ADO work items.
+                    All data fetched live from Azure DevOps query. Every field displayed directly from ADO work items.
                   </p>
                 </>
               )}
@@ -735,7 +808,7 @@ export default function DeliveryRoadmapPage() {
                   <div>
                     <p className="text-sm font-medium text-foreground">No live data available</p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Switch to the <strong>Static Roadmap</strong> tab to view the original CSV-based delivery roadmap.
+                      Switch to the <strong>Static Roadmap</strong> tab to view the original CSV-based data.
                     </p>
                   </div>
                   <Button variant="outline" size="sm" onClick={() => mutate()}>
@@ -813,5 +886,3 @@ export default function DeliveryRoadmapPage() {
     </div>
   )
 }
-
-const QUERY_ID = '2788c428-8768-429b-8b28-4bcfa0bb26cc'

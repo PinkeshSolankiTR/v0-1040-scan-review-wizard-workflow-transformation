@@ -1,6 +1,7 @@
 /* ── Azure DevOps Query API Route ──
-   Fetches work items from an ADO saved query and returns
-   the Epic > Feature > Spike hierarchy for the delivery roadmap.
+   Returns ALL work items from the saved query as a flat list
+   with parent-child relationships preserved.
+   Supports both flat and tree/one-hop queries.
    ─────────────────────────────────────────────────────────── */
 
 import { NextResponse } from 'next/server'
@@ -11,57 +12,26 @@ const ADO_PROJECT = 'TaxProf'
 const QUERY_ID = '2788c428-8768-429b-8b28-4bcfa0bb26cc'
 const ADO_API_VERSION = '7.1'
 
-/* ── Types ── */
-interface AdoWorkItem {
+/* ── Exported types used by the frontend ── */
+export interface AdoWorkItemFlat {
   id: number
-  fields: Record<string, unknown>
-}
-
-interface AdoQueryResult {
-  queryType: string
-  queryResultType: string
-  workItems?: { id: number; url: string }[]
-  workItemRelations?: {
-    rel: string | null
-    source: { id: number; url: string } | null
-    target: { id: number; url: string }
-  }[]
-  columns?: { referenceName: string; name: string; url: string }[]
-}
-
-export interface RoadmapSpike {
-  id: string
   title: string
   description: string
   state: string
+  workItemType: string
   assignedTo: string
   tags: string[]
   iterationPath: string
   areaPath: string
-  workItemType: string
   url: string
+  parentId: number | null
+  childIds: number[]
 }
 
-export interface RoadmapFeature {
-  id: string
-  title: string
-  description: string
-  state: string
-  assignedTo: string
-  tags: string[]
-  accentColor: string
-  category: 'wizard' | 'cross-cutting'
-  spikes: RoadmapSpike[]
-  url: string
-}
-
-export interface RoadmapEpic {
-  id: string
-  title: string
-  description: string
-  state: string
-  features: RoadmapFeature[]
-  url: string
+export interface AdoQueryResponse {
+  items: AdoWorkItemFlat[]
+  queryId: string
+  fetchedAt: string
 }
 
 /* ── Helpers ── */
@@ -71,54 +41,66 @@ function getAuthHeader(): string {
   return `Basic ${Buffer.from(`:${pat}`).toString('base64')}`
 }
 
-function adoUrl(path: string): string {
+function adoApiUrl(path: string): string {
   return `https://dev.azure.com/${ADO_ORG}/${ADO_PROJECT}/_apis/${path}?api-version=${ADO_API_VERSION}`
 }
 
-function workItemUrl(id: number): string {
+function workItemWebUrl(id: number): string {
   return `https://dev.azure.com/${ADO_ORG}/${ADO_PROJECT}/_workitems/edit/${id}`
 }
 
-/* Feature accent colors -- wizard-specific get unique colors, cross-cutting gets neutral */
-const WIZARD_COLORS = [
-  'oklch(0.55 0.18 290)',
-  'oklch(0.55 0.15 250)',
-  'oklch(0.55 0.17 200)',
-  'oklch(0.55 0.17 145)',
-  'oklch(0.55 0.17 165)',
-  'oklch(0.6 0.15 60)',
-  'oklch(0.55 0.15 330)',
-  'oklch(0.55 0.17 110)',
-  'oklch(0.55 0.15 20)',
-]
-const CROSS_CUTTING_COLOR = 'oklch(0.5 0.01 260)'
-
-function inferCategory(title: string, tags: string[]): 'wizard' | 'cross-cutting' {
-  const lowerTitle = title.toLowerCase()
-  const lowerTags = tags.map(t => t.toLowerCase())
-  if (lowerTitle.includes('wizard') || lowerTags.includes('wizard')) return 'wizard'
-  return 'cross-cutting'
+function stripHtml(html: string): string {
+  if (!html) return ''
+  return html
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n')
+    .replace(/<\/li>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
 }
 
-/* ── Fetch work items in batches of 200 (ADO max) ── */
-async function fetchWorkItems(ids: number[], fields: string[]): Promise<Map<number, AdoWorkItem>> {
-  const auth = getAuthHeader()
-  const result = new Map<number, AdoWorkItem>()
+function extractStr(fields: Record<string, unknown>, field: string): string {
+  const val = fields[field]
+  if (!val) return ''
+  if (typeof val === 'object' && val !== null && 'displayName' in val) {
+    return (val as { displayName: string }).displayName
+  }
+  return String(val)
+}
+
+function extractTags(fields: Record<string, unknown>): string[] {
+  const t = extractStr(fields, 'System.Tags')
+  return t ? t.split(';').map(s => s.trim()).filter(Boolean) : []
+}
+
+/* ── Fetch work items in batches of 200 (ADO limit) ── */
+async function fetchWorkItemsBatch(
+  ids: number[],
+  fields: string[],
+  auth: string,
+): Promise<Map<number, Record<string, unknown>>> {
+  const result = new Map<number, Record<string, unknown>>()
   const batchSize = 200
 
   for (let i = 0; i < ids.length; i += batchSize) {
     const batch = ids.slice(i, i + batchSize)
     const resp = await fetch(
       `https://dev.azure.com/${ADO_ORG}/${ADO_PROJECT}/_apis/wit/workitems?ids=${batch.join(',')}&fields=${fields.join(',')}&api-version=${ADO_API_VERSION}`,
-      { headers: { Authorization: auth, 'Content-Type': 'application/json' } }
+      { headers: { Authorization: auth, 'Content-Type': 'application/json' } },
     )
     if (!resp.ok) {
       const text = await resp.text()
       throw new Error(`ADO workitems fetch failed (${resp.status}): ${text}`)
     }
     const data = await resp.json()
-    for (const item of (data.value ?? []) as AdoWorkItem[]) {
-      result.set(item.id, item)
+    for (const item of (data.value ?? []) as { id: number; fields: Record<string, unknown> }[]) {
+      result.set(item.id, item.fields)
     }
   }
   return result
@@ -130,36 +112,45 @@ export async function GET() {
     const auth = getAuthHeader()
 
     /* 1. Execute the saved query */
-    const queryResp = await fetch(adoUrl(`wit/wiql/${QUERY_ID}`), {
+    const queryResp = await fetch(adoApiUrl(`wit/wiql/${QUERY_ID}`), {
       headers: { Authorization: auth, 'Content-Type': 'application/json' },
     })
     if (!queryResp.ok) {
       const text = await queryResp.text()
+      console.error('[ADO] Query failed:', queryResp.status, text)
       return NextResponse.json(
         { error: `ADO query failed (${queryResp.status})`, details: text },
-        { status: queryResp.statusText === 'Unauthorized' ? 401 : 502 }
+        { status: queryResp.status === 401 ? 401 : 502 },
       )
     }
-    const queryResult: AdoQueryResult = await queryResp.json()
+    const queryResult = await queryResp.json()
 
-    /* 2. Collect all work item IDs */
-    let allIds: number[] = []
+    /* 2. Collect all work item IDs + parent-child edges */
+    const allIdSet = new Set<number>()
+    const parentOf = new Map<number, number>() // child -> parent
+    const childrenOf = new Map<number, number[]>() // parent -> [children]
 
-    if (queryResult.queryResultType === 'workItemLink' && queryResult.workItemRelations) {
-      // Tree / one-hop query -- extract IDs from relations
-      for (const rel of queryResult.workItemRelations) {
-        if (rel.source) allIds.push(rel.source.id)
-        allIds.push(rel.target.id)
+    if (queryResult.workItemRelations) {
+      // Tree or one-hop query
+      for (const rel of queryResult.workItemRelations as { rel: string | null; source: { id: number } | null; target: { id: number } }[]) {
+        allIdSet.add(rel.target.id)
+        if (rel.source) {
+          allIdSet.add(rel.source.id)
+          parentOf.set(rel.target.id, rel.source.id)
+          if (!childrenOf.has(rel.source.id)) childrenOf.set(rel.source.id, [])
+          childrenOf.get(rel.source.id)!.push(rel.target.id)
+        }
       }
     } else if (queryResult.workItems) {
       // Flat query
-      allIds = queryResult.workItems.map(wi => wi.id)
+      for (const wi of queryResult.workItems as { id: number }[]) {
+        allIdSet.add(wi.id)
+      }
     }
 
-    allIds = [...new Set(allIds)]
-
+    const allIds = [...allIdSet]
     if (allIds.length === 0) {
-      return NextResponse.json({ epic: null, message: 'Query returned no work items' })
+      return NextResponse.json({ items: [], queryId: QUERY_ID, fetchedAt: new Date().toISOString() })
     }
 
     /* 3. Fetch full work item details */
@@ -174,138 +165,36 @@ export async function GET() {
       'System.IterationPath',
       'System.AreaPath',
     ]
-    const workItems = await fetchWorkItems(allIds, fields)
+    const workItemFields = await fetchWorkItemsBatch(allIds, fields, auth)
 
-    /* 4. Build hierarchy from relations */
-    // Map: parent ID -> child IDs
-    const childrenOf = new Map<number, number[]>()
-    if (queryResult.workItemRelations) {
-      for (const rel of queryResult.workItemRelations) {
-        if (rel.source && rel.target) {
-          const parentId = rel.source.id
-          const childId = rel.target.id
-          if (!childrenOf.has(parentId)) childrenOf.set(parentId, [])
-          childrenOf.get(parentId)!.push(childId)
-        }
-      }
-    }
-
-    /* 5. Identify the Epic (top-level work item with no parent) */
-    const hasParent = new Set<number>()
-    if (queryResult.workItemRelations) {
-      for (const rel of queryResult.workItemRelations) {
-        if (rel.source && rel.target) {
-          hasParent.add(rel.target.id)
-        }
-      }
-    }
-    // Root nodes are those that appear in query but have no parent
-    const rootIds = allIds.filter(id => !hasParent.has(id))
-
-    // Find the Epic among roots (or just use the first root)
-    let epicId = rootIds[0]
-    for (const rid of rootIds) {
-      const wi = workItems.get(rid)
-      if (wi && String(wi.fields['System.WorkItemType']).toLowerCase() === 'epic') {
-        epicId = rid
-        break
-      }
-    }
-
-    const epicWi = workItems.get(epicId)
-    if (!epicWi) {
-      return NextResponse.json({ epic: null, message: 'Could not find Epic work item' })
-    }
-
-    /* Helper to extract field values */
-    const str = (wi: AdoWorkItem, field: string): string => {
-      const val = wi.fields[field]
-      if (!val) return ''
-      if (typeof val === 'object' && val !== null && 'displayName' in val) {
-        return (val as { displayName: string }).displayName
-      }
-      return String(val)
-    }
-    const tags = (wi: AdoWorkItem): string[] => {
-      const t = str(wi, 'System.Tags')
-      return t ? t.split(';').map(s => s.trim()).filter(Boolean) : []
-    }
-    // Strip HTML tags from descriptions
-    const cleanHtml = (html: string): string => {
-      return html
-        .replace(/<br\s*\/?>/gi, '\n')
-        .replace(/<\/p>/gi, '\n')
-        .replace(/<\/li>/gi, '\n')
-        .replace(/<[^>]+>/g, '')
-        .replace(/&nbsp;/g, ' ')
-        .replace(/&amp;/g, '&')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&quot;/g, '"')
-        .replace(/\n{3,}/g, '\n\n')
-        .trim()
-    }
-
-    /* 6. Build Feature + Spike objects */
-    const featureIds = childrenOf.get(epicId) ?? []
-    let wizardIdx = 0
-    const features: RoadmapFeature[] = []
-
-    for (const fId of featureIds) {
-      const fWi = workItems.get(fId)
-      if (!fWi) continue
-
-      const fTitle = str(fWi, 'System.Title')
-      const fTags = tags(fWi)
-      const category = inferCategory(fTitle, fTags)
-      const accentColor = category === 'wizard'
-        ? WIZARD_COLORS[wizardIdx++ % WIZARD_COLORS.length]
-        : CROSS_CUTTING_COLOR
-
-      // Build spikes (children of this feature)
-      const spikeIds = childrenOf.get(fId) ?? []
-      const spikes: RoadmapSpike[] = []
-      for (const sId of spikeIds) {
-        const sWi = workItems.get(sId)
-        if (!sWi) continue
-        spikes.push({
-          id: String(sWi.id),
-          title: str(sWi, 'System.Title'),
-          description: cleanHtml(str(sWi, 'System.Description')),
-          state: str(sWi, 'System.State'),
-          assignedTo: str(sWi, 'System.AssignedTo'),
-          tags: tags(sWi),
-          iterationPath: str(sWi, 'System.IterationPath'),
-          areaPath: str(sWi, 'System.AreaPath'),
-          workItemType: str(sWi, 'System.WorkItemType'),
-          url: workItemUrl(sWi.id),
-        })
-      }
-
-      features.push({
-        id: String(fWi.id),
-        title: fTitle,
-        description: cleanHtml(str(fWi, 'System.Description')),
-        state: str(fWi, 'System.State'),
-        assignedTo: str(fWi, 'System.AssignedTo'),
-        tags: fTags,
-        accentColor,
-        category,
-        spikes,
-        url: workItemUrl(fWi.id),
+    /* 4. Build flat items list */
+    const items: AdoWorkItemFlat[] = []
+    for (const id of allIds) {
+      const f = workItemFields.get(id)
+      if (!f) continue
+      items.push({
+        id,
+        title: extractStr(f, 'System.Title'),
+        description: stripHtml(extractStr(f, 'System.Description')),
+        state: extractStr(f, 'System.State'),
+        workItemType: extractStr(f, 'System.WorkItemType'),
+        assignedTo: extractStr(f, 'System.AssignedTo'),
+        tags: extractTags(f),
+        iterationPath: extractStr(f, 'System.IterationPath'),
+        areaPath: extractStr(f, 'System.AreaPath'),
+        url: workItemWebUrl(id),
+        parentId: parentOf.get(id) ?? null,
+        childIds: childrenOf.get(id) ?? [],
       })
     }
 
-    const epic: RoadmapEpic = {
-      id: String(epicWi.id),
-      title: str(epicWi, 'System.Title'),
-      description: cleanHtml(str(epicWi, 'System.Description')),
-      state: str(epicWi, 'System.State'),
-      features,
-      url: workItemUrl(epicWi.id),
+    const response: AdoQueryResponse = {
+      items,
+      queryId: QUERY_ID,
+      fetchedAt: new Date().toISOString(),
     }
 
-    return NextResponse.json({ epic })
+    return NextResponse.json(response)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'
     console.error('[ADO API Error]', message)

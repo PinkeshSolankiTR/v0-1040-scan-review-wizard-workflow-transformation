@@ -223,7 +223,7 @@ const REJECTION_REASONS = [
 
 /* ── Main Component ── */
 
-export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
+export function DuplicateClient({ data }: { data: DuplicateRecord[]}) {
   const { decisions, accept, undo, override, isOverridden } = useDecisions()
   const { addRuleFromOverride } = useLearnedRules()
 
