@@ -559,22 +559,6 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
     setCustomOverrideReason('')
   }
 
-    /* Log override for each record in the group */
-    for (const r of activeGroup.records) {
-      const key = getItemKey(r)
-      const originalDecision = getDecisionLabel(r)
-      const detail: OverrideDetail = {
-        originalAIDecision: `AI Original: ${aiOriginalId}; ${getRecordLabel(r)} = ${originalDecision}`,
-        userOverrideDecision: `User selected "${docId}" as Original`,
-        overrideReason: null,
-        formType: r.documentRefA?.formType ?? 'Unknown',
-        fieldContext: r.comparedValues ?? [],
-      }
-      override(key, 'duplicate', r.confidenceLevel, detail)
-    }
-    setShowOverridePanel(false)
-  }
-
   const handleUndoOverride = () => {
     if (!activeGroup) return
     setOverriddenOriginals(prev => {
@@ -2190,7 +2174,9 @@ const avgConfidence = Math.round(group.averageConfidence * 100)
                     )}
 
                     {/* Document tabs and AI analysis -- hidden when rejected */}
-                    {!panelGroupRejected && <><nav style={{
+                    {!panelGroupRejected && (
+                    <>
+                    <nav style={{
                       display: 'flex', gap: '0.125rem',
                       marginBlockEnd: '0.625rem',
                       borderBlockEnd: '0.0625rem solid oklch(0.91 0.005 260)',
@@ -2353,7 +2339,8 @@ const avgConfidence = Math.round(group.averageConfidence * 100)
                         </article>
                       )
                     })()}
-                    </>}
+                    </>
+                    )}
                   </div>
                 )}
               </div>
