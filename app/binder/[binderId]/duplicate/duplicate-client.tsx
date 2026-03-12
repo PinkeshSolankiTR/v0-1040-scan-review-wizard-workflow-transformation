@@ -38,6 +38,7 @@ import {
   Copy,
   FileCheck,
   X,
+  AlertTriangle,
 } from 'lucide-react'
 import type { DuplicateRecord, DuplicateDataRecord, DuplicateDocRecord, OverrideDetail } from '@/lib/types'
 
@@ -924,13 +925,13 @@ const avgConfidence = Math.round(group.averageConfidence * 100)
                         {isThisGroupRejected ? (
                           <span 
                             style={{
-                              fontSize: '0.625rem', fontWeight: 700,
+                              fontSize: '0.625rem', fontWeight: 700, fontFamily: 'var(--font-mono)',
                               padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem',
-                              backgroundColor: 'oklch(0.94 0.04 25)', color: 'oklch(0.5 0.14 25)',
+                              backgroundColor: 'oklch(0.92 0.02 260)', color: 'oklch(0.45 0.01 260)',
                             }}
-                            title={rejectionInfo?.detail ?? 'This group was rejected'}
+                            title={rejectionInfo?.detail ?? 'This group was dismissed by reviewer'}
                           >
-                            REJECTED
+                            Not a Match
                           </span>
                         ) : (
                           <span style={{
@@ -1044,6 +1045,8 @@ const avgConfidence = Math.round(group.averageConfidence * 100)
               : avgConf >= 70 
                 ? 'AI has moderate confidence. Reviewer should verify key fields.' 
                 : 'AI is uncertain. Reviewer must examine carefully.'
+            const panelGroupRejected = activeGroup ? rejectedGroups.has(activeGroup.formType) : false
+            const panelRejectionInfo = activeGroup ? rejectedGroups.get(activeGroup.formType) : undefined
 
             return (
               <div style={{ borderBlockEnd: '0.0625rem solid oklch(0.91 0.005 260)' }}>
@@ -1065,27 +1068,97 @@ const avgConfidence = Math.round(group.averageConfidence * 100)
                     : <ChevronRight style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} />
                   }
                   <Sparkles style={{ inlineSize: '0.875rem', blockSize: '0.875rem' }} />
-                  What we found
-                  <span 
-                    style={{
-                      fontSize: '0.625rem', fontWeight: 700,
+                  {panelGroupRejected ? 'Review Outcome' : 'What we found'}
+                  {panelGroupRejected ? (
+                    <span style={{
+                      fontSize: '0.625rem', fontWeight: 700, fontFamily: 'var(--font-mono)',
                       padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem',
-                      backgroundColor: `${confColor} / 0.12`, color: confColor,
+                      backgroundColor: 'oklch(0.92 0.02 260)', color: 'oklch(0.45 0.01 260)',
                       marginInlineStart: '0.25rem',
-                    }}
-                    title={panelTooltip}
-                  >
-                    {panelActionLabel}
-                  </span>
+                    }}>
+                      Not a Match
+                    </span>
+                  ) : (
+                    <span 
+                      style={{
+                        fontSize: '0.625rem', fontWeight: 700,
+                        padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem',
+                        backgroundColor: `${confColor} / 0.12`, color: confColor,
+                        marginInlineStart: '0.25rem',
+                      }}
+                      title={panelTooltip}
+                    >
+                      {panelActionLabel}
+                    </span>
+                  )}
                 </button>
 
                 {expandedPanels.has('aiAnalysis') && (
                   <div style={{
                     padding: '0.625rem 0.75rem',
-                    backgroundColor: isGroupOverridden ? 'oklch(0.98 0.02 60)' : 'oklch(0.98 0.003 240)',
+                    backgroundColor: panelGroupRejected 
+                      ? 'oklch(0.97 0.005 260)' 
+                      : isGroupOverridden ? 'oklch(0.98 0.02 60)' : 'oklch(0.98 0.003 240)',
                   }}>
+                    {/* Rejection outcome -- replaces AI analysis */}
+                    {panelGroupRejected && panelRejectionInfo && (
+                      <div style={{
+                        display: 'flex', flexDirection: 'column', gap: '0.5rem',
+                      }}>
+                        {/* Outcome banner */}
+                        <div style={{
+                          display: 'flex', flexDirection: 'column', gap: '0.375rem',
+                          padding: '0.625rem 0.75rem',
+                          borderRadius: '0.25rem',
+                          border: '0.0625rem solid oklch(0.88 0.01 260)',
+                          backgroundColor: 'oklch(0.95 0.005 260)',
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                            <AlertTriangle style={{ inlineSize: '0.875rem', blockSize: '0.875rem', color: 'oklch(0.55 0.01 260)' }} />
+                            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'oklch(0.3 0.01 260)' }}>
+                              Pair Dismissed by Reviewer
+                            </span>
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', paddingInlineStart: '1.25rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                              <span style={{ inlineSize: '0.25rem', blockSize: '0.25rem', borderRadius: '50%', backgroundColor: 'oklch(0.5 0.01 260)', flexShrink: 0 }} />
+                              <span style={{ fontSize: '0.6875rem', color: 'oklch(0.35 0.01 260)' }}>
+                                Both documents will be retained in SPbinder as independent records
+                              </span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                              <span style={{ inlineSize: '0.25rem', blockSize: '0.25rem', borderRadius: '50%', backgroundColor: 'oklch(0.5 0.01 260)', flexShrink: 0 }} />
+                              <span style={{ fontSize: '0.6875rem', color: 'oklch(0.35 0.01 260)' }}>
+                                No duplicate classification will be applied
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Rejection reason */}
+                        <div style={{
+                          padding: '0.5rem 0.75rem',
+                          borderRadius: '0.25rem',
+                          border: '0.0625rem solid oklch(0.88 0.01 260)',
+                          backgroundColor: 'oklch(0.98 0.003 260)',
+                        }}>
+                          <span style={{ fontSize: '0.625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'oklch(0.5 0.01 260)' }}>
+                            Reason
+                          </span>
+                          <p style={{ fontSize: '0.6875rem', color: 'oklch(0.3 0.01 260)', margin: '0.25rem 0 0 0', fontWeight: 600 }}>
+                            {panelRejectionInfo.reason}
+                          </p>
+                          {panelRejectionInfo.detail && panelRejectionInfo.detail !== panelRejectionInfo.reason && (
+                            <p style={{ fontSize: '0.6875rem', color: 'oklch(0.4 0.01 260)', margin: '0.125rem 0 0 0', fontStyle: 'italic' }}>
+                              {panelRejectionInfo.detail}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Override comparison table when user has overridden */}
-                    {isGroupOverridden && (
+                    {!panelGroupRejected && isGroupOverridden && (
                       <div style={{
                         display: 'flex', flexDirection: 'column', gap: '0.25rem',
                         padding: '0.5rem 0.625rem',
@@ -1110,8 +1183,8 @@ const avgConfidence = Math.round(group.averageConfidence * 100)
                       </div>
                     )}
 
-                    {/* Document tabs -- click to switch between docs */}
-                    <nav style={{
+                    {/* Document tabs and AI analysis -- hidden when rejected */}
+                    {!panelGroupRejected && <><nav style={{
                       display: 'flex', gap: '0.125rem',
                       marginBlockEnd: '0.625rem',
                       borderBlockEnd: '0.0625rem solid oklch(0.91 0.005 260)',
@@ -1274,6 +1347,7 @@ const avgConfidence = Math.round(group.averageConfidence * 100)
                         </article>
                       )
                     })()}
+                    </>}
                   </div>
                 )}
               </div>
