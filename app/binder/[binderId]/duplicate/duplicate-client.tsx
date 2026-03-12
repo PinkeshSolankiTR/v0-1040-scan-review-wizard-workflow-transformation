@@ -787,7 +787,7 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
             {showRejectPanel && !isGroupRejected && !allGroupAccepted && (
               <>
                 <div
-                  onClick={() => { setShowRejectPanel(false); setSelectedRejectReason(null); }}
+                  onClick={() => { setShowRejectPanel(false); setSelectedRejectReasons(new Set()); }}
                   style={{ position: 'fixed', inset: 0, zIndex: 49 }}
                   aria-hidden="true"
                 />
