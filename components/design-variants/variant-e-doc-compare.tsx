@@ -1964,10 +1964,10 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                     marginInlineStart: 'auto', flexShrink: 0,
                     padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem',
                     fontSize: '0.5625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.03em',
-                    backgroundColor: activeGroup && flippedGroups.has(activeGroup.formType) ? 'oklch(0.94 0.04 145)' : 'oklch(0.94 0.04 25)',
-                    color: activeGroup && flippedGroups.has(activeGroup.formType) ? 'oklch(0.35 0.14 145)' : 'oklch(0.45 0.18 25)',
+                  backgroundColor: 'oklch(0.94 0.04 25)',
+                  color: 'oklch(0.45 0.18 25)',
                   }}>
-                    {activeGroup && flippedGroups.has(activeGroup.formType) ? 'Original' : 'Superseded'}
+                  Superseded
                   </span>
                 </div>
 
@@ -1988,10 +1988,10 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                     marginInlineStart: 'auto', flexShrink: 0,
                     padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem',
                     fontSize: '0.5625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.03em',
-                    backgroundColor: activeGroup && flippedGroups.has(activeGroup.formType) ? 'oklch(0.94 0.04 25)' : 'oklch(0.94 0.04 145)',
-                    color: activeGroup && flippedGroups.has(activeGroup.formType) ? 'oklch(0.45 0.18 25)' : 'oklch(0.35 0.14 145)',
+                  backgroundColor: 'oklch(0.94 0.04 145)',
+                  color: 'oklch(0.35 0.14 145)',
                   }}>
-                    {activeGroup && flippedGroups.has(activeGroup.formType) ? 'Superseded' : 'Original'}
+                  Original
                   </span>
                 </div>
               </div>
@@ -2053,7 +2053,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                   {leftDoc?.documentRef ? (
                     <PdfPageViewer
                       documentRef={leftDoc.documentRef}
-                      stamp={activeGroup && flippedGroups.get(activeGroup.formType) === safeIdx ? 'ORIGINAL' : 'SUPERSEDED'}
+                      stamp="SUPERSEDED"
                       height="30rem"
                     />
                   ) : (
@@ -2103,7 +2103,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                   {rightDoc?.documentRef ? (
                     <PdfPageViewer
                       documentRef={rightDoc.documentRef}
-                      stamp={activeGroup && flippedGroups.has(activeGroup.formType) && flippedGroups.get(activeGroup.formType) === safeIdx ? 'SUPERSEDED' : 'ORIGINAL'}
+                      stamp="ORIGINAL"
                       height="30rem"
                     />
                   ) : (
