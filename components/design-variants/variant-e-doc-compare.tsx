@@ -1974,14 +1974,14 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
                           <AlertTriangle style={{ inlineSize: '0.875rem', blockSize: '0.875rem', color: 'oklch(0.55 0.01 260)' }} />
                           <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'oklch(0.3 0.01 260)' }}>
-                            All Documents Rejected
+                            Pair Dismissed by Reviewer
                           </span>
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', paddingInlineStart: '1.25rem' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
                             <span style={{ inlineSize: '0.25rem', blockSize: '0.25rem', borderRadius: '50%', backgroundColor: 'oklch(0.5 0.01 260)', flexShrink: 0 }} />
                             <span style={{ fontSize: '0.6875rem', color: 'oklch(0.35 0.01 260)' }}>
-                              All documents have been moved to SPBinder
+                              All documents will be retained in SPBinder as independent records
                             </span>
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
@@ -2146,79 +2146,135 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                 border: '0.0625rem solid oklch(0.88 0.04 25)',
                 backgroundColor: 'oklch(0.98 0.008 25)',
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBlockEnd: '0.5rem' }}>
-                  <X style={{ inlineSize: '0.875rem', blockSize: '0.875rem', color: 'oklch(0.5 0.16 25)' }} />
-                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'oklch(0.35 0.08 25)' }}>
-                    {isGroupRejected ? 'All Documents Rejected' : `${rejectedRecords.length} Document${rejectedRecords.length > 1 ? 's' : ''} Rejected`}
-                  </span>
-                </div>
-                <p style={{ fontSize: '0.6875rem', color: 'oklch(0.45 0.01 260)', margin: '0 0 0.5rem', lineHeight: 1.4 }}>
-                  {isGroupRejected
-                    ? 'All documents have been moved to SPBinder.'
-                    : 'The following documents have been moved to SPBinder. Remaining documents continue in this group.'}
-                </p>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                  <div style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    inlineSize: '2.25rem', blockSize: '2.25rem', flexShrink: 0,
+                    borderRadius: '50%',
+                    backgroundColor: 'oklch(0.93 0.04 25)',
+                  }}>
+                    <X style={{ inlineSize: '1.125rem', blockSize: '1.125rem', color: 'oklch(0.5 0.16 25)' }} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <h3 style={{
+                      margin: 0, fontSize: '0.875rem', fontWeight: 700,
+                      color: 'oklch(0.35 0.08 25)',
+                    }}>
+                      Classification Rejected
+                    </h3>
+                    <p style={{
+                      margin: '0.25rem 0 0', fontSize: '0.75rem', fontWeight: 500,
+                      color: 'oklch(0.45 0.01 260)',
+                    }}>
+                      {isGroupRejected
+                        ? `${activeGroup?.formType ?? 'This group'} has been rejected.`
+                        : `${rejectedRecords.length} document${rejectedRecords.length > 1 ? 's' : ''} rejected from ${activeGroup?.formType ?? 'this group'}.`}
+                    </p>
 
-                {/* Per-doc rejection list */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
-                  {rejectedRecords.map(r => {
-                    const docRejectData = rejectedDocs.get(String(r.engagementPageId))
-                    return (
-                      <div key={r.engagementPageId} style={{
-                        display: 'flex', alignItems: 'center', gap: '0.5rem',
-                        padding: '0.375rem 0.5rem', borderRadius: '0.25rem',
-                        backgroundColor: 'oklch(1 0 0)',
-                        border: '0.0625rem solid oklch(0.91 0.01 260)',
-                      }}>
-                        <FileText style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.5 0.01 260)', flexShrink: 0 }} />
-                        <div style={{ flex: 1, minInlineSize: 0 }}>
-                          <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.3 0.01 260)' }}>
-                            Pg {r.documentRef?.pageNumber ?? r.engagementPageId}
+                    {/* Outcome bullets */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginBlockStart: '0.5rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                        <span style={{ inlineSize: '0.25rem', blockSize: '0.25rem', borderRadius: '50%', backgroundColor: 'oklch(0.5 0.01 260)', flexShrink: 0 }} />
+                        <span style={{ fontSize: '0.6875rem', color: 'oklch(0.35 0.01 260)' }}>
+                          {isGroupRejected
+                            ? 'All documents will be retained in SPBinder as independent records'
+                            : 'Rejected documents will be retained in SPBinder as independent records'}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                        <span style={{ inlineSize: '0.25rem', blockSize: '0.25rem', borderRadius: '50%', backgroundColor: 'oklch(0.5 0.01 260)', flexShrink: 0 }} />
+                        <span style={{ fontSize: '0.6875rem', color: 'oklch(0.35 0.01 260)' }}>
+                          {isGroupRejected
+                            ? 'No superseded classification will be applied'
+                            : 'Remaining documents continue with superseded classification'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Reason box */}
+                    {rejectedRecords.length > 0 && (() => {
+                      const firstReason = rejectedDocs.get(String(rejectedRecords[0].engagementPageId))
+                      return firstReason ? (
+                        <div style={{
+                          marginBlockStart: '0.75rem',
+                          padding: '0.625rem 0.75rem',
+                          borderRadius: '0.375rem',
+                          backgroundColor: 'oklch(1 0 0)',
+                          border: '0.0625rem solid oklch(0.91 0.01 260)',
+                        }}>
+                          <span style={{
+                            fontSize: '0.625rem', fontWeight: 700,
+                            textTransform: 'uppercase', letterSpacing: '0.04em',
+                            color: 'oklch(0.5 0.01 260)',
+                          }}>
+                            Reason
                           </span>
-                          {docRejectData && (
-                            <span style={{ fontSize: '0.5625rem', color: 'oklch(0.5 0.01 260)', marginInlineStart: '0.375rem' }}>
-                              {docRejectData.reason}
-                            </span>
-                          )}
+                          <p style={{
+                            margin: '0.25rem 0 0', fontSize: '0.75rem', fontWeight: 500,
+                            color: 'oklch(0.3 0.01 260)', lineHeight: 1.5,
+                          }}>
+                            {firstReason.reason}
+                          </p>
                         </div>
+                      ) : null
+                    })()}
+
+                    {/* Per-doc rejection list (for partial rejects) */}
+                    {hasPartialRejects && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', marginBlockStart: '0.625rem' }}>
+                        {rejectedRecords.map(r => (
+                          <div key={r.engagementPageId} style={{
+                            display: 'flex', alignItems: 'center', gap: '0.5rem',
+                            padding: '0.375rem 0.5rem', borderRadius: '0.25rem',
+                            backgroundColor: 'oklch(1 0 0)',
+                            border: '0.0625rem solid oklch(0.91 0.01 260)',
+                          }}>
+                            <FileText style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.5 0.01 260)', flexShrink: 0 }} />
+                            <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.3 0.01 260)', flex: 1 }}>
+                              Pg {r.documentRef?.pageNumber ?? r.engagementPageId}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleUndoRejectDoc(String(r.engagementPageId))}
+                              style={{
+                                display: 'flex', alignItems: 'center', gap: '0.25rem',
+                                padding: '0.125rem 0.375rem', border: '0.0625rem solid oklch(0.85 0.01 260)',
+                                borderRadius: '0.1875rem', backgroundColor: 'transparent',
+                                fontSize: '0.5625rem', fontWeight: 600, color: 'oklch(0.45 0.01 260)',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              <Undo2 style={{ inlineSize: '0.5rem', blockSize: '0.5rem' }} />
+                              Undo
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {isGroupRejected && (
+                      <div style={{ marginBlockStart: '0.625rem' }}>
                         <button
                           type="button"
-                          onClick={() => handleUndoRejectDoc(String(r.engagementPageId))}
+                          onClick={handleUndoRejectAll}
                           style={{
-                            display: 'flex', alignItems: 'center', gap: '0.25rem',
-                            padding: '0.125rem 0.375rem', border: '0.0625rem solid oklch(0.85 0.01 260)',
-                            borderRadius: '0.1875rem', backgroundColor: 'transparent',
-                            fontSize: '0.5625rem', fontWeight: 600, color: 'oklch(0.45 0.01 260)',
+                            display: 'flex', alignItems: 'center', gap: '0.375rem',
+                            padding: '0.375rem 0.75rem',
+                            border: '0.0625rem solid oklch(0.85 0.01 260)',
+                            borderRadius: '0.25rem',
+                            backgroundColor: 'oklch(1 0 0)',
+                            fontSize: '0.6875rem', fontWeight: 600,
+                            color: 'oklch(0.4 0.01 260)',
                             cursor: 'pointer',
                           }}
                         >
-                          <Undo2 style={{ inlineSize: '0.5rem', blockSize: '0.5rem' }} />
-                          Undo
+                          <Undo2 style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} />
+                          Undo Rejection
                         </button>
                       </div>
-                    )
-                  })}
-                </div>
-
-                {isGroupRejected && (
-                  <button
-                    type="button"
-                    onClick={handleUndoRejectAll}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: '0.375rem',
-                      marginBlockStart: '0.625rem',
-                      padding: '0.375rem 0.75rem',
-                      border: '0.0625rem solid oklch(0.85 0.01 260)',
-                      borderRadius: '0.25rem',
-                      backgroundColor: 'oklch(1 0 0)',
-                      fontSize: '0.6875rem', fontWeight: 600,
-                      color: 'oklch(0.4 0.01 260)',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <Undo2 style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} />
-                    Undo All Rejections
-                  </button>
-                )}
+                    )}
+                  </div>{/* close flex-1 content column */}
+                </div>{/* close flex row with icon */}
               </div>
             )
           })()}
