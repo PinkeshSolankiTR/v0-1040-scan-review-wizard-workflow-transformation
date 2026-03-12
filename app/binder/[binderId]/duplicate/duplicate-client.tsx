@@ -227,9 +227,18 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
   
   /* Rejection panel state */
   const [showRejectPanel, setShowRejectPanel] = useState(false)
-  const [selectedRejectReason, setSelectedRejectReason] = useState<string | null>(null)
+  const [selectedRejectReasons, setSelectedRejectReasons] = useState<Set<string>>(new Set())
   const [customRejectReason, setCustomRejectReason] = useState('')
   const [rejectedGroups, setRejectedGroups] = useState<Map<string, { reason: string; detail: string }>>(new Map())
+
+  const toggleRejectReason = (id: string) => {
+    setSelectedRejectReasons(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) { next.delete(id) } else { next.add(id) }
+      return next
+    })
+  }
+  const hasRejectSelection = selectedRejectReasons.size > 0 || customRejectReason.trim().length > 0
 
   const groups = useMemo(() => groupByFormCategory(data, decisions), [data, decisions])
 
@@ -543,10 +552,12 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
   /* ── Reject handler: mark group as not qualifying for duplicate review ── */
   const handleRejectGroup = () => {
     if (!activeGroup) return
-    const reasonLabel = selectedRejectReason 
-      ? REJECTION_REASONS.find(r => r.id === selectedRejectReason)?.label ?? selectedRejectReason 
-      : 'Other'
-    const detail = selectedRejectReason === 'custom' ? customRejectReason : (REJECTION_REASONS.find(r => r.id === selectedRejectReason)?.description ?? customRejectReason)
+    const predefinedLabels = Array.from(selectedRejectReasons)
+      .filter(id => id !== 'custom')
+      .map(id => REJECTION_REASONS.find(r => r.id === id)?.label ?? id)
+    const allLabels = [...predefinedLabels, ...(selectedRejectReasons.has('custom') && customRejectReason.trim() ? [customRejectReason.trim()] : [])]
+    const reasonLabel = allLabels.length > 0 ? allLabels.join('; ') : 'Other'
+    const detail = allLabels.join('. ')
     
     setRejectedGroups(prev => {
       const next = new Map(prev)
@@ -556,7 +567,7 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
     
     // Reset state
     setShowRejectPanel(false)
-    setSelectedRejectReason(null)
+    setSelectedRejectReasons(new Set())
     setCustomRejectReason('')
   }
 
@@ -748,7 +759,7 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
               type="button"
               onClick={() => {
                 if (!showRejectPanel) {
-                  setSelectedRejectReason(null)
+                  setSelectedRejectReasons(new Set())
                   setCustomRejectReason('')
                 }
                 setShowRejectPanel(p => !p)
@@ -804,7 +815,7 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
                   </p>
 
                   <fieldset style={{ border: 'none', padding: 0, margin: 0 }}>
-                    <legend className="sr-only">Select rejection reason</legend>
+                    <legend className="sr-only">Select rejection reasons</legend>
                     {REJECTION_REASONS.map((reason) => (
                       <label
                         key={reason.id}
@@ -813,14 +824,13 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
                           padding: '0.5rem',
                           borderRadius: '0.25rem',
                           cursor: 'pointer',
-                          backgroundColor: selectedRejectReason === reason.id ? 'oklch(0.95 0.02 25)' : 'transparent',
+                          backgroundColor: selectedRejectReasons.has(reason.id) ? 'oklch(0.95 0.02 25)' : 'transparent',
                         }}
                       >
                         <input
-                          type="radio"
-                          name="reject-reason"
-                          checked={selectedRejectReason === reason.id}
-                          onChange={() => { setSelectedRejectReason(reason.id); setCustomRejectReason(''); }}
+                          type="checkbox"
+                          checked={selectedRejectReasons.has(reason.id)}
+                          onChange={() => toggleRejectReason(reason.id)}
                           style={{ accentColor: 'oklch(0.5 0.14 25)', flexShrink: 0, marginTop: '0.125rem' }}
                         />
                         <div>
@@ -841,14 +851,13 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
                         padding: '0.5rem',
                         borderRadius: '0.25rem',
                         cursor: 'pointer',
-                        backgroundColor: selectedRejectReason === 'custom' ? 'oklch(0.95 0.02 25)' : 'transparent',
+                        backgroundColor: selectedRejectReasons.has('custom') ? 'oklch(0.95 0.02 25)' : 'transparent',
                       }}
                     >
                       <input
-                        type="radio"
-                        name="reject-reason"
-                        checked={selectedRejectReason === 'custom'}
-                        onChange={() => setSelectedRejectReason('custom')}
+                        type="checkbox"
+                        checked={selectedRejectReasons.has('custom')}
+                        onChange={() => toggleRejectReason('custom')}
                         style={{ accentColor: 'oklch(0.5 0.14 25)', flexShrink: 0, marginTop: '0.125rem' }}
                       />
                       <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.25 0.01 260)' }}>
@@ -856,7 +865,7 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
                       </span>
                     </label>
                     
-                    {selectedRejectReason === 'custom' && (
+                    {selectedRejectReasons.has('custom') && (
                       <textarea
                         value={customRejectReason}
                         onChange={(e) => setCustomRejectReason(e.target.value)}
@@ -879,17 +888,17 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
                     <button
                       type="button"
                       onClick={handleRejectGroup}
-                      disabled={!selectedRejectReason && !customRejectReason}
+                      disabled={!hasRejectSelection}
                       style={{
                         flex: 1,
                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem',
                         padding: '0.375rem 0.5rem',
                         border: 'none',
                         borderRadius: '0.25rem',
-                        backgroundColor: (!selectedRejectReason && !customRejectReason) ? 'oklch(0.9 0.01 260)' : 'oklch(0.55 0.14 25)',
+                        backgroundColor: !hasRejectSelection ? 'oklch(0.9 0.01 260)' : 'oklch(0.55 0.14 25)',
                         fontSize: '0.6875rem', fontWeight: 600,
-                        color: (!selectedRejectReason && !customRejectReason) ? 'oklch(0.6 0.01 260)' : 'oklch(1 0 0)',
-                        cursor: (!selectedRejectReason && !customRejectReason) ? 'not-allowed' : 'pointer',
+                        color: !hasRejectSelection ? 'oklch(0.6 0.01 260)' : 'oklch(1 0 0)',
+                        cursor: !hasRejectSelection ? 'not-allowed' : 'pointer',
                       }}
                     >
                       <X style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
