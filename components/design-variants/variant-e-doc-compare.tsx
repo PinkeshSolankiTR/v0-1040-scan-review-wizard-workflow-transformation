@@ -579,7 +579,12 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
   }, [selectedGroupIdx])
 
   /* ── Determine left/right docs (respecting rejections + overrides) ── */
-  const activeFlippedIdx = activeGroup ? flippedGroups.get(activeGroup.formType) : undefined
+  const activeFlippedIdxRaw = activeGroup ? flippedGroups.get(activeGroup.formType) : undefined
+  // Only treat as flipped if the flipped doc is NOT rejected
+  const flippedDocStillValid = activeFlippedIdxRaw !== undefined && activeGroup
+    ? !rejectedPageIds.has(String(activeGroup.supersededRecords[activeFlippedIdxRaw]?.engagementPageId))
+    : false
+  const activeFlippedIdx = flippedDocStillValid ? activeFlippedIdxRaw : undefined
   const isActiveFlipped = activeFlippedIdx !== undefined
 
   // Effective original and superseded lists (excluding rejected docs)
@@ -695,9 +700,9 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
               aria-expanded={showOverridePanel}
             >
               <ArrowLeftRight style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem' }} />
-              {activeGroup && flippedGroups.has(activeGroup.formType)
-                ? `Override Active (Pg ${activeGroup.supersededRecords[flippedGroups.get(activeGroup.formType) ?? 0]?.documentRef?.pageNumber ?? ''} is now Original)`
-                : 'Override Classification'}
+  {activeGroup && isActiveFlipped
+  ? `Override Active (Pg ${activeGroup.supersededRecords[activeFlippedIdx!]?.documentRef?.pageNumber ?? ''} is now Original)`
+  : 'Override Classification'}
               <ChevronDown style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
             </button>
             
@@ -1975,7 +1980,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                 ? 'AI has moderate confidence. Reviewer should verify key fields.' 
                 : 'AI is uncertain. Reviewer must examine carefully.'
             const mismatches = groupCompared.filter(v => !v.match)
-            const isGroupOverridden = activeGroup ? flippedGroups.has(activeGroup.formType) : false
+            const isGroupOverridden = isActiveFlipped
             const panelGroupRejected = isGroupRejected
 
             return (
@@ -2300,7 +2305,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
             </div>
           )}
 
-          {/* ═══════════════════════════════════════════════════════════
+          {/* ════════════════════════════��══════════════════════════════
               PANEL 3: Document Viewer (hidden when rejected)
               ═══════════════════════════════════════════════════════════ */}
           {!isGroupRejected && (
