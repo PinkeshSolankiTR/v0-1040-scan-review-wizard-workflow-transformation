@@ -1754,9 +1754,97 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
           })()}
 
           {/* ═══════════════════════════════════════════════════════════
-              PANEL 2: Field Comparison (collapsible)
-              ═════════════════════���═════════════════════════════════════ */}
-          {comparedValues.length > 0 && (
+              REJECTION SUMMARY CARD (shown when group is rejected)
+              ═══════════════════════════════════════════════════════════ */}
+          {isGroupRejected && (() => {
+            const rejectionData = activeGroup ? rejectedGroups.get(activeGroup.formType) : null
+            return (
+              <div style={{
+                margin: '1rem 0.75rem',
+                padding: '1.25rem',
+                borderRadius: '0.5rem',
+                border: '0.0625rem solid oklch(0.88 0.04 25)',
+                backgroundColor: 'oklch(0.98 0.008 25)',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                  <div style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    inlineSize: '2.25rem', blockSize: '2.25rem', flexShrink: 0,
+                    borderRadius: '50%',
+                    backgroundColor: 'oklch(0.93 0.04 25)',
+                  }}>
+                    <X style={{ inlineSize: '1.125rem', blockSize: '1.125rem', color: 'oklch(0.5 0.16 25)' }} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <h3 style={{
+                      margin: 0, fontSize: '0.875rem', fontWeight: 700,
+                      color: 'oklch(0.35 0.08 25)',
+                    }}>
+                      Classification Rejected
+                    </h3>
+                    <p style={{
+                      margin: '0.25rem 0 0', fontSize: '0.75rem', fontWeight: 500,
+                      color: 'oklch(0.45 0.01 260)',
+                    }}>
+                      {activeGroup?.formType ?? 'This group'} has been rejected.
+                    </p>
+
+                    {rejectionData && (
+                      <div style={{
+                        marginBlockStart: '0.75rem',
+                        padding: '0.625rem 0.75rem',
+                        borderRadius: '0.375rem',
+                        backgroundColor: 'oklch(1 0 0)',
+                        border: '0.0625rem solid oklch(0.91 0.01 260)',
+                      }}>
+                        <span style={{
+                          fontSize: '0.625rem', fontWeight: 700,
+                          textTransform: 'uppercase', letterSpacing: '0.04em',
+                          color: 'oklch(0.5 0.01 260)',
+                        }}>
+                          Reason
+                        </span>
+                        <p style={{
+                          margin: '0.25rem 0 0', fontSize: '0.75rem', fontWeight: 500,
+                          color: 'oklch(0.3 0.01 260)', lineHeight: 1.5,
+                        }}>
+                          {rejectionData.reason}
+                        </p>
+                      </div>
+                    )}
+
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: '0.5rem',
+                      marginBlockStart: '0.875rem',
+                    }}>
+                      <button
+                        type="button"
+                        onClick={handleUndoReject}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: '0.375rem',
+                          padding: '0.375rem 0.75rem',
+                          border: '0.0625rem solid oklch(0.85 0.01 260)',
+                          borderRadius: '0.25rem',
+                          backgroundColor: 'oklch(1 0 0)',
+                          fontSize: '0.6875rem', fontWeight: 600,
+                          color: 'oklch(0.4 0.01 260)',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <Undo2 style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} />
+                        Undo Rejection
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
+
+          {/* ═══════════════════════════════════════════════════════════
+              PANEL 2: Field Comparison (collapsible, hidden when rejected)
+              ═══════════════════════════════════════════════════════════ */}
+          {!isGroupRejected && comparedValues.length > 0 && (
             <div style={{ borderBlockEnd: '0.0625rem solid oklch(0.91 0.005 260)' }}>
               <button
                 type="button"
@@ -1797,10 +1885,10 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
             </div>
           )}
 
-          {/* ═════════���═════════════════════════════════════════════════
-              PANEL 3: Document Viewer (bottom -- collapsible thumbnails/full)
-              Future: removable once users trust AI Analysis
+          {/* ═══════════════════════════════════════════════════════════
+              PANEL 3: Document Viewer (hidden when rejected)
               ═══════════════════════════════════════════════════════════ */}
+          {!isGroupRejected && (
           <div style={{ borderBlockEnd: '0.0625rem solid oklch(0.91 0.005 260)' }}>
             {/* Panel header */}
             <button
@@ -2025,6 +2113,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
               </div>
             )}
           </div>
+          )}
         </div>
       </div>
     </div>
