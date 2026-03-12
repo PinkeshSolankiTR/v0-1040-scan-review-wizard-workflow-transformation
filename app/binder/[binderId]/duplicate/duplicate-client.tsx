@@ -312,7 +312,7 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
     ? activeGroup.records.every(r => decisions[getItemKey(r)] === 'accepted')
     : false
 
-  /* ── Undo stack for batch reversal ── */
+  /* ── Undo stack for batch reversal (self-cleaning) ── */
   const [undoStack, setUndoStack] = useState<Array<{
     action: 'individual_accept' | 'high_confidence_bulk' | 'bulk_accept' | 'bulk_accept_with_warning' | 'sidebar_checkbox'
     groups: string[]
@@ -323,10 +323,32 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
     setUndoStack(prev => [...prev, { action, groups: groupKeys, label }])
   }
 
+  /** Remove a group from the undo stack when manually unchecked */
+  const pruneUndoStack = (groupKey: string) => {
+    setUndoStack(prev => {
+      const next = prev.map(entry => ({
+        ...entry,
+        groups: entry.groups.filter(g => g !== groupKey),
+      })).filter(entry => entry.groups.length > 0)
+      return next
+    })
+  }
+
+  /** Effective undo stack -- only entries whose groups are still all-accepted */
+  const effectiveUndoStack = useMemo(() => {
+    return undoStack.filter(entry =>
+      entry.groups.some(gKey => {
+        const group = groups.find(g => g.formType === gKey)
+        return group && group.records.every(r => decisions[getItemKey(r)] === 'accepted')
+      })
+    )
+  }, [undoStack, groups, decisions])
+
+  const lastUndoEntry = effectiveUndoStack.length > 0 ? effectiveUndoStack[effectiveUndoStack.length - 1] : null
+
   const handleUndoLastAction = () => {
-    if (undoStack.length === 0) return
-    const last = undoStack[undoStack.length - 1]
-    for (const groupKey of last.groups) {
+    if (!lastUndoEntry) return
+    for (const groupKey of lastUndoEntry.groups) {
       const group = groups.find(g => g.formType === groupKey)
       if (group) {
         for (const r of group.records) {
@@ -334,7 +356,8 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
         }
       }
     }
-    setUndoStack(prev => prev.slice(0, -1))
+    const idx = undoStack.lastIndexOf(lastUndoEntry)
+    setUndoStack(prev => prev.filter((_, i) => i !== idx))
   }
 
   /* ── Audit log for acceptance actions ── */
@@ -602,17 +625,19 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
             <button
               type="button"
               onClick={() => setShowOverridePanel(p => !p)}
-              disabled={isGroupRejected}
+              disabled={isGroupRejected || allGroupAccepted}
               style={{
                 display: 'flex', alignItems: 'center', gap: '0.375rem',
                 padding: '0.375rem 0.75rem',
                 border: '0.0625rem solid oklch(0.82 0.08 60)',
                 borderRadius: '0.25rem',
-                backgroundColor: isGroupOverridden ? 'oklch(0.96 0.04 60)' : 'oklch(1 0 0)',
+                backgroundColor: isGroupOverridden
+                  ? 'oklch(0.96 0.04 60)'
+                  : 'oklch(1 0 0)',
                 fontSize: '0.75rem', fontWeight: 600,
-                color: 'oklch(0.45 0.12 60)',
-                cursor: isGroupRejected ? 'not-allowed' : 'pointer',
-                opacity: isGroupRejected ? 0.5 : 1,
+                color: 'oklch(0.5 0.16 60)',
+                cursor: (isGroupRejected || allGroupAccepted) ? 'not-allowed' : 'pointer',
+                opacity: (isGroupRejected || allGroupAccepted) ? 0.5 : 1,
               }}
               aria-expanded={showOverridePanel}
             >
@@ -622,7 +647,7 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
             </button>
 
             {/* Radio selector popover */}
-            {showOverridePanel && (
+            {showOverridePanel && !allGroupAccepted && (
               <>
               {/* Invisible backdrop to close on outside click */}
               <div
@@ -728,7 +753,7 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
                 }
                 setShowRejectPanel(p => !p)
               }}
-              disabled={isGroupRejected}
+              disabled={isGroupRejected || allGroupAccepted}
               style={{
                 display: 'flex', alignItems: 'center', gap: '0.375rem',
                 padding: '0.375rem 0.75rem',
@@ -736,19 +761,19 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
                 borderRadius: '0.25rem',
                 backgroundColor: isGroupRejected ? 'oklch(0.94 0.04 25)' : 'oklch(1 0 0)',
                 fontSize: '0.75rem', fontWeight: 600,
-                color: isGroupRejected ? 'oklch(0.45 0.14 25)' : 'oklch(0.55 0.14 25)',
-                cursor: isGroupRejected ? 'not-allowed' : 'pointer',
-                opacity: isGroupRejected ? 0.7 : 1,
+                color: (isGroupRejected || allGroupAccepted) ? 'oklch(0.45 0.14 25)' : 'oklch(0.55 0.14 25)',
+                cursor: (isGroupRejected || allGroupAccepted) ? 'not-allowed' : 'pointer',
+                opacity: (isGroupRejected || allGroupAccepted) ? 0.7 : 1,
               }}
               aria-expanded={showRejectPanel}
             >
               <X style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem' }} />
               {isGroupRejected ? 'Rejected' : 'Reject'}
-              {!isGroupRejected && <ChevronDown style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />}
+              {!isGroupRejected && !allGroupAccepted && <ChevronDown style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />}
             </button>
             
             {/* Reject Panel Popover */}
-            {showRejectPanel && !isGroupRejected && (
+            {showRejectPanel && !isGroupRejected && !allGroupAccepted && (
               <>
                 <div
                   onClick={() => { setShowRejectPanel(false); setSelectedRejectReason(null); }}
@@ -893,42 +918,62 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
             </button>
           ) : null}
 
-          {/* Undo last action button */}
-          {undoStack.length > 0 && (
-            <button
-              type="button"
-              onClick={handleUndoLastAction}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '0.375rem',
-                padding: '0.375rem 0.75rem', border: '0.0625rem solid oklch(0.88 0.01 260)',
-                borderRadius: '0.25rem', backgroundColor: 'oklch(1 0 0)',
-                fontSize: '0.75rem', fontWeight: 600, color: 'oklch(0.45 0.01 260)',
-                cursor: 'pointer',
-              }}
-              title={`Undo: ${undoStack[undoStack.length - 1].label}`}
-            >
-              <Undo2 style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem' }} />
-              Undo: {undoStack[undoStack.length - 1].label}
-            </button>
-          )}
-
-          {/* Accept dropdown - 3-tier grouped button */}
+          {/* Accept split button -- primary area = undo (when available) or label, chevron = dropdown */}
           <div ref={acceptDropdownRef} style={{ position: 'relative' }}>
-            <button
-              type="button"
-              onClick={() => setShowAcceptDropdown(!showAcceptDropdown)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '0.375rem',
-                padding: '0.375rem 0.75rem', border: 'none',
-                borderRadius: '0.25rem', backgroundColor: 'oklch(0.45 0.18 145)',
-                fontSize: '0.75rem', fontWeight: 600, color: 'oklch(1 0 0)',
-                cursor: 'pointer',
-              }}
-            >
-              <Check style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem' }} />
-              Accept
-              <ChevronDown style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
-            </button>
+            <div style={{ display: 'flex', borderRadius: '0.25rem', overflow: 'hidden' }}>
+              {lastUndoEntry ? (
+                /* Undo mode: main area reverses last action */
+                <button
+                  type="button"
+                  onClick={handleUndoLastAction}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '0.375rem',
+                    padding: '0.375rem 0.75rem', border: 'none',
+                    borderRadius: '0.25rem 0 0 0.25rem',
+                    backgroundColor: 'oklch(0.96 0.02 145)',
+                    fontSize: '0.75rem', fontWeight: 600, color: 'oklch(0.35 0.14 145)',
+                    cursor: 'pointer',
+                    borderInlineEnd: '0.0625rem solid oklch(0.88 0.06 145)',
+                  }}
+                  title={`Undo: ${lastUndoEntry.label}`}
+                >
+                  <Undo2 style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem' }} />
+                  Undo: {lastUndoEntry.label}
+                </button>
+              ) : (
+                /* Default mode: label only */
+                <button
+                  type="button"
+                  onClick={() => setShowAcceptDropdown(!showAcceptDropdown)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '0.375rem',
+                    padding: '0.375rem 0.75rem', border: 'none',
+                    borderRadius: '0.25rem 0 0 0.25rem',
+                    backgroundColor: 'oklch(0.45 0.18 145)',
+                    fontSize: '0.75rem', fontWeight: 600, color: 'oklch(1 0 0)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <Check style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem' }} />
+                  Accept
+                </button>
+              )}
+              {/* Chevron dropdown trigger */}
+              <button
+                type="button"
+                onClick={() => setShowAcceptDropdown(!showAcceptDropdown)}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  padding: '0.375rem 0.5rem', border: 'none',
+                  borderRadius: '0 0.25rem 0.25rem 0',
+                  backgroundColor: lastUndoEntry ? 'oklch(0.93 0.04 145)' : 'oklch(0.40 0.16 145)',
+                  cursor: 'pointer',
+                }}
+                aria-label="More accept options"
+              >
+                <ChevronDown style={{ inlineSize: '0.625rem', blockSize: '0.625rem', color: lastUndoEntry ? 'oklch(0.35 0.14 145)' : 'oklch(1 0 0)' }} />
+              </button>
+            </div>
 
             {showAcceptDropdown && (
               <div style={{
@@ -1252,11 +1297,12 @@ const avgConfidence = Math.round(group.averageConfidence * 100)
                       style={{ inlineSize: '0.875rem', blockSize: '0.875rem', accentColor: 'oklch(0.45 0.18 145)', flexShrink: 0, marginBlockStart: '0.0625rem', cursor: 'pointer' }}
                       onClick={(e) => {
                         e.stopPropagation()
-                        if (isThisGroupRejected) return
+                        if (isThisGroupRejected || allGroupAccepted) return
                         if (groupAllAccepted) {
                           for (const r of group.records) {
                             undo(getItemKey(r), 'duplicate', r.confidenceLevel)
                           }
+                          pruneUndoStack(group.formType)
                         } else {
                           for (const r of group.records) {
                             const key = getItemKey(r)
@@ -1269,7 +1315,7 @@ const avgConfidence = Math.round(group.averageConfidence * 100)
                         }
                       }}
                       onChange={() => {}}
-                      disabled={isThisGroupRejected}
+                      disabled={isThisGroupRejected || allGroupAccepted}
                     />
                     <div style={{ flex: '1 1 0', minInlineSize: 0 }}>
                       <span style={{
