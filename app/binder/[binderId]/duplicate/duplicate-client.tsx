@@ -951,7 +951,7 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
                         fontSize: '0.625rem', color: 'oklch(0.5 0.01 260)',
                         marginBlockEnd: '0.625rem', lineHeight: '1.4',
                       }}>
-                        Choose which document does not belong in this group. It will be moved to SPBinder.
+                        Choose which document does not belong in this group. It will appear in SPBinder as an independent record after the review.
                       </p>
 
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -1096,8 +1096,8 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
                         marginBlockEnd: '0.625rem', lineHeight: '1.4',
                       }}>
                         {rejectTargetDocId && isMultiDoc
-                          ? 'This document will be moved to SPBinder. Remaining documents will continue in this group.'
-                          : 'All documents in this group will be moved to SPBinder.'}
+                          ? 'This document will be available in SPBinder as an independent record once the review is complete. Remaining documents will continue in this group.'
+                          : 'All documents in this group will be available in SPBinder as independent records once the review is complete.'}
                       </p>
 
                       <fieldset style={{ border: 'none', padding: 0, margin: 0 }}>
@@ -1838,7 +1838,7 @@ const avgConfidence = Math.round(group.averageConfidence * 100)
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
                               <span style={{ inlineSize: '0.25rem', blockSize: '0.25rem', borderRadius: '50%', backgroundColor: 'oklch(0.5 0.01 260)', flexShrink: 0 }} />
                               <span style={{ fontSize: '0.6875rem', color: 'oklch(0.35 0.01 260)' }}>
-                                Both documents will be retained in SPbinder as independent records
+                                All documents will be available in SPBinder as independent records once the review is complete
                               </span>
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
