@@ -438,7 +438,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
   // Reset to first superseded when group changes
   useEffect(() => {
     setSelectedSupersededIdx(0)
-  }, [activeGroupIdx])
+  }, [selectedGroupIdx])
 
   /* ── Determine left/right docs ── */
   const supersededList = activeGroup?.supersededRecords ?? []
@@ -1395,7 +1395,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                           ? r.decisionType !== 'Superseded'
                           : r.decisionType === 'Superseded'
                         const supIdx = group.supersededRecords.findIndex(s => s.engagementPageId === r.engagementPageId)
-                        const isSelectedSup = gIdx === activeGroupIdx && supIdx >= 0 && supIdx === selectedSupersededIdx
+                        const isSelectedSup = gIdx === selectedGroupIdx && supIdx >= 0 && supIdx === selectedSupersededIdx
                         return (
                           <button
                             key={r.engagementPageId}
