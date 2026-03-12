@@ -506,12 +506,6 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
   )
   const aiOriginalId = useMemo(() => getAIOriginalId(groupDocs), [groupDocs])
 
-  /* Effective original = user override or AI default (validated: override ignored if overridden doc is rejected) */
-  const overrideDocId = activeGroup ? overriddenOriginals.get(activeGroup.formType) : undefined
-  const isOverrideValid = overrideDocId !== undefined && !rejectedDocIds.has(overrideDocId)
-  const effectiveOriginalId = isOverrideValid ? overrideDocId : aiOriginalId
-  const isGroupOverridden = isOverrideValid
-
   /* Pick a different doc as Original */
   const handleSelectOriginal = (docId: string) => {
     if (!activeGroup) return
@@ -571,6 +565,12 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
   const effectiveDocs = useMemo(() => {
     return groupDocs.filter(d => !rejectedDocIds.has(d.id))
   }, [groupDocs, rejectedDocIds])
+
+  /* Effective original = user override or AI default (validated: override ignored if overridden doc is rejected) */
+  const overrideDocId = activeGroup ? overriddenOriginals.get(activeGroup.formType) : undefined
+  const isOverrideValid = overrideDocId !== undefined && !rejectedDocIds.has(overrideDocId)
+  const effectiveOriginalId = isOverrideValid ? overrideDocId : aiOriginalId
+  const isGroupOverridden = isOverrideValid
 
   const isGroupRejected = activeGroup ? rejectedGroups.has(activeGroup.formType) : false
   const hasPartialRejects = rejectedDocIds.size > 0 && !isGroupRejected
