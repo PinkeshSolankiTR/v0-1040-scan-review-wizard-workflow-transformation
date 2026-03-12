@@ -5,7 +5,7 @@
  * Data model & AI decision spec remain duplicate-specific.
  */
 
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { PdfPageViewer } from '@/components/pdf-page-viewer'
 import { FieldComparison } from '@/components/field-comparison'
 import { ConfidenceBadge } from '@/components/confidence-badge'
@@ -39,6 +39,7 @@ import {
   FileCheck,
   X,
   AlertTriangle,
+  CheckCircle,
 } from 'lucide-react'
 import type { DuplicateRecord, DuplicateDataRecord, DuplicateDocRecord, OverrideDetail } from '@/lib/types'
 
@@ -315,7 +316,62 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
     ? activeGroup.records.every(r => decisions[getItemKey(r)] === 'accepted')
     : false
 
-  /* Accept all in group => Match */
+  /* ── Audit log for acceptance actions ── */
+  const [auditLog, setAuditLog] = useState<Array<{
+    timestamp: string
+    action: 'individual_accept' | 'high_confidence_bulk' | 'bulk_accept' | 'bulk_accept_with_warning'
+    groups: string[]
+    groupCount: number
+  }>>([])
+
+  const logAuditEntry = (action: typeof auditLog[number]['action'], groupKeys: string[]) => {
+    setAuditLog(prev => [...prev, {
+      timestamp: new Date().toISOString(),
+      action,
+      groups: groupKeys,
+      groupCount: groupKeys.length,
+    }])
+  }
+
+  /* ── Accept dropdown state ── */
+  const [showAcceptDropdown, setShowAcceptDropdown] = useState(false)
+  const [showBulkWarning, setShowBulkWarning] = useState(false)
+  const acceptDropdownRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (acceptDropdownRef.current && !acceptDropdownRef.current.contains(e.target as Node)) {
+        setShowAcceptDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  /* Compute counts for each tier */
+  const highConfidenceUnreviewed = useMemo(() => {
+    return groups.filter(g => {
+      const isAccepted = g.records.every(r => decisions[getItemKey(r)] === 'accepted')
+      const isRejected = rejectedGroups.has(g.formType)
+      const isOverridden = overriddenOriginals.has(g.formType)
+      return Math.round(g.averageConfidence * 100) >= 90 && !isAccepted && !isRejected && !isOverridden
+    })
+  }, [groups, decisions, rejectedGroups, overriddenOriginals])
+
+  const allUnreviewed = useMemo(() => {
+    return groups.filter(g => {
+      const isAccepted = g.records.every(r => decisions[getItemKey(r)] === 'accepted')
+      const isRejected = rejectedGroups.has(g.formType)
+      const isOverridden = overriddenOriginals.has(g.formType)
+      return !isAccepted && !isRejected && !isOverridden
+    })
+  }, [groups, decisions, rejectedGroups, overriddenOriginals])
+
+  const unreviewedModLow = useMemo(() => {
+    return allUnreviewed.filter(g => Math.round(g.averageConfidence * 100) < 90)
+  }, [allUnreviewed])
+
+  /* Accept all in group => Match (Tier 2) */
   const handleAcceptGroup = () => {
     if (!activeGroup) return
     for (const r of activeGroup.records) {
@@ -324,6 +380,49 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
         accept(key, 'duplicate', r.confidenceLevel, 'manual')
       }
     }
+    logAuditEntry('individual_accept', [activeGroup.formType])
+  }
+
+  /* Tier 1: Accept High Confidence */
+  const handleAcceptHighConfidence = () => {
+    const groupKeys: string[] = []
+    for (const g of highConfidenceUnreviewed) {
+      for (const r of g.records) {
+        const key = getItemKey(r)
+        if (decisions[key] !== 'accepted') {
+          accept(key, 'duplicate', r.confidenceLevel, 'manual')
+        }
+      }
+      groupKeys.push(g.formType)
+    }
+    logAuditEntry('high_confidence_bulk', groupKeys)
+    setShowAcceptDropdown(false)
+  }
+
+  /* Tier 3: Bulk Accept Remaining */
+  const handleBulkAcceptRemaining = () => {
+    if (unreviewedModLow.length > 0) {
+      setShowBulkWarning(true)
+      setShowAcceptDropdown(false)
+      return
+    }
+    executeBulkAccept()
+  }
+
+  const executeBulkAccept = () => {
+    const groupKeys: string[] = []
+    for (const g of allUnreviewed) {
+      for (const r of g.records) {
+        const key = getItemKey(r)
+        if (decisions[key] !== 'accepted') {
+          accept(key, 'duplicate', r.confidenceLevel, 'manual')
+        }
+      }
+      groupKeys.push(g.formType)
+    }
+    logAuditEntry(unreviewedModLow.length > 0 ? 'bulk_accept_with_warning' : 'bulk_accept', groupKeys)
+    setShowBulkWarning(false)
+    setShowAcceptDropdown(false)
   }
 
   /* Undo group */
@@ -796,10 +895,13 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
               <Undo2 style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem' }} />
               Unmatch Group
             </button>
-          ) : (
+          ) : null}
+
+          {/* Accept dropdown - 3-tier grouped button */}
+          <div ref={acceptDropdownRef} style={{ position: 'relative' }}>
             <button
               type="button"
-              onClick={handleAcceptGroup}
+              onClick={() => setShowAcceptDropdown(!showAcceptDropdown)}
               style={{
                 display: 'flex', alignItems: 'center', gap: '0.375rem',
                 padding: '0.375rem 0.75rem', border: 'none',
@@ -808,10 +910,127 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
                 cursor: 'pointer',
               }}
             >
-              <Link2 style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem' }} />
-              Match All
+              <Check style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem' }} />
+              Accept
+              <ChevronDown style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
             </button>
-          )}
+
+            {showAcceptDropdown && (
+              <div style={{
+                position: 'absolute', insetBlockStart: '100%', insetInlineEnd: 0,
+                marginBlockStart: '0.25rem', zIndex: 50,
+                inlineSize: '16rem',
+                backgroundColor: 'oklch(1 0 0)',
+                borderRadius: '0.375rem',
+                border: '0.0625rem solid oklch(0.88 0.01 260)',
+                boxShadow: '0 0.25rem 0.75rem oklch(0 0 0 / 0.12)',
+                overflow: 'hidden',
+              }}>
+                {/* Tier 2: Accept This Pair */}
+                <button
+                  type="button"
+                  onClick={() => { handleAcceptGroup(); setShowAcceptDropdown(false) }}
+                  disabled={isGroupRejected || allGroupAccepted}
+                  style={{
+                    display: 'flex', flexDirection: 'column', gap: '0.125rem',
+                    inlineSize: '100%', padding: '0.5rem 0.75rem',
+                    border: 'none', backgroundColor: 'transparent',
+                    cursor: (isGroupRejected || allGroupAccepted) ? 'not-allowed' : 'pointer',
+                    opacity: (isGroupRejected || allGroupAccepted) ? 0.4 : 1,
+                    textAlign: 'start',
+                  }}
+                  onMouseEnter={e => { if (!isGroupRejected && !allGroupAccepted) (e.currentTarget.style.backgroundColor = 'oklch(0.97 0.003 240)') }}
+                  onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent' }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                    <Check style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.45 0.18 145)' }} />
+                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'oklch(0.25 0.01 260)' }}>
+                      Accept This Pair
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '0.625rem', color: 'oklch(0.5 0.01 260)', paddingInlineStart: '1.125rem' }}>
+                    Confirm AI classification for the active pair
+                  </span>
+                </button>
+
+                <div style={{ blockSize: '0.0625rem', backgroundColor: 'oklch(0.92 0.005 260)' }} />
+
+                {/* Tier 1: Accept High Confidence */}
+                <button
+                  type="button"
+                  onClick={handleAcceptHighConfidence}
+                  disabled={highConfidenceUnreviewed.length === 0}
+                  style={{
+                    display: 'flex', flexDirection: 'column', gap: '0.125rem',
+                    inlineSize: '100%', padding: '0.5rem 0.75rem',
+                    border: 'none', backgroundColor: 'transparent',
+                    cursor: highConfidenceUnreviewed.length === 0 ? 'not-allowed' : 'pointer',
+                    opacity: highConfidenceUnreviewed.length === 0 ? 0.4 : 1,
+                    textAlign: 'start',
+                  }}
+                  onMouseEnter={e => { if (highConfidenceUnreviewed.length > 0) (e.currentTarget.style.backgroundColor = 'oklch(0.97 0.003 240)') }}
+                  onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent' }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                    <Sparkles style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.6 0.16 145)' }} />
+                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'oklch(0.25 0.01 260)' }}>
+                      Accept High Confidence
+                    </span>
+                    {highConfidenceUnreviewed.length > 0 && (
+                      <span style={{
+                        fontSize: '0.5625rem', fontWeight: 700, fontFamily: 'var(--font-mono)',
+                        padding: '0.0625rem 0.25rem', borderRadius: '0.625rem',
+                        backgroundColor: 'oklch(0.92 0.04 145)', color: 'oklch(0.4 0.14 145)',
+                      }}>
+                        {highConfidenceUnreviewed.length}
+                      </span>
+                    )}
+                  </div>
+                  <span style={{ fontSize: '0.625rem', color: 'oklch(0.5 0.01 260)', paddingInlineStart: '1.125rem' }}>
+                    Bulk accept all pairs with High confidence
+                  </span>
+                </button>
+
+                <div style={{ blockSize: '0.0625rem', backgroundColor: 'oklch(0.92 0.005 260)' }} />
+
+                {/* Tier 3: Accept Remaining */}
+                <button
+                  type="button"
+                  onClick={handleBulkAcceptRemaining}
+                  disabled={allUnreviewed.length === 0}
+                  style={{
+                    display: 'flex', flexDirection: 'column', gap: '0.125rem',
+                    inlineSize: '100%', padding: '0.5rem 0.75rem',
+                    border: 'none', backgroundColor: 'transparent',
+                    cursor: allUnreviewed.length === 0 ? 'not-allowed' : 'pointer',
+                    opacity: allUnreviewed.length === 0 ? 0.4 : 1,
+                    textAlign: 'start',
+                  }}
+                  onMouseEnter={e => { if (allUnreviewed.length > 0) (e.currentTarget.style.backgroundColor = 'oklch(0.97 0.003 240)') }}
+                  onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent' }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                    <CheckCircle style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.55 0.12 250)' }} />
+                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'oklch(0.25 0.01 260)' }}>
+                      Accept Remaining
+                    </span>
+                    {allUnreviewed.length > 0 && (
+                      <span style={{
+                        fontSize: '0.5625rem', fontWeight: 700, fontFamily: 'var(--font-mono)',
+                        padding: '0.0625rem 0.25rem', borderRadius: '0.625rem',
+                        backgroundColor: 'oklch(0.92 0.02 260)', color: 'oklch(0.45 0.01 260)',
+                      }}>
+                        {allUnreviewed.length}
+                      </span>
+                    )}
+                  </div>
+                  <span style={{ fontSize: '0.625rem', color: 'oklch(0.5 0.01 260)', paddingInlineStart: '1.125rem' }}>
+                    Accept all unreviewed pairs (warns if Moderate/Low exist)
+                  </span>
+                </button>
+              </div>
+            )}
+          </div>
 
           {/* Next Step button */}
           <button
@@ -833,6 +1052,109 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
         </div>
       </header>
 
+      {/* Bulk accept warning modal */}
+      {showBulkWarning && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 100,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          backgroundColor: 'oklch(0 0 0 / 0.4)',
+        }}>
+          <div style={{
+            inlineSize: '28rem', backgroundColor: 'oklch(1 0 0)',
+            borderRadius: '0.5rem', boxShadow: '0 0.5rem 2rem oklch(0 0 0 / 0.2)',
+            overflow: 'hidden',
+          }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '0.5rem',
+              padding: '0.875rem 1rem',
+              backgroundColor: 'oklch(0.98 0.01 60)',
+              borderBlockEnd: '0.0625rem solid oklch(0.9 0.03 60)',
+            }}>
+              <AlertTriangle style={{ inlineSize: '1rem', blockSize: '1rem', color: 'oklch(0.65 0.18 60)' }} />
+              <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'oklch(0.3 0.01 260)' }}>
+                Unreviewed Pairs Need Attention
+              </span>
+            </div>
+
+            <div style={{ padding: '0.875rem 1rem' }}>
+              <p style={{ fontSize: '0.75rem', color: 'oklch(0.4 0.01 260)', margin: '0 0 0.625rem 0' }}>
+                {unreviewedModLow.length} pair{unreviewedModLow.length > 1 ? 's' : ''} with Moderate or Low confidence {unreviewedModLow.length > 1 ? 'have' : 'has'} not been individually reviewed:
+              </p>
+              <div style={{
+                display: 'flex', flexDirection: 'column', gap: '0.25rem',
+                maxBlockSize: '8rem', overflowY: 'auto',
+                padding: '0.5rem', borderRadius: '0.25rem',
+                backgroundColor: 'oklch(0.98 0.003 240)',
+                border: '0.0625rem solid oklch(0.92 0.005 260)',
+              }}>
+                {unreviewedModLow.map(g => {
+                  const avg = Math.round(g.averageConfidence * 100)
+                  const label = avg >= 70 ? 'Moderate' : 'Low'
+                  const color = avg >= 70 ? 'oklch(0.65 0.18 60)' : 'oklch(0.55 0.22 25)'
+                  return (
+                    <div key={g.formType} style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      padding: '0.25rem 0.375rem',
+                    }}>
+                      <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.3 0.01 260)' }}>
+                        {g.formType} ({g.formEntity})
+                      </span>
+                      <span style={{
+                        fontSize: '0.5625rem', fontWeight: 700, fontFamily: 'var(--font-mono)',
+                        padding: '0.0625rem 0.25rem', borderRadius: '0.1875rem',
+                        backgroundColor: `${color} / 0.12`, color,
+                      }}>
+                        {label}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            <div style={{
+              display: 'flex', justifyContent: 'flex-end', gap: '0.5rem',
+              padding: '0.75rem 1rem',
+              borderBlockStart: '0.0625rem solid oklch(0.92 0.005 260)',
+              backgroundColor: 'oklch(0.99 0.003 240)',
+            }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowBulkWarning(false)
+                  if (unreviewedModLow.length > 0) {
+                    const idx = groups.findIndex(g => g.formType === unreviewedModLow[0].formType)
+                    if (idx >= 0) selectGroup(idx)
+                  }
+                }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '0.375rem',
+                  padding: '0.375rem 0.75rem', border: '0.0625rem solid oklch(0.88 0.01 260)',
+                  borderRadius: '0.25rem', backgroundColor: 'oklch(1 0 0)',
+                  fontSize: '0.75rem', fontWeight: 600, color: 'oklch(0.3 0.01 260)',
+                  cursor: 'pointer',
+                }}
+              >
+                Review These First
+              </button>
+              <button
+                type="button"
+                onClick={executeBulkAccept}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '0.375rem',
+                  padding: '0.375rem 0.75rem', border: 'none',
+                  borderRadius: '0.25rem', backgroundColor: 'oklch(0.65 0.18 60)',
+                  fontSize: '0.75rem', fontWeight: 600, color: 'oklch(1 0 0)',
+                  cursor: 'pointer',
+                }}
+              >
+                Accept Anyway
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
       {/* ── Main 2-column layout ── */}
       <div style={{
         display: 'grid',
