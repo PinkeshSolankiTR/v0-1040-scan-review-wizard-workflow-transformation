@@ -413,19 +413,21 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
     return groups.filter(g => {
       const isAccepted = g.records.every(r => decisions[getItemKey(r)] === 'accepted')
       const isRejected = rejectedGroups.has(g.formType)
-      const isOverridden = overriddenOriginals.has(g.formType)
+      const rawOvId = overriddenOriginals.get(g.formType)
+      const isOverridden = rawOvId !== undefined && !rejectedDocs.has(rawOvId)
       return Math.round(g.averageConfidence * 100) >= 90 && !isAccepted && !isRejected && !isOverridden
     })
-  }, [groups, decisions, rejectedGroups, overriddenOriginals])
+  }, [groups, decisions, rejectedGroups, overriddenOriginals, rejectedDocs])
 
   const allUnreviewed = useMemo(() => {
     return groups.filter(g => {
       const isAccepted = g.records.every(r => decisions[getItemKey(r)] === 'accepted')
       const isRejected = rejectedGroups.has(g.formType)
-      const isOverridden = overriddenOriginals.has(g.formType)
+      const rawOvId = overriddenOriginals.get(g.formType)
+      const isOverridden = rawOvId !== undefined && !rejectedDocs.has(rawOvId)
       return !isAccepted && !isRejected && !isOverridden
     })
-  }, [groups, decisions, rejectedGroups, overriddenOriginals])
+  }, [groups, decisions, rejectedGroups, overriddenOriginals, rejectedDocs])
 
   const unreviewedModLow = useMemo(() => {
     return allUnreviewed.filter(g => Math.round(g.averageConfidence * 100) < 90)
@@ -504,12 +506,11 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
   )
   const aiOriginalId = useMemo(() => getAIOriginalId(groupDocs), [groupDocs])
 
-  /* Effective original = user override or AI default */
-  const effectiveOriginalId = (activeGroup && overriddenOriginals.has(activeGroup.formType))
-    ? overriddenOriginals.get(activeGroup.formType)!
-    : aiOriginalId
-
-  const isGroupOverridden = !!(activeGroup && overriddenOriginals.has(activeGroup.formType))
+  /* Effective original = user override or AI default (validated: override ignored if overridden doc is rejected) */
+  const overrideDocId = activeGroup ? overriddenOriginals.get(activeGroup.formType) : undefined
+  const isOverrideValid = overrideDocId !== undefined && !rejectedDocIds.has(overrideDocId)
+  const effectiveOriginalId = isOverrideValid ? overrideDocId : aiOriginalId
+  const isGroupOverridden = isOverrideValid
 
   /* Pick a different doc as Original */
   const handleSelectOriginal = (docId: string) => {
@@ -592,12 +593,26 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
         return next
       })
 
-      // If rejecting the current Original, apply the new original selection
+      // If rejecting the current effective Original, apply new original or clear override
       const isRejectingOriginal = rejectTargetDocId === effectiveOriginalId
       if (isRejectingOriginal && newOriginalAfterReject) {
         setOverriddenOriginals(prev => {
           const next = new Map(prev)
           next.set(activeGroup.formType, newOriginalAfterReject)
+          return next
+        })
+      } else if (isRejectingOriginal) {
+        // Rejecting the overridden Original but no replacement picked -- clear override
+        setOverriddenOriginals(prev => {
+          const next = new Map(prev)
+          next.delete(activeGroup.formType)
+          return next
+        })
+      } else if (overriddenOriginals.has(activeGroup.formType) && rejectTargetDocId === overriddenOriginals.get(activeGroup.formType)) {
+        // Rejecting the doc that is the stored override -- clear it
+        setOverriddenOriginals(prev => {
+          const next = new Map(prev)
+          next.delete(activeGroup.formType)
           return next
         })
       }
@@ -757,6 +772,7 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
                   {effectiveDocs.map(doc => {
                     const isSelected = doc.id === effectiveOriginalId
                     const isAIChoice = doc.id === aiOriginalId
+                    const isCurrentOriginal = doc.id === effectiveOriginalId
                     return (
                       <label
                         key={doc.id}
@@ -778,7 +794,18 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
                         <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.25 0.01 260)' }}>
                           {doc.label}
                         </span>
-                        {isAIChoice && (
+                        {isCurrentOriginal && (
+                          <span style={{
+                            marginInlineStart: 'auto', flexShrink: 0,
+                            fontSize: '0.5rem', fontWeight: 700, textTransform: 'uppercase',
+                            padding: '0.0625rem 0.25rem', borderRadius: '0.125rem',
+                            backgroundColor: 'oklch(0.94 0.04 145)',
+                            color: 'oklch(0.35 0.14 145)',
+                          }}>
+                            Current Original
+                          </span>
+                        )}
+                        {isAIChoice && !isCurrentOriginal && (
                           <span style={{
                             marginInlineStart: 'auto', flexShrink: 0,
                             fontSize: '0.5rem', fontWeight: 700, textTransform: 'uppercase',
@@ -1691,7 +1718,9 @@ const avgConfidence = Math.round(group.averageConfidence * 100)
                       {(() => {
                         /* Extract unique docs for this group */
                         const docs = getUniqueDocsInGroup(group.records)
-                        const groupOverrideId = overriddenOriginals.get(group.formType)
+                        const rawOverrideId = overriddenOriginals.get(group.formType)
+                        // Validate: override only valid if the overridden doc is NOT rejected
+                        const groupOverrideId = rawOverrideId && !rejectedDocs.has(rawOverrideId) ? rawOverrideId : undefined
                         return docs.map(doc => {
                           const docIsOriginal = groupOverrideId
                             ? doc.id === groupOverrideId
@@ -1880,25 +1909,79 @@ const avgConfidence = Math.round(group.averageConfidence * 100)
                     {/* Override comparison table when user has overridden */}
                     {!panelGroupRejected && isGroupOverridden && (
                       <div style={{
-                        display: 'flex', flexDirection: 'column', gap: '0.25rem',
+                        display: 'flex', flexDirection: 'column', gap: '0.375rem',
                         padding: '0.5rem 0.625rem',
                         marginBlockEnd: '0.625rem',
                         borderRadius: '0.25rem',
                         border: '0.0625rem solid oklch(0.82 0.08 60)',
-                        backgroundColor: 'oklch(0.96 0.04 60)',
+                        backgroundColor: 'oklch(0.99 0.01 60)',
                       }}>
                         <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'oklch(0.4 0.14 60)' }}>
-                          User has overridden the Original classification
+                          User has overridden the AI classification
                         </span>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.125rem' }}>
-                          <p style={{ fontSize: '0.6875rem', color: 'oklch(0.4 0.1 60)', margin: 0 }}>
-                            <strong>AI recommended:</strong>{' '}
-                            {aiOriginalId ?? 'Unknown'} = Original; all others = Duplicate
-                          </p>
-                          <p style={{ fontSize: '0.6875rem', color: 'oklch(0.4 0.1 60)', margin: 0 }}>
-                            <strong>User changed to:</strong>{' '}
-                            {effectiveOriginalId} = Original; all others = Duplicate
-                          </p>
+
+                        {/* AI Recommended row */}
+                        <div style={{
+                          padding: '0.375rem 0.5rem', borderRadius: '0.25rem',
+                          backgroundColor: 'oklch(0.97 0.005 260)',
+                          border: '0.0625rem solid oklch(0.93 0.005 260)',
+                        }}>
+                          <span style={{ fontSize: '0.5625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'oklch(0.5 0.01 260)' }}>
+                            AI Recommended
+                          </span>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem', marginBlockStart: '0.25rem' }}>
+                            {groupDocs.map(doc => {
+                              const isRejected = rejectedDocIds.has(doc.id)
+                              const isAIOrig = doc.id === aiOriginalId
+                              return (
+                                <span key={doc.id} style={{
+                                  fontSize: '0.625rem', fontWeight: 600,
+                                  padding: '0.125rem 0.375rem', borderRadius: '0.1875rem',
+                                  backgroundColor: isRejected ? 'oklch(0.94 0.01 260)' : isAIOrig ? 'oklch(0.94 0.04 145)' : 'oklch(0.94 0.04 25)',
+                                  color: isRejected ? 'oklch(0.6 0.01 260)' : isAIOrig ? 'oklch(0.35 0.14 145)' : 'oklch(0.45 0.18 25)',
+                                  textDecoration: isRejected ? 'line-through' : 'none',
+                                  opacity: isRejected ? 0.6 : 1,
+                                }}>
+                                  {doc.label}: {isRejected ? 'Rejected' : isAIOrig ? 'Original' : 'Duplicate'}
+                                </span>
+                              )
+                            })}
+                          </div>
+                        </div>
+
+                        {/* User Changed To row */}
+                        <div style={{
+                          padding: '0.375rem 0.5rem', borderRadius: '0.25rem',
+                          backgroundColor: 'oklch(1 0 0)',
+                          border: '0.0625rem solid oklch(0.91 0.005 260)',
+                        }}>
+                          <span style={{ fontSize: '0.5625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'oklch(0.5 0.01 260)' }}>
+                            User Changed To
+                          </span>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem', marginBlockStart: '0.25rem' }}>
+                            {groupDocs.map(doc => {
+                              const isRejected = rejectedDocIds.has(doc.id)
+                              const isUserOrig = doc.id === effectiveOriginalId
+                              const isAIOrig = doc.id === aiOriginalId
+                              const changed = !isRejected && (
+                                (isAIOrig && !isUserOrig) || (!isAIOrig && isUserOrig)
+                              )
+                              return (
+                                <span key={doc.id} style={{
+                                  fontSize: '0.625rem', fontWeight: 600,
+                                  padding: '0.125rem 0.375rem', borderRadius: '0.1875rem',
+                                  backgroundColor: isRejected ? 'oklch(0.94 0.01 260)' : isUserOrig ? 'oklch(0.94 0.04 145)' : 'oklch(0.94 0.04 25)',
+                                  color: isRejected ? 'oklch(0.6 0.01 260)' : isUserOrig ? 'oklch(0.35 0.14 145)' : 'oklch(0.45 0.18 25)',
+                                  outline: changed ? '0.125rem solid oklch(0.65 0.14 60)' : 'none',
+                                  textDecoration: isRejected ? 'line-through' : 'none',
+                                  opacity: isRejected ? 0.6 : 1,
+                                }}>
+                                  {doc.label}: {isRejected ? 'Rejected' : isUserOrig ? 'Original' : 'Duplicate'}
+                                  {changed && ' *'}
+                                </span>
+                              )
+                            })}
+                          </div>
                         </div>
                       </div>
                     )}
@@ -1909,7 +1992,7 @@ const avgConfidence = Math.round(group.averageConfidence * 100)
                       marginBlockEnd: '0.625rem',
                       borderBlockEnd: '0.0625rem solid oklch(0.91 0.005 260)',
                     }} aria-label="Document analysis tabs">
-                      {groupDocs.map(doc => {
+                      {effectiveDocs.map(doc => {
                         const isActiveDoc = selectedDocId === doc.id
                         const docIsOrig = isDocOriginal(doc.id)
                         return (
