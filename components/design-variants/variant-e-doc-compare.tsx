@@ -216,7 +216,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
 
   const handleAcceptGroup = () => {
     if (!activeGroup) return
-    const isFlipped = flippedGroups.has(activeGroup.formType)
+    const isFlipped = isActiveFlipped
 
     for (const r of activeGroup.records) {
       const key = `sup-pg${r.engagementPageId}`
@@ -599,12 +599,13 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
   const activeFlippedIdx = flippedDocStillValid ? activeFlippedIdxRaw : undefined
   const isActiveFlipped = activeFlippedIdx !== undefined
 
+
   // Effective original and superseded lists (excluding rejected docs)
   const effectiveOriginal = useMemo(() => {
     if (!activeGroup) return null
     if (isActiveFlipped) {
       // The overridden superseded record is the new Original
-      const overriddenRecord = activeGroup.supersededRecords[activeFlippedIdx]
+      const overriddenRecord = activeGroup.supersededRecords[activeFlippedIdx!]
       if (overriddenRecord && !rejectedPageIds.has(String(overriddenRecord.engagementPageId))) {
         return overriddenRecord
       }
@@ -621,7 +622,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
       list = activeGroup.supersededRecords
     } else {
       // Remove the flipped record from superseded, add the old original
-      const remaining = activeGroup.supersededRecords.filter((_, i) => i !== activeFlippedIdx)
+      const remaining = activeGroup.supersededRecords.filter((_, i) => i !== activeFlippedIdx!)
       list = activeGroup.originalRecord
         ? [...remaining, activeGroup.originalRecord]
         : remaining
@@ -682,10 +683,9 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                 if (!showOverridePanel) {
                   // Reset to step 1 when opening
                   setOverrideStep('select')
-                  // Pre-select the currently overridden doc if override is active
-                  const currentFlippedIdx = activeGroup ? flippedGroups.get(activeGroup.formType) : undefined
-                  if (currentFlippedIdx !== undefined && activeGroup) {
-                    const overriddenRecord = activeGroup.supersededRecords[currentFlippedIdx]
+                  // Pre-select the currently overridden doc if override is active (use validated index)
+                  if (isActiveFlipped && activeFlippedIdx !== undefined && activeGroup) {
+                    const overriddenRecord = activeGroup.supersededRecords[activeFlippedIdx]
                     setSelectedDocument(overriddenRecord ? String(overriddenRecord.engagementPageId) : null)
                   } else {
                     setSelectedDocument(null)
@@ -761,6 +761,9 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                           .filter(record => !rejectedPageIds.has(String(record.engagementPageId)))
                           .map((record) => {
                           const isAIPick = record.decisionType === 'Original'
+                          const isCurrentOriginal = isActiveFlipped
+                            ? activeFlippedIdx !== undefined && record.engagementPageId === activeGroup.supersededRecords[activeFlippedIdx]?.engagementPageId
+                            : record.decisionType === 'Original'
                           const docLabel = `${record.documentRef?.formType ?? 'Document'} (Page ${record.engagementPageId})`
                           return (
                             <label
@@ -786,15 +789,26 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                               <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.25 0.01 260)', flex: 1 }}>
                                 {docLabel}
                               </span>
-                              {isAIPick && (
+                              {isCurrentOriginal && (
                                 <span style={{
                                   fontSize: '0.5625rem', fontWeight: 700,
                                   padding: '0.125rem 0.375rem',
                                   borderRadius: '0.1875rem',
-                                  backgroundColor: 'oklch(0.95 0.04 145)',
-                                  color: 'oklch(0.45 0.18 145)',
+                                  backgroundColor: 'oklch(0.94 0.04 145)',
+                                  color: 'oklch(0.35 0.14 145)',
                                 }}>
-                                  AI PICK
+                                  Current Original
+                                </span>
+                              )}
+                              {isAIPick && !isCurrentOriginal && (
+                                <span style={{
+                                  fontSize: '0.5625rem', fontWeight: 700,
+                                  padding: '0.125rem 0.375rem',
+                                  borderRadius: '0.1875rem',
+                                  backgroundColor: 'oklch(0.95 0.04 240)',
+                                  color: 'oklch(0.45 0.18 240)',
+                                }}>
+                                  AI Pick
                                 </span>
                               )}
                             </label>
@@ -804,12 +818,11 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
 
                       {/* Action buttons */}
                       <div style={{ display: 'flex', gap: '0.5rem', marginBlockStart: '0.75rem' }}>
-                        {isActiveFlipped ? (
+                        {isActiveFlipped && (
                           <button
                             type="button"
                             onClick={handleUndoOverride}
                             style={{
-                              flex: 1,
                               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem',
                               padding: '0.375rem 0.5rem',
                               border: '0.0625rem solid oklch(0.88 0.01 260)',
@@ -821,27 +834,26 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                             <Undo2 style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
                             Undo Override
                           </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => setOverrideStep('reason')}
-                            disabled={!selectedDocument}
-                            style={{
-                              flex: 1,
-                              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem',
-                              padding: '0.375rem 0.5rem',
-                              border: 'none',
-                              borderRadius: '0.25rem',
-                              backgroundColor: !selectedDocument ? 'oklch(0.9 0.01 260)' : 'oklch(0.45 0.18 145)',
-                              fontSize: '0.6875rem', fontWeight: 600,
-                              color: !selectedDocument ? 'oklch(0.6 0.01 260)' : 'oklch(1 0 0)',
-                              cursor: !selectedDocument ? 'not-allowed' : 'pointer',
-                            }}
-                          >
-                            Continue
-                            <ChevronRight style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
-                          </button>
                         )}
+                        <button
+                          type="button"
+                          onClick={() => setOverrideStep('reason')}
+                          disabled={!selectedDocument}
+                          style={{
+                            flex: 1,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem',
+                            padding: '0.375rem 0.5rem',
+                            border: 'none',
+                            borderRadius: '0.25rem',
+                            backgroundColor: !selectedDocument ? 'oklch(0.9 0.01 260)' : 'oklch(0.45 0.18 145)',
+                            fontSize: '0.6875rem', fontWeight: 600,
+                            color: !selectedDocument ? 'oklch(0.6 0.01 260)' : 'oklch(1 0 0)',
+                            cursor: !selectedDocument ? 'not-allowed' : 'pointer',
+                          }}
+                        >
+                          {isActiveFlipped ? 'Change Override' : 'Continue'}
+                          <ChevronRight style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
+                        </button>
                       </div>
                     </>
                   )}
@@ -1870,7 +1882,12 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                         const recordKey = `sup-pg${r.engagementPageId}`
                         const isAccepted = decisions[recordKey] === 'accepted'
                         const supIdx = group.supersededRecords.findIndex(s => s.engagementPageId === r.engagementPageId)
-                        const flippedIdx = flippedGroups.get(group.formType)
+                        const rawFlippedIdx = flippedGroups.get(group.formType)
+                        // Validate: only treat as flipped if the flipped doc is NOT rejected
+                        const flippedDocValid = rawFlippedIdx !== undefined
+                          ? !rejectedDocs.has(String(group.supersededRecords[rawFlippedIdx]?.engagementPageId))
+                          : false
+                        const flippedIdx = flippedDocValid ? rawFlippedIdx : undefined
                         const isFlipped = flippedIdx !== undefined
                         // When overridden: the selected superseded becomes Original,
                         // the original becomes Superseded, all others stay Superseded
@@ -2213,7 +2230,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
 
                     {/* Hide AI explanation after user applies override or rejects */}
                     {/* Compact icon + text explanation */}
-                    {!panelGroupRejected && !(activeGroup && flippedGroups.has(activeGroup.formType)) && (
+                    {!panelGroupRejected && !isGroupOverridden && (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                         {groupSuperseded?.decisionReason
                           ?.split('||')
@@ -2309,7 +2326,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                     labelB={rightDoc?.documentRef?.formLabel ?? 'Original'}
                     docRefA={leftDoc?.documentRef}
                     docRefB={rightDoc?.documentRef}
-                    isOverridden={!!(activeGroup && flippedGroups.has(activeGroup.formType))}
+                    isOverridden={isActiveFlipped}
                   />
                 </div>
               )}
