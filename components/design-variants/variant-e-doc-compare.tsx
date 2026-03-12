@@ -996,6 +996,72 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                   backgroundColor: 'oklch(1 0 0)',
                   boxShadow: '0 0.25rem 0.75rem oklch(0 0 0 / 0.12)',
                 }}>
+                  {/* ── Already rejected docs with undo ── */}
+                  {hasPartialRejects && rejectStep === 'select' && (() => {
+                    const rejectedRecords = activeGroup?.records.filter(r => rejectedPageIds.has(String(r.engagementPageId))) ?? []
+                    return (
+                      <div style={{
+                        marginBlockEnd: '0.625rem',
+                        paddingBlockEnd: '0.625rem',
+                        borderBlockEnd: '0.0625rem solid oklch(0.91 0.01 260)',
+                      }}>
+                        <p style={{
+                          fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.5 0.01 260)',
+                          textTransform: 'uppercase', letterSpacing: '0.04em',
+                          marginBlockEnd: '0.375rem',
+                        }}>
+                          Rejected ({rejectedRecords.length})
+                        </p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                          {rejectedRecords.map(r => {
+                            const pageId = String(r.engagementPageId)
+                            const rejectInfo = rejectedDocs.get(pageId)
+                            return (
+                              <div
+                                key={pageId}
+                                style={{
+                                  display: 'flex', alignItems: 'center', gap: '0.5rem',
+                                  padding: '0.375rem 0.625rem', borderRadius: '0.25rem',
+                                  backgroundColor: 'oklch(0.97 0.01 260)',
+                                  border: '0.0625rem solid oklch(0.91 0.01 260)',
+                                }}
+                              >
+                                <FileText style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.5 0.01 260)', flexShrink: 0 }} />
+                                <div style={{ flex: 1, minInlineSize: 0 }}>
+                                  <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.4 0.01 260)' }}>
+                                    Pg {r.documentRef?.pageNumber ?? r.engagementPageId}
+                                  </span>
+                                  {rejectInfo && (
+                                    <span style={{ fontSize: '0.5625rem', color: 'oklch(0.55 0.01 260)', marginInlineStart: '0.375rem' }}>
+                                      {rejectInfo.reason}
+                                    </span>
+                                  )}
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleUndoRejectDoc(pageId)}
+                                  style={{
+                                    display: 'flex', alignItems: 'center', gap: '0.25rem',
+                                    padding: '0.1875rem 0.5rem',
+                                    border: '0.0625rem solid oklch(0.85 0.01 260)',
+                                    borderRadius: '0.1875rem',
+                                    backgroundColor: 'oklch(1 0 0)',
+                                    fontSize: '0.5625rem', fontWeight: 600, color: 'oklch(0.45 0.01 260)',
+                                    cursor: 'pointer',
+                                    flexShrink: 0,
+                                  }}
+                                >
+                                  <Undo2 style={{ inlineSize: '0.5rem', blockSize: '0.5rem' }} />
+                                  Undo
+                                </button>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )
+                  })()}
+
                   {/* ── Step 1: Select document (3+ pages only) ── */}
                   {isMultiPage && rejectStep === 'select' && (
                     <>
@@ -1004,7 +1070,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                         textTransform: 'uppercase', letterSpacing: '0.04em',
                         marginBlockEnd: '0.25rem',
                       }}>
-                        Select Document to Reject
+                        {hasPartialRejects ? 'Reject Another Document' : 'Select Document to Reject'}
                       </p>
                       <p style={{
                         fontSize: '0.625rem', color: 'oklch(0.5 0.01 260)',
@@ -1127,25 +1193,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                         </button>
                       </div>
 
-                      {/* Undo existing rejections if any */}
-                      {hasPartialRejects && (
-                        <button
-                          type="button"
-                          onClick={handleUndoRejectAll}
-                          style={{
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem',
-                            inlineSize: '100%', marginBlockStart: '0.5rem',
-                            padding: '0.375rem 0.5rem',
-                            border: '0.0625rem solid oklch(0.88 0.01 260)', borderRadius: '0.25rem',
-                            backgroundColor: 'oklch(1 0 0)',
-                            fontSize: '0.625rem', fontWeight: 600, color: 'oklch(0.5 0.01 260)',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          <Undo2 style={{ inlineSize: '0.5rem', blockSize: '0.5rem' }} />
-                          Undo All Rejections ({rejectedPageIds.size})
-                        </button>
-                      )}
+
                     </>
                   )}
 
@@ -1284,7 +1332,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
             })()}
           </div>
 
-          {isGroupRejected ? (
+          {(isGroupRejected || hasPartialRejects) ? (
             <button
               type="button"
               onClick={handleUndoRejectAll}
@@ -1297,7 +1345,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
               }}
             >
               <Undo2 style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem' }} />
-              Undo Rejection
+              Undo Rejection{hasPartialRejects && !isGroupRejected ? ` (${rejectedPageIds.size})` : ''}
             </button>
           ) : null}
 
