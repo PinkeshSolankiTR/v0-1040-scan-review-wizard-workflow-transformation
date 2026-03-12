@@ -377,8 +377,13 @@ function StaticFeatureCard({ feature }: { feature: StaticFeature }) {
   )
 }
 
+/* ── Sub-tab type ── */
+type RoadmapTab = 'ado' | 'static'
+
 /* ── Main Page ── */
 export default function DeliveryRoadmapPage() {
+  const [activeTab, setActiveTab] = useState<RoadmapTab>('ado')
+
   const { data, error, isLoading, mutate } = useSWR('/api/ado-query', fetcher, {
     revalidateOnFocus: false,
     dedupingInterval: 60_000,
@@ -387,7 +392,7 @@ export default function DeliveryRoadmapPage() {
   const isLive = !error && data?.epic
   const epic: RoadmapEpic | null = isLive ? data.epic : null
 
-  /* Static fallback data */
+  /* Static data */
   const staticWizardFeatures = STATIC_ROADMAP.features.filter(f => f.category === 'wizard')
   const staticCrossCuttingFeatures = STATIC_ROADMAP.features.filter(f => f.category === 'cross-cutting')
 
@@ -395,11 +400,10 @@ export default function DeliveryRoadmapPage() {
   const liveWizardFeatures = epic?.features.filter(f => f.category === 'wizard') ?? []
   const liveCrossCuttingFeatures = epic?.features.filter(f => f.category === 'cross-cutting') ?? []
 
-  const totalFeatures = isLive ? epic!.features.length : STATIC_ROADMAP.features.length
-  const totalSpikes = isLive
-    ? epic!.features.reduce((sum, f) => sum + f.spikes.length, 0)
-    : STATIC_ROADMAP.features.reduce((sum, f) => sum + f.spikes.length, 0)
-  const wizardCount = isLive ? liveWizardFeatures.length : staticWizardFeatures.length
+  const tabs: { id: RoadmapTab; label: string; sublabel: string }[] = [
+    { id: 'ado', label: 'Azure DevOps (Live)', sublabel: 'Real-time from ADO query' },
+    { id: 'static', label: 'Static Roadmap', sublabel: 'Original CSV-based data' },
+  ]
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -424,81 +428,234 @@ export default function DeliveryRoadmapPage() {
       <main className="flex-1">
         <div className="mx-auto max-w-6xl px-6 py-10">
           {/* Page header */}
-          <div className="flex flex-col gap-1 mb-2">
+          <div className="flex flex-col gap-1 mb-6">
             <div className="flex items-center gap-2">
               <Badge className="bg-foreground text-background">Delivery Roadmap</Badge>
-              {/* Data source indicator */}
-              {isLoading && (
-                <Badge variant="outline" className="text-[0.5625rem] gap-1 py-0">
-                  <Loader2 className="size-2.5 animate-spin" />
-                  Connecting to ADO...
-                </Badge>
-              )}
-              {isLive && (
-                <Badge variant="outline" className="text-[0.5625rem] gap-1 py-0" style={{ borderColor: 'oklch(0.7 0.14 145)', color: 'oklch(0.35 0.14 145)' }}>
-                  <span className="size-1.5 rounded-full" style={{ backgroundColor: 'oklch(0.55 0.2 145)' }} />
-                  Live from ADO
-                </Badge>
-              )}
-              {error && (
-                <Badge variant="outline" className="text-[0.5625rem] gap-1 py-0 border-amber-400 text-amber-700">
-                  <CloudOff className="size-2.5" />
-                  Offline -- showing cached data
-                </Badge>
-              )}
             </div>
             <h1 className="text-2xl font-bold tracking-tight text-foreground text-balance">
               Phase 1: Delivery Roadmap
             </h1>
-            <div className="flex items-center gap-3">
-              <p className="text-sm text-muted-foreground">
-                Epic, Feature & Spike tracking for Wizard Elimination
-              </p>
-              {!isLoading && (
-                <button
-                  type="button"
-                  onClick={() => mutate()}
-                  className="flex items-center gap-1 text-[0.625rem] font-medium text-muted-foreground hover:text-foreground transition-colors"
-                  title="Refresh data from Azure DevOps"
-                >
-                  <RefreshCw className="size-3" />
-                  Refresh
-                </button>
-              )}
-            </div>
+            <p className="text-sm text-muted-foreground">
+              Epic, Feature & Spike tracking for Wizard Elimination
+            </p>
           </div>
 
-          {/* Error banner */}
-          {error && (
-            <div className="mb-6 flex items-start gap-3 rounded-md border border-amber-200 bg-amber-50 px-4 py-3">
-              <AlertTriangle className="size-4 text-amber-600 shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium text-amber-900">Could not connect to Azure DevOps</p>
-                <p className="text-xs text-amber-700 mt-0.5">
-                  Showing static fallback data. The live query may be unavailable due to network or authentication issues.
-                </p>
+          {/* Sub-tabs */}
+          <nav
+            className="flex items-stretch gap-0 mb-8 border-b border-border"
+            role="tablist"
+            aria-label="Roadmap data source"
+          >
+            {tabs.map(tab => {
+              const isActive = activeTab === tab.id
+              return (
                 <button
+                  key={tab.id}
+                  role="tab"
                   type="button"
-                  onClick={() => mutate()}
-                  className="text-xs font-medium text-amber-800 hover:underline mt-1"
+                  aria-selected={isActive}
+                  onClick={() => setActiveTab(tab.id)}
+                  className="relative flex flex-col gap-0.5 px-5 py-3 text-left transition-colors"
+                  style={{
+                    color: isActive ? 'var(--foreground)' : 'var(--muted-foreground)',
+                  }}
                 >
-                  Try again
+                  <span className="text-sm font-semibold leading-tight">{tab.label}</span>
+                  <span className="text-[0.625rem] leading-tight opacity-70">{tab.sublabel}</span>
+                  {/* Active indicator */}
+                  {isActive && (
+                    <span
+                      className="absolute inset-x-0 bottom-0 h-0.5 rounded-full"
+                      style={{ backgroundColor: 'var(--foreground)' }}
+                    />
+                  )}
                 </button>
+              )
+            })}
+          </nav>
+
+          {/* ── TAB: Azure DevOps (Live) ── */}
+          {activeTab === 'ado' && (
+            <div>
+              {/* Status bar */}
+              <div className="flex items-center gap-2 mb-6">
+                {isLoading && (
+                  <Badge variant="outline" className="text-[0.5625rem] gap-1 py-0">
+                    <Loader2 className="size-2.5 animate-spin" />
+                    Connecting to ADO...
+                  </Badge>
+                )}
+                {isLive && (
+                  <Badge variant="outline" className="text-[0.5625rem] gap-1 py-0" style={{ borderColor: 'oklch(0.7 0.14 145)', color: 'oklch(0.35 0.14 145)' }}>
+                    <span className="size-1.5 rounded-full" style={{ backgroundColor: 'oklch(0.55 0.2 145)' }} />
+                    Live from ADO
+                  </Badge>
+                )}
+                {error && (
+                  <Badge variant="outline" className="text-[0.5625rem] gap-1 py-0 border-amber-400 text-amber-700">
+                    <CloudOff className="size-2.5" />
+                    Connection failed
+                  </Badge>
+                )}
+                {!isLoading && (
+                  <button
+                    type="button"
+                    onClick={() => mutate()}
+                    className="flex items-center gap-1 text-[0.625rem] font-medium text-muted-foreground hover:text-foreground transition-colors"
+                    title="Refresh data from Azure DevOps"
+                  >
+                    <RefreshCw className="size-3" />
+                    Refresh
+                  </button>
+                )}
               </div>
+
+              {/* Error banner */}
+              {error && (
+                <div className="mb-6 flex items-start gap-3 rounded-md border border-amber-200 bg-amber-50 px-4 py-3">
+                  <AlertTriangle className="size-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-amber-900">Could not connect to Azure DevOps</p>
+                    <p className="text-xs text-amber-700 mt-0.5">
+                      Check your network connection and PAT validity. You can view the static roadmap data in the other tab.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => mutate()}
+                      className="text-xs font-medium text-amber-800 hover:underline mt-1"
+                    >
+                      Try again
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Loading */}
+              {isLoading && (
+                <div className="flex flex-col items-center justify-center py-20 gap-3">
+                  <Loader2 className="size-8 animate-spin text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">Fetching work items from Azure DevOps...</p>
+                </div>
+              )}
+
+              {/* Live content */}
+              {!isLoading && isLive && epic && (
+                <>
+                  {/* Epic card */}
+                  <Card className="mb-8 border-l-4 border-l-foreground">
+                    <CardHeader>
+                      <div className="flex items-start gap-3">
+                        <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted">
+                          <Layers className="size-5 text-foreground" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <Badge variant="outline" className="text-[0.625rem] font-mono px-1.5 py-0">
+                              Epic: {epic.id}
+                            </Badge>
+                            {epic.state && (
+                              <span
+                                className="inline-flex items-center rounded-sm px-1.5 py-0 text-[0.5625rem] font-semibold"
+                                style={stateColor(epic.state)}
+                              >
+                                {epic.state}
+                              </span>
+                            )}
+                            <a
+                              href={epic.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-muted-foreground hover:text-foreground transition-colors"
+                              title="Open Epic in Azure DevOps"
+                            >
+                              <ExternalLink className="size-3" />
+                            </a>
+                          </div>
+                          <h2 className="text-lg font-bold text-foreground leading-snug text-balance">
+                            {epic.title}
+                          </h2>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-muted-foreground leading-relaxed mb-4">
+                        {epic.description}
+                      </p>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="flex flex-col items-center rounded-md bg-muted/50 px-2 py-3 text-center">
+                          <p className="text-lg font-bold text-foreground">{epic.features.length}</p>
+                          <p className="text-xs text-muted-foreground leading-tight mt-0.5">Features</p>
+                        </div>
+                        <div className="flex flex-col items-center rounded-md bg-muted/50 px-2 py-3 text-center">
+                          <p className="text-lg font-bold text-foreground">
+                            {epic.features.reduce((sum, f) => sum + f.spikes.length, 0)}
+                          </p>
+                          <p className="text-xs text-muted-foreground leading-tight mt-0.5">Spikes</p>
+                        </div>
+                        <div className="flex flex-col items-center rounded-md bg-muted/50 px-2 py-3 text-center">
+                          <p className="text-lg font-bold text-foreground">{liveWizardFeatures.length}</p>
+                          <p className="text-xs text-muted-foreground leading-tight mt-0.5">Wizards</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Wizard-Specific Features */}
+                  {liveWizardFeatures.length > 0 && (
+                    <div className="mb-10">
+                      <div className="flex items-center gap-2 mb-4">
+                        <Crosshair className="size-4 text-foreground" />
+                        <h2 className="text-lg font-bold text-foreground">Wizard-Specific Features</h2>
+                        <Badge variant="secondary" className="text-[0.625rem]">{liveWizardFeatures.length}</Badge>
+                      </div>
+                      <div className="grid gap-4">
+                        {liveWizardFeatures.map(f => <LiveFeatureCard key={f.id} feature={f} />)}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Cross-Cutting Features */}
+                  {liveCrossCuttingFeatures.length > 0 && (
+                    <div className="mb-10">
+                      <div className="flex items-center gap-2 mb-4">
+                        <Wrench className="size-4 text-foreground" />
+                        <h2 className="text-lg font-bold text-foreground">Cross-Cutting Features</h2>
+                        <Badge variant="secondary" className="text-[0.625rem]">{liveCrossCuttingFeatures.length}</Badge>
+                      </div>
+                      <div className="grid gap-4">
+                        {liveCrossCuttingFeatures.map(f => <LiveFeatureCard key={f.id} feature={f} />)}
+                      </div>
+                    </div>
+                  )}
+
+                  <p className="text-center text-xs text-muted-foreground/60">
+                    Live data from Azure DevOps query. Spike descriptions reflect current work item definitions.
+                  </p>
+                </>
+              )}
+
+              {/* Fallback when ADO failed and not loading */}
+              {!isLoading && !isLive && (
+                <div className="flex flex-col items-center justify-center py-16 gap-4 text-center">
+                  <CloudOff className="size-10 text-muted-foreground/40" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">No live data available</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Switch to the <strong>Static Roadmap</strong> tab to view the original CSV-based delivery roadmap.
+                    </p>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => mutate()}>
+                    <RefreshCw className="size-3.5" />
+                    Retry ADO Connection
+                  </Button>
+                </div>
+              )}
             </div>
           )}
 
-          {/* Loading state */}
-          {isLoading && (
-            <div className="flex flex-col items-center justify-center py-20 gap-3">
-              <Loader2 className="size-8 animate-spin text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">Fetching work items from Azure DevOps...</p>
-            </div>
-          )}
-
-          {/* Content -- either live or static */}
-          {!isLoading && (
-            <>
+          {/* ── TAB: Static Roadmap (CSV) ── */}
+          {activeTab === 'static' && (
+            <div>
               {/* Epic card */}
               <Card className="mb-8 border-l-4 border-l-foreground">
                 <CardHeader>
@@ -509,52 +666,33 @@ export default function DeliveryRoadmapPage() {
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <Badge variant="outline" className="text-[0.625rem] font-mono px-1.5 py-0">
-                          Epic: {isLive ? epic!.id : STATIC_ROADMAP.id}
+                          Epic: {STATIC_ROADMAP.id}
                         </Badge>
-                        {isLive && epic!.state && (
-                          <span
-                            className="inline-flex items-center rounded-sm px-1.5 py-0 text-[0.5625rem] font-semibold"
-                            style={stateColor(epic!.state)}
-                          >
-                            {epic!.state}
-                          </span>
-                        )}
-                        {!isLive && (
-                          <Badge className="bg-foreground text-background text-[0.625rem]">Active</Badge>
-                        )}
-                        {isLive && (
-                          <a
-                            href={epic!.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-muted-foreground hover:text-foreground transition-colors"
-                            title="Open Epic in Azure DevOps"
-                          >
-                            <ExternalLink className="size-3" />
-                          </a>
-                        )}
+                        <Badge className="bg-foreground text-background text-[0.625rem]">Active</Badge>
                       </div>
                       <h2 className="text-lg font-bold text-foreground leading-snug text-balance">
-                        {isLive ? epic!.title : STATIC_ROADMAP.title}
+                        {STATIC_ROADMAP.title}
                       </h2>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-muted-foreground leading-relaxed mb-4">
-                    {isLive ? epic!.description : STATIC_ROADMAP.description}
+                    {STATIC_ROADMAP.description}
                   </p>
                   <div className="grid grid-cols-3 gap-3">
                     <div className="flex flex-col items-center rounded-md bg-muted/50 px-2 py-3 text-center">
-                      <p className="text-lg font-bold text-foreground">{totalFeatures}</p>
+                      <p className="text-lg font-bold text-foreground">{STATIC_ROADMAP.features.length}</p>
                       <p className="text-xs text-muted-foreground leading-tight mt-0.5">Features</p>
                     </div>
                     <div className="flex flex-col items-center rounded-md bg-muted/50 px-2 py-3 text-center">
-                      <p className="text-lg font-bold text-foreground">{totalSpikes}</p>
+                      <p className="text-lg font-bold text-foreground">
+                        {STATIC_ROADMAP.features.reduce((sum, f) => sum + f.spikes.length, 0)}
+                      </p>
                       <p className="text-xs text-muted-foreground leading-tight mt-0.5">Spikes</p>
                     </div>
                     <div className="flex flex-col items-center rounded-md bg-muted/50 px-2 py-3 text-center">
-                      <p className="text-lg font-bold text-foreground">{wizardCount}</p>
+                      <p className="text-lg font-bold text-foreground">{staticWizardFeatures.length}</p>
                       <p className="text-xs text-muted-foreground leading-tight mt-0.5">Wizards</p>
                     </div>
                   </div>
@@ -566,15 +704,10 @@ export default function DeliveryRoadmapPage() {
                 <div className="flex items-center gap-2 mb-4">
                   <Crosshair className="size-4 text-foreground" />
                   <h2 className="text-lg font-bold text-foreground">Wizard-Specific Features</h2>
-                  <Badge variant="secondary" className="text-[0.625rem]">
-                    {isLive ? liveWizardFeatures.length : staticWizardFeatures.length}
-                  </Badge>
+                  <Badge variant="secondary" className="text-[0.625rem]">{staticWizardFeatures.length}</Badge>
                 </div>
                 <div className="grid gap-4">
-                  {isLive
-                    ? liveWizardFeatures.map(f => <LiveFeatureCard key={f.id} feature={f} />)
-                    : staticWizardFeatures.map(f => <StaticFeatureCard key={f.id} feature={f} />)
-                  }
+                  {staticWizardFeatures.map(f => <StaticFeatureCard key={f.id} feature={f} />)}
                 </div>
               </div>
 
@@ -583,24 +716,17 @@ export default function DeliveryRoadmapPage() {
                 <div className="flex items-center gap-2 mb-4">
                   <Wrench className="size-4 text-foreground" />
                   <h2 className="text-lg font-bold text-foreground">Cross-Cutting Features</h2>
-                  <Badge variant="secondary" className="text-[0.625rem]">
-                    {isLive ? liveCrossCuttingFeatures.length : staticCrossCuttingFeatures.length}
-                  </Badge>
+                  <Badge variant="secondary" className="text-[0.625rem]">{staticCrossCuttingFeatures.length}</Badge>
                 </div>
                 <div className="grid gap-4">
-                  {isLive
-                    ? liveCrossCuttingFeatures.map(f => <LiveFeatureCard key={f.id} feature={f} />)
-                    : staticCrossCuttingFeatures.map(f => <StaticFeatureCard key={f.id} feature={f} />)
-                  }
+                  {staticCrossCuttingFeatures.map(f => <StaticFeatureCard key={f.id} feature={f} />)}
                 </div>
               </div>
 
-              {/* Footer note */}
               <p className="text-center text-xs text-muted-foreground/60">
-                Delivery Roadmap -- {isLive ? 'Live data from Azure DevOps query.' : 'Showing static fallback data.'}
-                {' '}Spike descriptions reflect current work item definitions.
+                Static roadmap data from original CSV import. This data is not updated in real-time.
               </p>
-            </>
+            </div>
           )}
         </div>
       </main>
