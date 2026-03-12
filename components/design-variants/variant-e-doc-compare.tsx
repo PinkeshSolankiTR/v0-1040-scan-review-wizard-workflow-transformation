@@ -490,10 +490,16 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
         return next
       })
 
-      // If rejecting the Original and user picked a new Original, apply override
-      const isRejectingOriginal = activeGroup.originalRecord &&
-        String(activeGroup.originalRecord.engagementPageId) === rejectTargetPageId
-      if (isRejectingOriginal && newOriginalAfterReject) {
+      // Determine the effective Original (accounting for existing overrides)
+      const flippedIdx = flippedGroups.get(activeGroup.formType)
+      const effectiveOrigPageId = flippedIdx !== undefined
+        ? String(activeGroup.supersededRecords[flippedIdx]?.engagementPageId)
+        : activeGroup.originalRecord ? String(activeGroup.originalRecord.engagementPageId) : null
+
+      const isRejectingEffectiveOriginal = rejectTargetPageId === effectiveOrigPageId
+
+      if (isRejectingEffectiveOriginal && newOriginalAfterReject) {
+        // User picked a new Original to replace the rejected one
         const newOrigIdx = activeGroup.supersededRecords.findIndex(
           s => String(s.engagementPageId) === newOriginalAfterReject
         )
@@ -501,6 +507,23 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
           setFlippedGroups(prev => {
             const next = new Map(prev)
             next.set(activeGroup.formType, newOrigIdx)
+            return next
+          })
+        }
+      } else if (isRejectingEffectiveOriginal) {
+        // Rejecting the overridden Original but no new one picked -- clear override
+        setFlippedGroups(prev => {
+          const next = new Map(prev)
+          next.delete(activeGroup.formType)
+          return next
+        })
+      } else if (flippedIdx !== undefined) {
+        // Rejecting a superseded doc: if it was the flipped doc, clear the override
+        const flippedPageId = String(activeGroup.supersededRecords[flippedIdx]?.engagementPageId)
+        if (rejectTargetPageId === flippedPageId) {
+          setFlippedGroups(prev => {
+            const next = new Map(prev)
+            next.delete(activeGroup.formType)
             return next
           })
         }
@@ -1064,7 +1087,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                     )
                   })()}
 
-                  {/* ── Step 1: Select document (3+ pages only) ── */}
+                  {/* ─�� Step 1: Select document (3+ pages only) ── */}
                   {isMultiPage && rejectStep === 'select' && (
                     <>
                       <p style={{
@@ -1934,7 +1957,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
 
           {/* ═══════════════════════════════════════════════════════════
               PANEL 1: AI Analysis (collapsible) -- PRIMARY
-              ═══════════════════════════════════════════════════════════ */}
+              ═══════════════════════════════��═══════════════════════════ */}
           {(() => {
             const groupSuperseded = activeGroup?.records.find(r => r.decisionType === 'Superseded')
             const groupOriginal = activeGroup?.records.find(r => r.decisionType === 'Original')
@@ -2106,16 +2129,21 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                             AI Recommended
                           </span>
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem', marginBlockStart: '0.25rem' }}>
-                            {allRecords.map(r => (
+                            {allRecords.map(r => {
+                              const isRejected = rejectedPageIds.has(String(r.engagementPageId))
+                              return (
                               <span key={r.engagementPageId} style={{
                                 fontSize: '0.625rem', fontWeight: 600,
                                 padding: '0.125rem 0.375rem', borderRadius: '0.1875rem',
-                                backgroundColor: r.decisionType === 'Original' ? 'oklch(0.94 0.04 145)' : 'oklch(0.94 0.04 25)',
-                                color: r.decisionType === 'Original' ? 'oklch(0.35 0.14 145)' : 'oklch(0.45 0.18 25)',
+                                backgroundColor: isRejected ? 'oklch(0.94 0.01 260)' : r.decisionType === 'Original' ? 'oklch(0.94 0.04 145)' : 'oklch(0.94 0.04 25)',
+                                color: isRejected ? 'oklch(0.6 0.01 260)' : r.decisionType === 'Original' ? 'oklch(0.35 0.14 145)' : 'oklch(0.45 0.18 25)',
+                                textDecoration: isRejected ? 'line-through' : 'none',
+                                opacity: isRejected ? 0.6 : 1,
                               }}>
-                                Pg {r.documentRef?.pageNumber ?? r.engagementPageId}: {r.decisionType}
+                                Pg {r.documentRef?.pageNumber ?? r.engagementPageId}: {isRejected ? 'Rejected' : r.decisionType}
                               </span>
-                            ))}
+                              )
+                            })}
                           </div>
                         </div>
 
@@ -2130,24 +2158,31 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                           </span>
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem', marginBlockStart: '0.25rem' }}>
                             {allRecords.map(r => {
+                              const isRejected = rejectedPageIds.has(String(r.engagementPageId))
                               // Determine the new label after override
                               let newLabel: string
-                              if (r.engagementPageId === overriddenRecord?.engagementPageId) {
+                              if (isRejected) {
+                                newLabel = 'Rejected'
+                              } else if (r.engagementPageId === overriddenRecord?.engagementPageId) {
                                 newLabel = 'Original' // superseded -> original
                               } else if (r.decisionType === 'Original') {
                                 newLabel = 'Superseded' // original -> superseded
                               } else {
                                 newLabel = 'Superseded' // other superseded stay superseded
                               }
-                              const changed = (r.decisionType === 'Original' && newLabel === 'Superseded') ||
+                              const changed = !isRejected && (
+                                (r.decisionType === 'Original' && newLabel === 'Superseded') ||
                                 (r.decisionType === 'Superseded' && newLabel === 'Original')
+                              )
                               return (
                                 <span key={r.engagementPageId} style={{
                                   fontSize: '0.625rem', fontWeight: 600,
                                   padding: '0.125rem 0.375rem', borderRadius: '0.1875rem',
-                                  backgroundColor: newLabel === 'Original' ? 'oklch(0.94 0.04 145)' : 'oklch(0.94 0.04 25)',
-                                  color: newLabel === 'Original' ? 'oklch(0.35 0.14 145)' : 'oklch(0.45 0.18 25)',
+                                  backgroundColor: isRejected ? 'oklch(0.94 0.01 260)' : newLabel === 'Original' ? 'oklch(0.94 0.04 145)' : 'oklch(0.94 0.04 25)',
+                                  color: isRejected ? 'oklch(0.6 0.01 260)' : newLabel === 'Original' ? 'oklch(0.35 0.14 145)' : 'oklch(0.45 0.18 25)',
                                   outline: changed ? '0.125rem solid oklch(0.65 0.14 60)' : 'none',
+                                  textDecoration: isRejected ? 'line-through' : 'none',
+                                  opacity: isRejected ? 0.6 : 1,
                                 }}>
                                   Pg {r.documentRef?.pageNumber ?? r.engagementPageId}: {newLabel}
                                   {changed && ' *'}
@@ -2223,7 +2258,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
 
           {/* ═══════════════════════════════════════════════════════════
               PANEL 2: Field Comparison (collapsible, hidden when rejected)
-              ═══════════════════════════════════════════════════════════ */}
+              ═════��═════════════════════════════════════════════════════ */}
           {!isGroupRejected && comparedValues.length > 0 && (
             <div style={{ borderBlockEnd: '0.0625rem solid oklch(0.91 0.005 260)' }}>
               <button
