@@ -398,12 +398,20 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
   })
   
   // Log override for each record in the group
+  const overriddenRecord = activeGroup.supersededRecords[selectedSupersededIdx]
   for (const r of activeGroup.records) {
   const key = `sup-pg${r.engagementPageId}`
-  const originalDecision = r.decisionType
-      const newDecision = originalDecision === 'Superseded' ? 'Original' : 'Superseded'
+  // Determine the new decision for this specific record
+  let newDecision: string
+  if (r.engagementPageId === overriddenRecord?.engagementPageId) {
+    newDecision = 'Original' // this superseded becomes original
+  } else if (r.decisionType === 'Original') {
+    newDecision = 'Superseded' // original becomes superseded
+  } else {
+    newDecision = 'Superseded' // other superseded stay superseded
+  }
   const detail: OverrideDetail = {
-  originalAIDecision: `Page ${r.engagementPageId} = ${originalDecision}`,
+  originalAIDecision: `Page ${r.engagementPageId} = ${r.decisionType}`,
   userOverrideDecision: `Page ${r.engagementPageId} = ${newDecision}`,
   overrideReason: reasonText,
   formType: r.documentRef?.formType ?? 'Unknown',
@@ -412,7 +420,8 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
   override(key, 'superseded', r.confidenceLevel, detail)
     }
     
-    // Reset state
+    // Reset state -- reset superseded index since the list has changed
+    setSelectedSupersededIdx(0)
     setShowOverridePanel(false)
     setOverrideStep('select')
     setSelectedDocument(null)
@@ -427,6 +436,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
       next.delete(activeGroup.formType)
       return next
     })
+    setSelectedSupersededIdx(0)
     setShowOverridePanel(false)
     setOverrideStep('select')
     setSelectedDocument(null)
@@ -476,10 +486,30 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
   }, [selectedGroupIdx])
 
   /* ── Determine left/right docs ── */
-  const supersededList = activeGroup?.supersededRecords ?? []
+  // When overridden: the overridden superseded record becomes the new "Original" (right side)
+  // and the AI's original record joins the superseded list on the left side
+  const activeFlippedIdx = activeGroup ? flippedGroups.get(activeGroup.formType) : undefined
+  const isActiveFlipped = activeFlippedIdx !== undefined
+
+  const supersededList = useMemo(() => {
+    if (!activeGroup) return []
+    if (!isActiveFlipped) return activeGroup.supersededRecords
+    // When overridden: remove the flipped record from superseded, add the old original
+    const remaining = activeGroup.supersededRecords.filter((_, i) => i !== activeFlippedIdx)
+    return activeGroup.originalRecord
+      ? [...remaining, activeGroup.originalRecord]
+      : remaining
+  }, [activeGroup, isActiveFlipped, activeFlippedIdx])
+
   const safeIdx = Math.min(selectedSupersededIdx, Math.max(0, supersededList.length - 1))
   const leftDoc = supersededList[safeIdx] ?? null
-  const rightDoc = activeGroup?.originalRecord ?? null
+
+  const rightDoc = useMemo(() => {
+    if (!activeGroup) return null
+    if (!isActiveFlipped) return activeGroup.originalRecord
+    // The overridden superseded record is the new Original
+    return activeGroup.supersededRecords[activeFlippedIdx] ?? activeGroup.originalRecord
+  }, [activeGroup, isActiveFlipped, activeFlippedIdx])
 
   /* ── Field comparison data for the selected pair ── */
   const comparedValues = useMemo(() => {
@@ -552,7 +582,9 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
               aria-expanded={showOverridePanel}
             >
               <ArrowLeftRight style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem' }} />
-              {activeGroup && flippedGroups.has(activeGroup.formType) ? `Override Active (Pg ${supersededList[flippedGroups.get(activeGroup.formType) ?? 0]?.documentRef?.pageNumber ?? ''})` : 'Override Classification'}
+              {activeGroup && flippedGroups.has(activeGroup.formType)
+                ? `Override Active (Pg ${activeGroup.supersededRecords[flippedGroups.get(activeGroup.formType) ?? 0]?.documentRef?.pageNumber ?? ''} is now Original)`
+                : 'Override Classification'}
               <ChevronDown style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
             </button>
             
@@ -640,7 +672,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
 
                       {/* Action buttons */}
                       <div style={{ display: 'flex', gap: '0.5rem', marginBlockStart: '0.75rem' }}>
-                        {activeGroup && flippedGroups.has(activeGroup.formType) && flippedGroups.get(activeGroup.formType) === selectedSupersededIdx ? (
+                        {activeGroup && flippedGroups.has(activeGroup.formType) ? (
                           <button
                             type="button"
                             onClick={handleUndoOverride}
@@ -1440,9 +1472,20 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                         const recordKey = `sup-pg${r.engagementPageId}`
                         const isAccepted = decisions[recordKey] === 'accepted'
                         const supIdx = group.supersededRecords.findIndex(s => s.engagementPageId === r.engagementPageId)
-                        // Always show the AI's original classification -- override status
-                        // is communicated via the Override Active button and audit trail
-                        const isSup = r.decisionType === 'Superseded'
+                        const flippedIdx = flippedGroups.get(group.formType)
+                        const isFlipped = flippedIdx !== undefined
+                        // When overridden: the selected superseded becomes Original,
+                        // the original becomes Superseded, all others stay Superseded
+                        let isSup: boolean
+                        if (!isFlipped) {
+                          isSup = r.decisionType === 'Superseded'
+                        } else if (r.decisionType === 'Original') {
+                          isSup = true // original becomes superseded
+                        } else if (supIdx === flippedIdx) {
+                          isSup = false // the overridden superseded becomes original
+                        } else {
+                          isSup = true // all other superseded stay superseded
+                        }
                         const isSelectedSup = gIdx === selectedGroupIdx && supIdx >= 0 && supIdx === selectedSupersededIdx
                         return (
                           <button
@@ -1535,7 +1578,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                 ? 'AI has moderate confidence. Reviewer should verify key fields.' 
                 : 'AI is uncertain. Reviewer must examine carefully.'
             const mismatches = groupCompared.filter(v => !v.match)
-            const isGroupOverridden = activeGroup ? flippedGroups.has(activeGroup.formType) && flippedGroups.get(activeGroup.formType) === selectedSupersededIdx : false
+            const isGroupOverridden = activeGroup ? flippedGroups.has(activeGroup.formType) : false
             const panelGroupRejected = activeGroup ? rejectedGroups.has(activeGroup.formType) : false
             const panelRejectionInfo = activeGroup ? rejectedGroups.get(activeGroup.formType) : undefined
 
@@ -1659,9 +1702,13 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                     )}
 
                     {/* Override comparison table when user has overridden */}
-                    {!panelGroupRejected && isGroupOverridden && (
+                    {!panelGroupRejected && isGroupOverridden && (() => {
+                      const overriddenIdx = flippedGroups.get(activeGroup!.formType)!
+                      const overriddenRecord = activeGroup!.supersededRecords[overriddenIdx]
+                      const allRecords = activeGroup!.records
+                      return (
                       <div style={{
-                        display: 'flex', flexDirection: 'column', gap: '0.25rem',
+                        display: 'flex', flexDirection: 'column', gap: '0.5rem',
                         padding: '0.5rem 0.625rem',
                         marginBlockEnd: '0.625rem',
                         borderRadius: '0.25rem',
@@ -1669,24 +1716,76 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                         backgroundColor: 'oklch(0.96 0.04 60)',
                       }}>
                         <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'oklch(0.4 0.14 60)' }}>
-                          User has reversed this classification
+                          User has overridden the AI classification
                         </span>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.125rem' }}>
-                          <p style={{ fontSize: '0.6875rem', color: 'oklch(0.4 0.1 60)', margin: 0 }}>
-                            <strong>AI recommended:</strong>{' '}
-                            Page {groupSuperseded?.engagementPageId} = Superseded, Page {groupOriginal?.engagementPageId} = Original
-                          </p>
-                          <p style={{ fontSize: '0.6875rem', color: 'oklch(0.4 0.1 60)', margin: 0 }}>
-                            <strong>User changed to:</strong>{' '}
-                            Page {groupSuperseded?.engagementPageId} = Original, Page {groupOriginal?.engagementPageId} = Superseded
-                          </p>
+
+                        {/* AI recommendation row */}
+                        <div style={{
+                          padding: '0.375rem 0.5rem', borderRadius: '0.25rem',
+                          backgroundColor: 'oklch(0.98 0.01 260)',
+                          border: '0.0625rem solid oklch(0.91 0.01 260)',
+                        }}>
+                          <span style={{ fontSize: '0.5625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'oklch(0.5 0.01 260)' }}>
+                            AI Recommended
+                          </span>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem', marginBlockStart: '0.25rem' }}>
+                            {allRecords.map(r => (
+                              <span key={r.engagementPageId} style={{
+                                fontSize: '0.625rem', fontWeight: 600,
+                                padding: '0.125rem 0.375rem', borderRadius: '0.1875rem',
+                                backgroundColor: r.decisionType === 'Original' ? 'oklch(0.94 0.04 145)' : 'oklch(0.94 0.04 25)',
+                                color: r.decisionType === 'Original' ? 'oklch(0.35 0.14 145)' : 'oklch(0.45 0.18 25)',
+                              }}>
+                                Pg {r.documentRef?.pageNumber ?? r.engagementPageId}: {r.decisionType}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* User override row */}
+                        <div style={{
+                          padding: '0.375rem 0.5rem', borderRadius: '0.25rem',
+                          backgroundColor: 'oklch(0.98 0.02 60)',
+                          border: '0.0625rem solid oklch(0.88 0.06 60)',
+                        }}>
+                          <span style={{ fontSize: '0.5625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'oklch(0.5 0.14 60)' }}>
+                            User Changed To
+                          </span>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem', marginBlockStart: '0.25rem' }}>
+                            {allRecords.map(r => {
+                              // Determine the new label after override
+                              let newLabel: string
+                              if (r.engagementPageId === overriddenRecord?.engagementPageId) {
+                                newLabel = 'Original' // superseded -> original
+                              } else if (r.decisionType === 'Original') {
+                                newLabel = 'Superseded' // original -> superseded
+                              } else {
+                                newLabel = 'Superseded' // other superseded stay superseded
+                              }
+                              const changed = (r.decisionType === 'Original' && newLabel === 'Superseded') ||
+                                (r.decisionType === 'Superseded' && newLabel === 'Original')
+                              return (
+                                <span key={r.engagementPageId} style={{
+                                  fontSize: '0.625rem', fontWeight: 600,
+                                  padding: '0.125rem 0.375rem', borderRadius: '0.1875rem',
+                                  backgroundColor: newLabel === 'Original' ? 'oklch(0.94 0.04 145)' : 'oklch(0.94 0.04 25)',
+                                  color: newLabel === 'Original' ? 'oklch(0.35 0.14 145)' : 'oklch(0.45 0.18 25)',
+                                  outline: changed ? '0.125rem solid oklch(0.65 0.14 60)' : 'none',
+                                }}>
+                                  Pg {r.documentRef?.pageNumber ?? r.engagementPageId}: {newLabel}
+                                  {changed && ' *'}
+                                </span>
+                              )
+                            })}
+                          </div>
                         </div>
                       </div>
-                    )}
+                      )
+                    })()}
 
                     {/* Hide AI explanation after user applies override or rejects */}
                     {/* Compact icon + text explanation */}
-                    {!panelGroupRejected && !(activeGroup && flippedGroups.has(activeGroup.formType) && flippedGroups.get(activeGroup.formType) === selectedSupersededIdx) && (
+                    {!panelGroupRejected && !(activeGroup && flippedGroups.has(activeGroup.formType)) && (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                         {groupSuperseded?.decisionReason
                           ?.split('||')
