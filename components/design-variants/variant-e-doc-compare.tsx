@@ -109,11 +109,14 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
   const [selectedReason, setSelectedReason] = useState<string | null>(null)
   const [customReason, setCustomReason] = useState('')
   
-  /* Rejection panel state */
+  /* Rejection state -- per-document tracking.
+     Key = engagementPageId, Value = { reason, detail, formType }
+     A rejected doc is removed from its group and moves to SPBinder. */
   const [showRejectPanel, setShowRejectPanel] = useState(false)
+  const [rejectTargetPageId, setRejectTargetPageId] = useState<string | null>(null) // null = reject all
   const [selectedRejectReasons, setSelectedRejectReasons] = useState<Set<string>>(new Set())
   const [customRejectReason, setCustomRejectReason] = useState('')
-  const [rejectedGroups, setRejectedGroups] = useState<Map<string, { reason: string; detail: string }>>(new Map())
+  const [rejectedDocs, setRejectedDocs] = useState<Map<string, { reason: string; detail: string; formType: string }>>(new Map())
 
   const toggleRejectReason = (id: string) => {
     setSelectedRejectReasons(prev => {
@@ -123,6 +126,27 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
     })
   }
   const hasRejectSelection = selectedRejectReasons.size > 0 || customRejectReason.trim().length > 0
+
+  // Derived: which page IDs are rejected in the active group
+  const rejectedPageIds = useMemo(() => {
+    if (!activeGroup) return new Set<string>()
+    const ids = new Set<string>()
+    for (const r of activeGroup.records) {
+      if (rejectedDocs.has(String(r.engagementPageId))) ids.add(String(r.engagementPageId))
+    }
+    return ids
+  }, [activeGroup, rejectedDocs])
+
+  // Effective records = group records minus rejected ones
+  const effectiveRecords = useMemo(() => {
+    if (!activeGroup) return []
+    return activeGroup.records.filter(r => !rejectedPageIds.has(String(r.engagementPageId)))
+  }, [activeGroup, rejectedPageIds])
+
+  // Is the entire group rejected (all docs rejected)?
+  const isGroupRejected = activeGroup ? effectiveRecords.length === 0 : false
+  // Are some docs rejected (partial)?
+  const hasPartialRejects = rejectedPageIds.size > 0 && !isGroupRejected
 
   /* 3-panel collapse/expand state: documents starts collapsed (thumbnails), others expanded */
   const [expandedPanels, setExpandedPanels] = useState<Set<PanelId>>(
@@ -305,20 +329,20 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
     return groups.filter(g => {
       const avgConf = g.records.reduce((sum, r) => sum + r.confidenceLevel, 0) / g.records.length
       const isAccepted = g.records.every(r => decisions[`sup-pg${r.engagementPageId}`] === 'accepted')
-      const isRejected = rejectedGroups.has(g.formType)
+      const isRejected = g.records.every(r => rejectedDocs.has(String(r.engagementPageId)))
       const isOverridden = flippedGroups.has(g.formType)
       return Math.round(avgConf * 100) >= 90 && !isAccepted && !isRejected && !isOverridden
     })
-  }, [groups, decisions, rejectedGroups, flippedGroups])
+  }, [groups, decisions, rejectedDocs, flippedGroups])
 
   const allUnreviewed = useMemo(() => {
     return groups.filter(g => {
       const isAccepted = g.records.every(r => decisions[`sup-pg${r.engagementPageId}`] === 'accepted')
-      const isRejected = rejectedGroups.has(g.formType)
+      const isRejected = g.records.every(r => rejectedDocs.has(String(r.engagementPageId)))
       const isOverridden = flippedGroups.has(g.formType)
       return !isAccepted && !isRejected && !isOverridden
     })
-  }, [groups, decisions, rejectedGroups, flippedGroups])
+  }, [groups, decisions, rejectedDocs, flippedGroups])
 
   const unreviewedModLow = useMemo(() => {
     return allUnreviewed.filter(g => {
@@ -445,7 +469,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
   }
 
   /* ── Reject handler: mark group as not qualifying for superseded review ── */
-  const handleRejectGroup = () => {
+  const handleRejectDoc = () => {
     if (!activeGroup) return
     const predefinedLabels = Array.from(selectedRejectReasons)
       .filter(id => id !== 'custom')
@@ -454,28 +478,52 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
     const reasonLabel = allLabels.length > 0 ? allLabels.join('; ') : 'Other'
     const detail = allLabels.join('. ')
     
-    setRejectedGroups(prev => {
-      const next = new Map(prev)
-      next.set(activeGroup.formType, { reason: reasonLabel, detail })
-      return next
-    })
+    if (rejectTargetPageId) {
+      // Partial reject: single document
+      setRejectedDocs(prev => {
+        const next = new Map(prev)
+        next.set(rejectTargetPageId, { reason: reasonLabel, detail, formType: activeGroup.formType })
+        return next
+      })
+    } else {
+      // Reject all: every doc in the group
+      setRejectedDocs(prev => {
+        const next = new Map(prev)
+        for (const r of activeGroup.records) {
+          next.set(String(r.engagementPageId), { reason: reasonLabel, detail, formType: activeGroup.formType })
+        }
+        return next
+      })
+    }
     
     // Reset state
     setShowRejectPanel(false)
+    setRejectTargetPageId(null)
     setSelectedRejectReasons(new Set())
     setCustomRejectReason('')
+    setSelectedSupersededIdx(0)
   }
 
-  const handleUndoReject = () => {
-    if (!activeGroup) return
-    setRejectedGroups(prev => {
+  const handleUndoRejectDoc = (pageId: string) => {
+    setRejectedDocs(prev => {
       const next = new Map(prev)
-      next.delete(activeGroup.formType)
+      next.delete(pageId)
       return next
     })
+    setSelectedSupersededIdx(0)
   }
 
-  const isGroupRejected = activeGroup ? rejectedGroups.has(activeGroup.formType) : false
+  const handleUndoRejectAll = () => {
+    if (!activeGroup) return
+    setRejectedDocs(prev => {
+      const next = new Map(prev)
+      for (const r of activeGroup.records) {
+        next.delete(String(r.engagementPageId))
+      }
+      return next
+    })
+    setSelectedSupersededIdx(0)
+  }
 
   /* ── Selected superseded record index (for multi-page groups) ── */
   const [selectedSupersededIdx, setSelectedSupersededIdx] = useState(0)
@@ -485,31 +533,44 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
     setSelectedSupersededIdx(0)
   }, [selectedGroupIdx])
 
-  /* ── Determine left/right docs ── */
-  // When overridden: the overridden superseded record becomes the new "Original" (right side)
-  // and the AI's original record joins the superseded list on the left side
+  /* ── Determine left/right docs (respecting rejections + overrides) ── */
   const activeFlippedIdx = activeGroup ? flippedGroups.get(activeGroup.formType) : undefined
   const isActiveFlipped = activeFlippedIdx !== undefined
 
+  // Effective original and superseded lists (excluding rejected docs)
+  const effectiveOriginal = useMemo(() => {
+    if (!activeGroup) return null
+    if (isActiveFlipped) {
+      // The overridden superseded record is the new Original
+      const overriddenRecord = activeGroup.supersededRecords[activeFlippedIdx]
+      if (overriddenRecord && !rejectedPageIds.has(String(overriddenRecord.engagementPageId))) {
+        return overriddenRecord
+      }
+      return null
+    }
+    const orig = activeGroup.originalRecord
+    return orig && !rejectedPageIds.has(String(orig.engagementPageId)) ? orig : null
+  }, [activeGroup, isActiveFlipped, activeFlippedIdx, rejectedPageIds])
+
   const supersededList = useMemo(() => {
     if (!activeGroup) return []
-    if (!isActiveFlipped) return activeGroup.supersededRecords
-    // When overridden: remove the flipped record from superseded, add the old original
-    const remaining = activeGroup.supersededRecords.filter((_, i) => i !== activeFlippedIdx)
-    return activeGroup.originalRecord
-      ? [...remaining, activeGroup.originalRecord]
-      : remaining
-  }, [activeGroup, isActiveFlipped, activeFlippedIdx])
+    let list: SupersededRecord[]
+    if (!isActiveFlipped) {
+      list = activeGroup.supersededRecords
+    } else {
+      // Remove the flipped record from superseded, add the old original
+      const remaining = activeGroup.supersededRecords.filter((_, i) => i !== activeFlippedIdx)
+      list = activeGroup.originalRecord
+        ? [...remaining, activeGroup.originalRecord]
+        : remaining
+    }
+    // Filter out rejected docs
+    return list.filter(r => !rejectedPageIds.has(String(r.engagementPageId)))
+  }, [activeGroup, isActiveFlipped, activeFlippedIdx, rejectedPageIds])
 
   const safeIdx = Math.min(selectedSupersededIdx, Math.max(0, supersededList.length - 1))
   const leftDoc = supersededList[safeIdx] ?? null
-
-  const rightDoc = useMemo(() => {
-    if (!activeGroup) return null
-    if (!isActiveFlipped) return activeGroup.originalRecord
-    // The overridden superseded record is the new Original
-    return activeGroup.supersededRecords[activeFlippedIdx] ?? activeGroup.originalRecord
-  }, [activeGroup, isActiveFlipped, activeFlippedIdx])
+  const rightDoc = effectiveOriginal
 
   /* ── Field comparison data for the selected pair ── */
   const comparedValues = useMemo(() => {
@@ -857,6 +918,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
               type="button"
               onClick={() => {
                 if (!showRejectPanel) {
+                  setRejectTargetPageId(null) // null = reject all
                   setSelectedRejectReasons(new Set())
                   setCustomRejectReason('')
                 }
@@ -865,8 +927,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
               disabled={isGroupRejected || allGroupAccepted}
               style={{
                 display: 'flex', alignItems: 'center', gap: '0.375rem',
-                padding: '0.375rem 0.75rem',
-                border: '0.0625rem solid oklch(0.82 0.08 25)',
+                padding: '0.375rem 0.75rem', border: '0.0625rem solid oklch(0.88 0.04 25)',
                 borderRadius: '0.25rem',
                 backgroundColor: isGroupRejected ? 'oklch(0.94 0.04 25)' : 'oklch(1 0 0)',
                 fontSize: '0.75rem', fontWeight: 600,
@@ -877,7 +938,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
               aria-expanded={showRejectPanel}
             >
               <X style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem' }} />
-              {isGroupRejected ? 'Rejected' : 'Reject'}
+              {isGroupRejected ? 'Rejected' : hasPartialRejects ? 'Reject All' : 'Reject'}
               {!isGroupRejected && !allGroupAccepted && <ChevronDown style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />}
             </button>
             
@@ -885,7 +946,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
             {showRejectPanel && !isGroupRejected && !allGroupAccepted && (
               <>
                 <div
-                  onClick={() => { setShowRejectPanel(false); setSelectedRejectReason(null); }}
+                  onClick={() => { setShowRejectPanel(false); setRejectTargetPageId(null); }}
                   style={{ position: 'fixed', inset: 0, zIndex: 49 }}
                   aria-hidden="true"
                 />
@@ -903,13 +964,17 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                     textTransform: 'uppercase', letterSpacing: '0.04em',
                     marginBlockEnd: '0.5rem',
                   }}>
-                    Why does this not qualify?
+                    {rejectTargetPageId
+                      ? `Reject Page ${activeGroup?.records.find(r => String(r.engagementPageId) === rejectTargetPageId)?.documentRef?.pageNumber ?? rejectTargetPageId}`
+                      : 'Reject All Documents'}
                   </p>
                   <p style={{
                     fontSize: '0.625rem', color: 'oklch(0.5 0.01 260)',
                     marginBlockEnd: '0.75rem', lineHeight: '1.4',
                   }}>
-                    Help improve AI by explaining why these documents should not be in the superseded review.
+                    {rejectTargetPageId
+                      ? 'This document will be moved to SPBinder. Remaining documents will continue in this group.'
+                      : 'All documents in this group will be moved to SPBinder.'}
                   </p>
 
                   <fieldset style={{ border: 'none', padding: 0, margin: 0 }}>
@@ -985,7 +1050,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                   <div style={{ display: 'flex', gap: '0.5rem', marginBlockStart: '0.75rem' }}>
                     <button
                       type="button"
-                      onClick={handleRejectGroup}
+                      onClick={handleRejectDoc}
                       disabled={!hasRejectSelection}
                       style={{
                         flex: 1,
@@ -1011,7 +1076,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
           {isGroupRejected ? (
             <button
               type="button"
-              onClick={handleUndoReject}
+              onClick={handleUndoRejectAll}
               style={{
                 display: 'flex', alignItems: 'center', gap: '0.375rem',
                 padding: '0.375rem 0.75rem', border: '0.0625rem solid oklch(0.82 0.08 25)',
@@ -1380,8 +1445,9 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
               const groupOriginal = group.records.find(r => r.decisionType === 'Original')
               const groupCompared = group.records.flatMap(r => r.comparedValues ?? [])
                 .filter((v, i, arr) => arr.findIndex(x => x.field === v.field) === i)
-              const isThisGroupRejected = rejectedGroups.has(group.formType)
-              const rejectionInfo = rejectedGroups.get(group.formType)
+              const groupRejectedCount = group.records.filter(r => rejectedDocs.has(String(r.engagementPageId))).length
+              const isThisGroupRejected = groupRejectedCount === group.records.length
+              const hasThisGroupPartialRejects = groupRejectedCount > 0 && !isThisGroupRejected
 
               return (
                 <div key={group.formType} style={{
@@ -1444,10 +1510,32 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                               padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem',
                               backgroundColor: 'oklch(0.92 0.02 260)', color: 'oklch(0.45 0.01 260)',
                             }}
-                            title={rejectionInfo?.detail ?? 'This group was dismissed by reviewer'}
+                            title="All documents in this group were rejected"
                           >
                             Not a Match
                           </span>
+                        ) : hasThisGroupPartialRejects ? (
+                          <>
+                            <span 
+                              style={{
+                                fontSize: '0.625rem', fontWeight: 700,
+                                padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem',
+                                backgroundColor: `${confColor} / 0.12`, color: confColor,
+                              }}
+                              title={actionTooltip}
+                            >
+                              {actionLabel}
+                            </span>
+                            <span 
+                              style={{
+                                fontSize: '0.5625rem', fontWeight: 600,
+                                padding: '0.0625rem 0.25rem', borderRadius: '0.1875rem',
+                                backgroundColor: 'oklch(0.94 0.04 25)', color: 'oklch(0.5 0.14 25)',
+                              }}
+                            >
+                              {groupRejectedCount} rejected
+                            </span>
+                          </>
                         ) : (
                           <span 
                             style={{
@@ -1461,7 +1549,9 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                           </span>
                         )}
                         <span style={{ fontSize: '0.625rem', fontWeight: 600, color: 'oklch(0.5 0.01 260)' }}>
-                          {group.records.length} {group.records.length === 1 ? 'page' : 'pages'}
+                          {hasThisGroupPartialRejects
+                            ? `${group.records.length - groupRejectedCount} of ${group.records.length} pages`
+                            : `${group.records.length} ${group.records.length === 1 ? 'page' : 'pages'}`}
                         </span>
                       </div>
                     </div>
@@ -1538,15 +1628,68 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                                 {r.documentRef.formLabel.replace(group.formType, '').replace(/[()]/g, '').trim() || ''}
                               </span>
                             )}
-                            <span style={{
-                              marginInlineStart: 'auto', flexShrink: 0,
-                              fontSize: '0.5625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em',
-                              padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem',
-                              backgroundColor: isSup ? 'oklch(0.94 0.04 25)' : 'oklch(0.94 0.04 145)',
-                              color: isSup ? 'oklch(0.45 0.18 25)' : 'oklch(0.35 0.14 145)',
-                            }}>
-                              {isSup ? 'Superseded' : 'Original'}
-                            </span>
+                            {rejectedPageIds.has(String(r.engagementPageId)) ? (
+                              <span style={{
+                                marginInlineStart: 'auto', flexShrink: 0,
+                                display: 'flex', alignItems: 'center', gap: '0.25rem',
+                              }}>
+                                <span style={{
+                                  fontSize: '0.5625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em',
+                                  padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem',
+                                  backgroundColor: 'oklch(0.92 0.02 260)', color: 'oklch(0.45 0.01 260)',
+                                  textDecoration: 'line-through',
+                                }}>
+                                  SPBinder
+                                </span>
+                                <button
+                                  type="button"
+                                  title="Undo rejection"
+                                  onClick={(e) => { e.stopPropagation(); handleUndoRejectDoc(String(r.engagementPageId)) }}
+                                  style={{
+                                    display: 'flex', alignItems: 'center', padding: '0.125rem',
+                                    border: 'none', background: 'none', cursor: 'pointer',
+                                    color: 'oklch(0.5 0.01 260)',
+                                  }}
+                                >
+                                  <Undo2 style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
+                                </button>
+                              </span>
+                            ) : (
+                              <span style={{
+                                marginInlineStart: 'auto', flexShrink: 0,
+                                display: 'flex', alignItems: 'center', gap: '0.25rem',
+                              }}>
+                                <span style={{
+                                  fontSize: '0.5625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em',
+                                  padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem',
+                                  backgroundColor: isSup ? 'oklch(0.94 0.04 25)' : 'oklch(0.94 0.04 145)',
+                                  color: isSup ? 'oklch(0.45 0.18 25)' : 'oklch(0.35 0.14 145)',
+                                }}>
+                                  {isSup ? 'Superseded' : 'Original'}
+                                </span>
+                                <button
+                                  type="button"
+                                  title={`Reject Pg ${r.documentRef?.pageNumber ?? r.engagementPageId} (move to SPBinder)`}
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setRejectTargetPageId(String(r.engagementPageId))
+                                    setSelectedRejectReasons(new Set())
+                                    setCustomRejectReason('')
+                                    setShowRejectPanel(true)
+                                  }}
+                                  style={{
+                                    display: 'flex', alignItems: 'center', padding: '0.125rem',
+                                    border: 'none', background: 'none', cursor: 'pointer',
+                                    color: 'oklch(0.6 0.14 25)',
+                                    opacity: 0.5,
+                                  }}
+                                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.opacity = '1' }}
+                                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.opacity = '0.5' }}
+                                >
+                                  <X style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
+                                </button>
+                              </span>
+                            )}
                           </button>
                         )
                       })}
@@ -1586,8 +1729,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                 : 'AI is uncertain. Reviewer must examine carefully.'
             const mismatches = groupCompared.filter(v => !v.match)
             const isGroupOverridden = activeGroup ? flippedGroups.has(activeGroup.formType) : false
-            const panelGroupRejected = activeGroup ? rejectedGroups.has(activeGroup.formType) : false
-            const panelRejectionInfo = activeGroup ? rejectedGroups.get(activeGroup.formType) : undefined
+            const panelGroupRejected = isGroupRejected
 
             return (
               <div style={{ borderBlockEnd: '0.0625rem solid oklch(0.91 0.005 260)' }}>
@@ -1651,59 +1793,34 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                       ? 'oklch(0.97 0.005 260)' 
                       : isGroupOverridden ? 'oklch(0.98 0.02 60)' : 'oklch(0.98 0.003 240)',
                   }}>
-                    {/* Rejection outcome -- replaces AI analysis */}
-                    {panelGroupRejected && panelRejectionInfo && (
+                    {/* Rejection outcome -- replaces AI analysis when fully rejected */}
+                    {panelGroupRejected && (
                       <div style={{
-                        display: 'flex', flexDirection: 'column', gap: '0.5rem',
+                        display: 'flex', flexDirection: 'column', gap: '0.375rem',
+                        padding: '0.625rem 0.75rem',
+                        borderRadius: '0.25rem',
+                        border: '0.0625rem solid oklch(0.88 0.01 260)',
+                        backgroundColor: 'oklch(0.95 0.005 260)',
                       }}>
-                        {/* Outcome banner */}
-                        <div style={{
-                          display: 'flex', flexDirection: 'column', gap: '0.375rem',
-                          padding: '0.625rem 0.75rem',
-                          borderRadius: '0.25rem',
-                          border: '0.0625rem solid oklch(0.88 0.01 260)',
-                          backgroundColor: 'oklch(0.95 0.005 260)',
-                        }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                          <AlertTriangle style={{ inlineSize: '0.875rem', blockSize: '0.875rem', color: 'oklch(0.55 0.01 260)' }} />
+                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'oklch(0.3 0.01 260)' }}>
+                            All Documents Rejected
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', paddingInlineStart: '1.25rem' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                            <AlertTriangle style={{ inlineSize: '0.875rem', blockSize: '0.875rem', color: 'oklch(0.55 0.01 260)' }} />
-                            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'oklch(0.3 0.01 260)' }}>
-                              Pair Dismissed by Reviewer
+                            <span style={{ inlineSize: '0.25rem', blockSize: '0.25rem', borderRadius: '50%', backgroundColor: 'oklch(0.5 0.01 260)', flexShrink: 0 }} />
+                            <span style={{ fontSize: '0.6875rem', color: 'oklch(0.35 0.01 260)' }}>
+                              All documents have been moved to SPBinder
                             </span>
                           </div>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', paddingInlineStart: '1.25rem' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                              <span style={{ inlineSize: '0.25rem', blockSize: '0.25rem', borderRadius: '50%', backgroundColor: 'oklch(0.5 0.01 260)', flexShrink: 0 }} />
-                              <span style={{ fontSize: '0.6875rem', color: 'oklch(0.35 0.01 260)' }}>
-                                Both documents will be retained in SPbinder as independent records
-                              </span>
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                              <span style={{ inlineSize: '0.25rem', blockSize: '0.25rem', borderRadius: '50%', backgroundColor: 'oklch(0.5 0.01 260)', flexShrink: 0 }} />
-                              <span style={{ fontSize: '0.6875rem', color: 'oklch(0.35 0.01 260)' }}>
-                                No superseded classification will be applied
-                              </span>
-                            </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                            <span style={{ inlineSize: '0.25rem', blockSize: '0.25rem', borderRadius: '50%', backgroundColor: 'oklch(0.5 0.01 260)', flexShrink: 0 }} />
+                            <span style={{ fontSize: '0.6875rem', color: 'oklch(0.35 0.01 260)' }}>
+                              No superseded classification will be applied
+                            </span>
                           </div>
-                        </div>
-
-                        {/* Rejection reason */}
-                        <div style={{
-                          padding: '0.5rem 0.75rem',
-                          borderRadius: '0.25rem',
-                          border: '0.0625rem solid oklch(0.88 0.01 260)',
-                          backgroundColor: 'oklch(0.98 0.003 260)',
-                        }}>
-                          <span style={{ fontSize: '0.625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'oklch(0.5 0.01 260)' }}>
-                            Reason
-                          </span>
-                          <p style={{ fontSize: '0.6875rem', color: 'oklch(0.3 0.01 260)', margin: '0.25rem 0 0 0', fontWeight: 600 }}>
-                            {panelRejectionInfo.reason}
-                          </p>
-                          {panelRejectionInfo.detail && panelRejectionInfo.detail !== panelRejectionInfo.reason && (
-                            <p style={{ fontSize: '0.6875rem', color: 'oklch(0.4 0.01 260)', margin: '0.125rem 0 0 0', fontStyle: 'italic' }}>
-                              {panelRejectionInfo.detail}
-                            </p>
-                          )}
                         </div>
                       </div>
                     )}
@@ -1849,87 +1966,90 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
           {/* ═══════════════════════════════════════════════════════════
               REJECTION SUMMARY CARD (shown when group is rejected)
               ═══════════════════════════════════════════════════════════ */}
-          {isGroupRejected && (() => {
-            const rejectionData = activeGroup ? rejectedGroups.get(activeGroup.formType) : null
+          {/* Rejection info: full group rejected OR partial rejects */}
+          {(isGroupRejected || hasPartialRejects) && (() => {
+            const rejectedRecords = activeGroup?.records.filter(r => rejectedPageIds.has(String(r.engagementPageId))) ?? []
             return (
               <div style={{
-                margin: '1rem 0.75rem',
-                padding: '1.25rem',
-                borderRadius: '0.5rem',
+                margin: '0.75rem',
+                padding: '0.75rem',
+                borderRadius: '0.375rem',
                 border: '0.0625rem solid oklch(0.88 0.04 25)',
                 backgroundColor: 'oklch(0.98 0.008 25)',
               }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
-                  <div style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    inlineSize: '2.25rem', blockSize: '2.25rem', flexShrink: 0,
-                    borderRadius: '50%',
-                    backgroundColor: 'oklch(0.93 0.04 25)',
-                  }}>
-                    <X style={{ inlineSize: '1.125rem', blockSize: '1.125rem', color: 'oklch(0.5 0.16 25)' }} />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <h3 style={{
-                      margin: 0, fontSize: '0.875rem', fontWeight: 700,
-                      color: 'oklch(0.35 0.08 25)',
-                    }}>
-                      Classification Rejected
-                    </h3>
-                    <p style={{
-                      margin: '0.25rem 0 0', fontSize: '0.75rem', fontWeight: 500,
-                      color: 'oklch(0.45 0.01 260)',
-                    }}>
-                      {activeGroup?.formType ?? 'This group'} has been rejected.
-                    </p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBlockEnd: '0.5rem' }}>
+                  <X style={{ inlineSize: '0.875rem', blockSize: '0.875rem', color: 'oklch(0.5 0.16 25)' }} />
+                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'oklch(0.35 0.08 25)' }}>
+                    {isGroupRejected ? 'All Documents Rejected' : `${rejectedRecords.length} Document${rejectedRecords.length > 1 ? 's' : ''} Rejected`}
+                  </span>
+                </div>
+                <p style={{ fontSize: '0.6875rem', color: 'oklch(0.45 0.01 260)', margin: '0 0 0.5rem', lineHeight: 1.4 }}>
+                  {isGroupRejected
+                    ? 'All documents have been moved to SPBinder.'
+                    : 'The following documents have been moved to SPBinder. Remaining documents continue in this group.'}
+                </p>
 
-                    {rejectionData && (
-                      <div style={{
-                        marginBlockStart: '0.75rem',
-                        padding: '0.625rem 0.75rem',
-                        borderRadius: '0.375rem',
+                {/* Per-doc rejection list */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+                  {rejectedRecords.map(r => {
+                    const docRejectData = rejectedDocs.get(String(r.engagementPageId))
+                    return (
+                      <div key={r.engagementPageId} style={{
+                        display: 'flex', alignItems: 'center', gap: '0.5rem',
+                        padding: '0.375rem 0.5rem', borderRadius: '0.25rem',
                         backgroundColor: 'oklch(1 0 0)',
                         border: '0.0625rem solid oklch(0.91 0.01 260)',
                       }}>
-                        <span style={{
-                          fontSize: '0.625rem', fontWeight: 700,
-                          textTransform: 'uppercase', letterSpacing: '0.04em',
-                          color: 'oklch(0.5 0.01 260)',
-                        }}>
-                          Reason
-                        </span>
-                        <p style={{
-                          margin: '0.25rem 0 0', fontSize: '0.75rem', fontWeight: 500,
-                          color: 'oklch(0.3 0.01 260)', lineHeight: 1.5,
-                        }}>
-                          {rejectionData.reason}
-                        </p>
+                        <FileText style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.5 0.01 260)', flexShrink: 0 }} />
+                        <div style={{ flex: 1, minInlineSize: 0 }}>
+                          <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.3 0.01 260)' }}>
+                            Pg {r.documentRef?.pageNumber ?? r.engagementPageId}
+                          </span>
+                          {docRejectData && (
+                            <span style={{ fontSize: '0.5625rem', color: 'oklch(0.5 0.01 260)', marginInlineStart: '0.375rem' }}>
+                              {docRejectData.reason}
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleUndoRejectDoc(String(r.engagementPageId))}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: '0.25rem',
+                            padding: '0.125rem 0.375rem', border: '0.0625rem solid oklch(0.85 0.01 260)',
+                            borderRadius: '0.1875rem', backgroundColor: 'transparent',
+                            fontSize: '0.5625rem', fontWeight: 600, color: 'oklch(0.45 0.01 260)',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <Undo2 style={{ inlineSize: '0.5rem', blockSize: '0.5rem' }} />
+                          Undo
+                        </button>
                       </div>
-                    )}
-
-                    <div style={{
-                      display: 'flex', alignItems: 'center', gap: '0.5rem',
-                      marginBlockStart: '0.875rem',
-                    }}>
-                      <button
-                        type="button"
-                        onClick={handleUndoReject}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: '0.375rem',
-                          padding: '0.375rem 0.75rem',
-                          border: '0.0625rem solid oklch(0.85 0.01 260)',
-                          borderRadius: '0.25rem',
-                          backgroundColor: 'oklch(1 0 0)',
-                          fontSize: '0.6875rem', fontWeight: 600,
-                          color: 'oklch(0.4 0.01 260)',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        <Undo2 style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} />
-                        Undo Rejection
-                      </button>
-                    </div>
-                  </div>
+                    )
+                  })}
                 </div>
+
+                {isGroupRejected && (
+                  <button
+                    type="button"
+                    onClick={handleUndoRejectAll}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '0.375rem',
+                      marginBlockStart: '0.625rem',
+                      padding: '0.375rem 0.75rem',
+                      border: '0.0625rem solid oklch(0.85 0.01 260)',
+                      borderRadius: '0.25rem',
+                      backgroundColor: 'oklch(1 0 0)',
+                      fontSize: '0.6875rem', fontWeight: 600,
+                      color: 'oklch(0.4 0.01 260)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Undo2 style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} />
+                    Undo All Rejections
+                  </button>
+                )}
               </div>
             )
           })()}
