@@ -46,10 +46,10 @@ import type { SupersededRecord, OverrideDetail } from '@/lib/types'
 type PanelId = 'documents' | 'aiAnalysis' | 'fieldComparison'
 
 /* ── Predefined override reasons based on Superseded Decision Spec ── */
-const OVERRIDE_REASONS = [
-  { id: 'corrected', label: 'Corrected form detected - should be retained', rule: 'A9' },
-  { id: 'more-data', label: 'More complete data exists on this document', rule: 'A7' },
-] as const
+  const OVERRIDE_REASONS = [
+  { id: 'corrected', label: 'Corrected form detected - should be retained' },
+  { id: 'more-data', label: 'More complete data exists on this document' },
+  ] as const
 
 /* ── Predefined rejection reasons ── */
 const REJECTION_REASONS = [
@@ -724,14 +724,9 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                               onChange={() => { setSelectedReason(reason.id); setCustomReason(''); }}
                               style={{ accentColor: 'oklch(0.45 0.18 145)', flexShrink: 0, marginTop: '0.125rem' }}
                             />
-                            <div>
-                              <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.25 0.01 260)', display: 'block' }}>
-                                {reason.label}
-                              </span>
-                              <span style={{ fontSize: '0.5625rem', color: 'oklch(0.5 0.01 260)' }}>
-                                Rule: {reason.rule}
-                              </span>
-                            </div>
+                            <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.25 0.01 260)' }}>
+                              {reason.label}
+                            </span>
                           </label>
                         ))}
                         
