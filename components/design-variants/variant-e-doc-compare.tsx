@@ -559,7 +559,14 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                 if (!showOverridePanel) {
                   // Reset to step 1 when opening
                   setOverrideStep('select')
-                  setSelectedDocument(null)
+                  // Pre-select the currently overridden doc if override is active
+                  const currentFlippedIdx = activeGroup ? flippedGroups.get(activeGroup.formType) : undefined
+                  if (currentFlippedIdx !== undefined && activeGroup) {
+                    const overriddenRecord = activeGroup.supersededRecords[currentFlippedIdx]
+                    setSelectedDocument(overriddenRecord ? String(overriddenRecord.engagementPageId) : null)
+                  } else {
+                    setSelectedDocument(null)
+                  }
                   setSelectedReason(null)
                   setCustomReason('')
                 }
