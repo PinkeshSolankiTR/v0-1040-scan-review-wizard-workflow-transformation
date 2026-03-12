@@ -9,7 +9,7 @@ export const binderA: Binder = {
   taxYear: 2024,
   totalDocuments: 48,
   summary: [
-    { wizardType: 'superseded', totalItems: 10, highConfidence: 4, mediumConfidence: 4, lowConfidence: 2 },
+    { wizardType: 'superseded', totalItems: 14, highConfidence: 5, mediumConfidence: 5, lowConfidence: 4 },
     { wizardType: 'duplicate', totalItems: 6, highConfidence: 3, mediumConfidence: 2, lowConfidence: 1 },
     { wizardType: 'cfa', totalItems: 4, highConfidence: 3, mediumConfidence: 1, lowConfidence: 0 },
     { wizardType: 'nfr', totalItems: 5, highConfidence: 3, mediumConfidence: 1, lowConfidence: 1 },
@@ -68,6 +68,31 @@ export const supersededA: SupersededRecord[] = [
       { field: 'Corrected', valueA: 'No', valueB: 'Yes', match: false, category: 'Document', cropA: { x: 0.30, y: 0.04, width: 0.14, height: 0.04 }, cropB: { x: 0.30, y: 0.04, width: 0.14, height: 0.04 } },
     ],
   },
+  // ── 1099-DIV (ExxonMobil) ── page 3 of 3: earliest draft also superseded
+  {
+    engagementPageId: 17,
+    isSuperseded: true,
+    retainedPageId: 32,
+    confidenceLevel: 0.92,
+    decisionType: 'Superseded',
+    appliedRuleSet: 'SourceDocs',
+    decisionRule: 'SUPERSEDED_BY_CORRECTED',
+    decisionReason: 'EARLIEST_VERSION|This is the earliest draft||SAME_RECIPIENT|Documents match the same person||REPLACED_TWICE|Replaced first by page 21, then by page 32',
+    reviewRequired: false,
+    escalationReason: null,
+    documentRef: { pdfPath: PDF_PATH, pageNumber: 17, formType: '1099-DIV', formLabel: '1099-DIV (ExxonMobil) - Draft' },
+    comparedValues: [
+      { field: 'Payer Name', valueA: 'EXXON MOBIL CORPORATION', valueB: 'EXXON MOBIL CORPORATION', match: true, category: 'Payer Info', cropA: { x: 0.05, y: 0.12, width: 0.42, height: 0.04 }, cropB: { x: 0.05, y: 0.12, width: 0.42, height: 0.04 } },
+      { field: 'Payer (Transfer Agent)', valueA: 'COMPUTERSHARE', valueB: 'COMPUTERSHARE', match: true, category: 'Payer Info', cropA: { x: 0.05, y: 0.17, width: 0.42, height: 0.04 }, cropB: { x: 0.05, y: 0.17, width: 0.42, height: 0.04 } },
+      { field: 'Recipient Name', valueA: 'JILL ANDERSON', valueB: 'JILL ANDERSON', match: true, category: 'Recipient Info', cropA: { x: 0.05, y: 0.24, width: 0.42, height: 0.04 }, cropB: { x: 0.05, y: 0.24, width: 0.42, height: 0.04 } },
+      { field: 'Recipient SSN', valueA: '***-**-1234', valueB: '***-**-1234', match: true, category: 'Recipient Info', cropA: { x: 0.05, y: 0.29, width: 0.25, height: 0.04 }, cropB: { x: 0.05, y: 0.29, width: 0.25, height: 0.04 } },
+      { field: 'Total Ordinary Dividends (Box 1a)', valueA: '$3,100.00', valueB: '$3,412.80', match: false, category: 'Income', cropA: { x: 0.52, y: 0.32, width: 0.44, height: 0.05 }, cropB: { x: 0.52, y: 0.32, width: 0.44, height: 0.05 } },
+      { field: 'Qualified Dividends (Box 1b)', valueA: '$2,720.00', valueB: '$3,012.50', match: false, category: 'Income', cropA: { x: 0.52, y: 0.38, width: 0.44, height: 0.05 }, cropB: { x: 0.52, y: 0.38, width: 0.44, height: 0.05 } },
+      { field: 'Document Number', valueA: 'D04018-DRAFT', valueB: 'D04018-C', match: false, category: 'Document', cropA: { x: 0.72, y: 0.06, width: 0.24, height: 0.04 }, cropB: { x: 0.72, y: 0.06, width: 0.24, height: 0.04 } },
+      { field: 'Corrected', valueA: 'No', valueB: 'Yes', match: false, category: 'Document', cropA: { x: 0.30, y: 0.04, width: 0.14, height: 0.04 }, cropB: { x: 0.30, y: 0.04, width: 0.14, height: 0.04 } },
+    ],
+  },
+
   // ── W-2 (WHYNOT STOP INC) ── 1 Original + 1 Superseded  (HIGH 0.95)
   {
     engagementPageId: 5,
@@ -199,6 +224,29 @@ export const supersededA: SupersededRecord[] = [
       { field: 'Total Proceeds', valueA: '$45,200.00', valueB: '$47,850.00', match: false, category: 'Capital Gains', cropA: { x: 0.52, y: 0.32, width: 0.44, height: 0.05 }, cropB: { x: 0.52, y: 0.32, width: 0.44, height: 0.05 } },
       { field: 'Total Cost Basis', valueA: '$38,100.00', valueB: '$39,500.00', match: false, category: 'Capital Gains', cropA: { x: 0.52, y: 0.38, width: 0.44, height: 0.05 }, cropB: { x: 0.52, y: 0.38, width: 0.44, height: 0.05 } },
       { field: 'Statement Date', valueA: 'Feb 15, 2024', valueB: 'Mar 15, 2024', match: false, category: 'Document', cropA: { x: 0.72, y: 0.06, width: 0.24, height: 0.04 }, cropB: { x: 0.72, y: 0.06, width: 0.24, height: 0.04 } },
+    ],
+  },
+
+  // ── 1099-B (Charles Schwab) ── page 3 of 3: preliminary statement also superseded
+  {
+    engagementPageId: 7,
+    isSuperseded: true,
+    retainedPageId: 38,
+    confidenceLevel: 0.82,
+    decisionType: 'Superseded',
+    appliedRuleSet: 'ConsolidatedStatements',
+    decisionRule: 'CONSOLIDATED_PRELIMINARY',
+    decisionReason: 'SAME_BROKER|Same brokerage||EARLIEST_STATEMENT|Preliminary statement from Jan||REPLACED_BY_FINAL|Replaced by final consolidated on Mar 15',
+    reviewRequired: true,
+    escalationReason: 'Preliminary consolidated statement. Replaced by two later versions.',
+    documentRef: { pdfPath: PDF_PATH, pageNumber: 7, formType: '1099-B', formLabel: '1099-B (Charles Schwab) - Preliminary' },
+    comparedValues: [
+      { field: 'Broker Name', valueA: 'CHARLES SCHWAB & CO INC', valueB: 'CHARLES SCHWAB & CO INC', match: true, category: 'Broker Info', cropA: { x: 0.05, y: 0.12, width: 0.42, height: 0.04 }, cropB: { x: 0.05, y: 0.12, width: 0.42, height: 0.04 } },
+      { field: 'Account Number', valueA: '****4592', valueB: '****4592', match: true, category: 'Broker Info', cropA: { x: 0.05, y: 0.17, width: 0.25, height: 0.04 }, cropB: { x: 0.05, y: 0.17, width: 0.25, height: 0.04 } },
+      { field: 'Recipient Name', valueA: 'JILL ANDERSON', valueB: 'JILL ANDERSON', match: true, category: 'Recipient Info', cropA: { x: 0.05, y: 0.24, width: 0.42, height: 0.04 }, cropB: { x: 0.05, y: 0.24, width: 0.42, height: 0.04 } },
+      { field: 'Total Proceeds', valueA: '$42,100.00', valueB: '$47,850.00', match: false, category: 'Capital Gains', cropA: { x: 0.52, y: 0.32, width: 0.44, height: 0.05 }, cropB: { x: 0.52, y: 0.32, width: 0.44, height: 0.05 } },
+      { field: 'Total Cost Basis', valueA: '$36,800.00', valueB: '$39,500.00', match: false, category: 'Capital Gains', cropA: { x: 0.52, y: 0.38, width: 0.44, height: 0.05 }, cropB: { x: 0.52, y: 0.38, width: 0.44, height: 0.05 } },
+      { field: 'Statement Date', valueA: 'Jan 31, 2024', valueB: 'Mar 15, 2024', match: false, category: 'Document', cropA: { x: 0.72, y: 0.06, width: 0.24, height: 0.04 }, cropB: { x: 0.72, y: 0.06, width: 0.24, height: 0.04 } },
     ],
   },
 
