@@ -1729,8 +1729,8 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                         {/* AI recommendation row */}
                         <div style={{
                           padding: '0.375rem 0.5rem', borderRadius: '0.25rem',
-                          backgroundColor: 'oklch(0.98 0.01 260)',
-                          border: '0.0625rem solid oklch(0.91 0.01 260)',
+                          backgroundColor: 'oklch(1 0 0)',
+                          border: '0.0625rem solid oklch(0.91 0.005 260)',
                         }}>
                           <span style={{ fontSize: '0.5625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'oklch(0.5 0.01 260)' }}>
                             AI Recommended
@@ -1752,10 +1752,10 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                         {/* User override row */}
                         <div style={{
                           padding: '0.375rem 0.5rem', borderRadius: '0.25rem',
-                          backgroundColor: 'oklch(0.98 0.02 60)',
-                          border: '0.0625rem solid oklch(0.88 0.06 60)',
+                          backgroundColor: 'oklch(1 0 0)',
+                          border: '0.0625rem solid oklch(0.91 0.005 260)',
                         }}>
-                          <span style={{ fontSize: '0.5625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'oklch(0.5 0.14 60)' }}>
+                          <span style={{ fontSize: '0.5625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'oklch(0.5 0.01 260)' }}>
                             User Changed To
                           </span>
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem', marginBlockStart: '0.25rem' }}>
