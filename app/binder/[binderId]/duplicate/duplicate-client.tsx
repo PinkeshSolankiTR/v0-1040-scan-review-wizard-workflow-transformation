@@ -754,7 +754,7 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[] }) {
 
                 <fieldset style={{ border: 'none', padding: 0, margin: 0 }}>
                   <legend className="sr-only">Select the Original document</legend>
-                  {groupDocs.map(doc => {
+                  {effectiveDocs.map(doc => {
                     const isSelected = doc.id === effectiveOriginalId
                     const isAIChoice = doc.id === aiOriginalId
                     return (

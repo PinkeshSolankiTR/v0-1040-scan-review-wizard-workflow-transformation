@@ -714,10 +714,12 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                         Only 1 document can be Original. All others will be marked as Superseded.
                       </p>
 
-                      {/* Document options from active group */}
+                      {/* Document options from active group (exclude rejected docs) */}
                       <fieldset style={{ border: 'none', padding: 0, margin: 0 }}>
                         <legend className="sr-only">Select original document</legend>
-                        {activeGroup?.records.map((record) => {
+                        {activeGroup?.records
+                          .filter(record => !rejectedPageIds.has(String(record.engagementPageId)))
+                          .map((record) => {
                           const isAIPick = record.decisionType === 'Original'
                           const docLabel = `${record.documentRef?.formType ?? 'Document'} (Page ${record.engagementPageId})`
                           return (
