@@ -409,24 +409,36 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
 
   /* ── Override handler: flip Superseded <-> Original for active group ── */
   const handleOverrideGroup = (reason: string | null) => {
-  if (!activeGroup) return
-  const isAlreadyFlipped = flippedGroups.has(activeGroup.formType)
+  if (!activeGroup || !selectedDocument) return
+  
+  // Find the index of the selected document in supersededRecords
+  const targetIdx = activeGroup.supersededRecords.findIndex(
+    s => String(s.engagementPageId) === selectedDocument
+  )
+  // If user selected the AI original (not in superseded list), selectedDocument won't match.
+  // In that case, user is "restoring" to AI default, so undo.
+  const isSelectingAIOriginal = activeGroup.originalRecord &&
+    String(activeGroup.originalRecord.engagementPageId) === selectedDocument
   
   // Get the reason text
   const reasonText = reason 
     ? OVERRIDE_REASONS.find(r => r.id === reason)?.label ?? reason 
     : customReason || 'User override (no reason provided)'
   
-  // Toggle the flip state -- store which superseded index was overridden
+  // Set the flip state -- store which superseded index was overridden
   setFlippedGroups(prev => {
   const next = new Map(prev)
-  if (isAlreadyFlipped) next.delete(activeGroup.formType)
-  else next.set(activeGroup.formType, selectedSupersededIdx)
+  if (isSelectingAIOriginal) {
+    // User selected the AI original back -- no override needed
+    next.delete(activeGroup.formType)
+  } else if (targetIdx >= 0) {
+    next.set(activeGroup.formType, targetIdx)
+  }
   return next
   })
   
   // Log override for each record in the group
-  const overriddenRecord = activeGroup.supersededRecords[selectedSupersededIdx]
+  const overriddenRecord = targetIdx >= 0 ? activeGroup.supersededRecords[targetIdx] : activeGroup.originalRecord
   for (const r of activeGroup.records) {
   const key = `sup-pg${r.engagementPageId}`
   // Determine the new decision for this specific record
@@ -689,7 +701,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                 padding: '0.375rem 0.75rem',
                 border: '0.0625rem solid oklch(0.82 0.08 60)',
                 borderRadius: '0.25rem',
-                backgroundColor: activeGroup && flippedGroups.has(activeGroup.formType)
+                backgroundColor: isActiveFlipped
                   ? 'oklch(0.96 0.04 60)'
                   : 'oklch(1 0 0)',
                 fontSize: '0.75rem', fontWeight: 600,
@@ -792,7 +804,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
 
                       {/* Action buttons */}
                       <div style={{ display: 'flex', gap: '0.5rem', marginBlockStart: '0.75rem' }}>
-                        {activeGroup && flippedGroups.has(activeGroup.formType) ? (
+                        {isActiveFlipped ? (
                           <button
                             type="button"
                             onClick={handleUndoOverride}
@@ -2107,9 +2119,8 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                     )}
 
                     {/* Override comparison table when user has overridden */}
-                    {!panelGroupRejected && isGroupOverridden && (() => {
-                      const overriddenIdx = flippedGroups.get(activeGroup!.formType)!
-                      const overriddenRecord = activeGroup!.supersededRecords[overriddenIdx]
+                    {!panelGroupRejected && isGroupOverridden && activeFlippedIdx !== undefined && (() => {
+                      const overriddenRecord = activeGroup!.supersededRecords[activeFlippedIdx]
                       const allRecords = activeGroup!.records
                       return (
                       <div style={{
