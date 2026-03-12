@@ -1431,10 +1431,22 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                         const recordKey = `sup-pg${r.engagementPageId}`
                         const isAccepted = decisions[recordKey] === 'accepted'
                         const isFlipped = flippedGroups.has(group.formType)
-                        const isSup = isFlipped
-                          ? r.decisionType !== 'Superseded'
-                          : r.decisionType === 'Superseded'
                         const supIdx = group.supersededRecords.findIndex(s => s.engagementPageId === r.engagementPageId)
+                        // When overridden: selected superseded flips to Original, actual Original flips to Superseded,
+                        // all other superseded records stay Superseded
+                        let isSup: boolean
+                        if (!isFlipped) {
+                          isSup = r.decisionType === 'Superseded'
+                        } else if (r.decisionType === 'Original') {
+                          // The original becomes superseded when flipped
+                          isSup = true
+                        } else if (supIdx === selectedSupersededIdx) {
+                          // Only the selected superseded record becomes original
+                          isSup = false
+                        } else {
+                          // All other superseded records stay superseded
+                          isSup = true
+                        }
                         const isSelectedSup = gIdx === selectedGroupIdx && supIdx >= 0 && supIdx === selectedSupersededIdx
                         return (
                           <button
