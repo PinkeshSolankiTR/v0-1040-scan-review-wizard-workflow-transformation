@@ -1814,34 +1814,8 @@ const avgConfidence = Math.round(group.averageConfidence * 100)
                     )}
                   </div>
 
-                  {/* Confidence badge row */}
+                  {/* Page count */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBlockStart: '0.375rem' }}>
-                    {panelGroupRejected ? (
-                      <span
-                        style={{
-                          display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
-                          fontSize: '0.6875rem', fontWeight: 700, fontFamily: 'var(--font-mono)',
-                          padding: '0.1875rem 0.5rem', borderRadius: '0.25rem',
-                          backgroundColor: 'oklch(0.92 0.02 260)', color: 'oklch(0.45 0.01 260)',
-                        }}
-                      >
-                        <X style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
-                        Not a Duplicate
-                      </span>
-                    ) : (
-                      <span
-                        style={{
-                          display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
-                          fontSize: '0.6875rem', fontWeight: 700,
-                          padding: '0.1875rem 0.5rem', borderRadius: '0.25rem',
-                          backgroundColor: `${confColor} / 0.12`, color: confColor,
-                        }}
-                        title={panelTooltip}
-                      >
-                        <Sparkles style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
-                        {panelActionLabel}
-                      </span>
-                    )}
                     <span style={{
                       fontSize: '0.625rem', color: 'oklch(0.5 0.01 260)',
                     }}>
@@ -1850,6 +1824,51 @@ const avgConfidence = Math.round(group.averageConfidence * 100)
                   </div>
                 </div>
 
+                {/* Collapsible confidence badge toggle */}
+                <button
+                  type="button"
+                  onClick={() => togglePanel('aiAnalysis')}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '0.375rem',
+                    inlineSize: '100%', padding: '0.375rem 0.75rem',
+                    border: 'none', cursor: 'pointer', textAlign: 'start',
+                    fontSize: '0.6875rem', fontWeight: 700,
+                    backgroundColor: 'oklch(0.98 0.003 260)',
+                    borderBlockEnd: expandedPanels.has('aiAnalysis') ? 'none' : '0.0625rem solid oklch(0.91 0.005 260)',
+                    color: 'oklch(0.4 0.01 260)',
+                  }}
+                >
+                  {expandedPanels.has('aiAnalysis')
+                    ? <ChevronDown style={{ inlineSize: '0.625rem', blockSize: '0.625rem', color: 'oklch(0.5 0.01 260)' }} />
+                    : <ChevronRight style={{ inlineSize: '0.625rem', blockSize: '0.625rem', color: 'oklch(0.5 0.01 260)' }} />
+                  }
+                  {panelGroupRejected ? (
+                    <span style={{
+                      display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+                      fontSize: '0.6875rem', fontWeight: 700, fontFamily: 'var(--font-mono)',
+                      padding: '0.125rem 0.375rem', borderRadius: '0.1875rem',
+                      backgroundColor: 'oklch(0.92 0.02 260)', color: 'oklch(0.45 0.01 260)',
+                    }}>
+                      <X style={{ inlineSize: '0.5625rem', blockSize: '0.5625rem' }} />
+                      Not a Duplicate
+                    </span>
+                  ) : (
+                    <span
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+                        fontSize: '0.6875rem', fontWeight: 700,
+                        padding: '0.125rem 0.375rem', borderRadius: '0.1875rem',
+                        backgroundColor: `${confColor} / 0.12`, color: confColor,
+                      }}
+                      title={panelTooltip}
+                    >
+                      <Sparkles style={{ inlineSize: '0.5625rem', blockSize: '0.5625rem' }} />
+                      {panelActionLabel}
+                    </span>
+                  )}
+                </button>
+
+                {expandedPanels.has('aiAnalysis') && (
                   <div style={{
                     padding: '0.625rem 0.75rem',
                     backgroundColor: panelGroupRejected 
@@ -2264,6 +2283,7 @@ const avgConfidence = Math.round(group.averageConfidence * 100)
                     </>
                     )}
                   </div>
+                )}
               </div>
             )
           })()}
