@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * DESIGN VARIANT E: "Document Comparison"
+ * DESIGN VARIANT E: "Document Comparison" with Reclassify support
  * Production-style split view with left sidebar document tree,
  * two side-by-side PDF viewers, and a vertical toolbar between them.
  * Matches the existing Superseded UI pattern from the production app.
@@ -456,11 +456,19 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
   
   const handleUndoOverride = () => {
     if (!activeGroup) return
+    // Clear flip state
     setFlippedGroups(prev => {
       const next = new Map(prev)
       next.delete(activeGroup.formType)
       return next
     })
+    // Clear stored overrides for all records in this group
+    for (const r of activeGroup.records) {
+      const key = `sup-pg${r.engagementPageId}`
+      if (overrides[key]) {
+        override(key, 'superseded', r.confidenceLevel, undefined as unknown as OverrideDetail)
+      }
+    }
     setSelectedSupersededIdx(0)
     setShowOverridePanel(false)
     setSelectedReason(null)
@@ -620,22 +628,80 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
               type="button"
               onClick={() => {
                 if (!showOverridePanel) {
-                  // Initialize docRoles from current state (AI defaults or overridden)
+                  // Initialize docRoles from stored overrides or current state
                   if (activeGroup) {
                     const initialRoles = new Map<string, 'original' | 'superseded' | 'not-superseded'>()
+                    let hasStoredOverrides = false
                     for (const r of activeGroup.records) {
                       const pageId = String(r.engagementPageId)
-                      const isCurrentOriginal = isActiveFlipped
-                        ? activeFlippedIdx !== undefined && r.engagementPageId === activeGroup.supersededRecords[activeFlippedIdx]?.engagementPageId
-                        : r.decisionType === 'Original'
-                      initialRoles.set(pageId, isCurrentOriginal ? 'original' : 'superseded')
+                      const storedDetail = overrides[`sup-pg${pageId}`]?.detail
+                      if (storedDetail?.userOverrideDecision) {
+                        hasStoredOverrides = true
+                        if (storedDetail.userOverrideDecision.includes('Not Superseded')) {
+                          initialRoles.set(pageId, 'not-superseded')
+                        } else if (storedDetail.userOverrideDecision.endsWith('= Original')) {
+                          initialRoles.set(pageId, 'original')
+                        } else {
+                          initialRoles.set(pageId, 'superseded')
+                        }
+                      } else {
+                        // Fall back to flipped state or AI default
+                        const isCurrentOriginal = isActiveFlipped
+                          ? activeFlippedIdx !== undefined && r.engagementPageId === activeGroup.supersededRecords[activeFlippedIdx]?.engagementPageId
+                          : r.decisionType === 'Original'
+                        initialRoles.set(pageId, isCurrentOriginal ? 'original' : 'superseded')
+                      }
                     }
                     setDocRoles(initialRoles)
+
+                    // Restore previously selected reasons from stored overrides
+                    if (hasStoredOverrides) {
+                      // Find a reclassified (non-excluded) doc's reason
+                      const reclassifiedRec = activeGroup.records.find(r => {
+                        const d = overrides[`sup-pg${r.engagementPageId}`]?.detail
+                        return d && !d.userOverrideDecision?.includes('Not Superseded')
+                          && d.userOverrideDecision !== `Page ${r.engagementPageId} = ${r.decisionType}`
+                      })
+                      if (reclassifiedRec) {
+                        const reason = overrides[`sup-pg${reclassifiedRec.engagementPageId}`]?.detail?.overrideReason ?? ''
+                        const matchedReason = OVERRIDE_REASONS.find(r => r.label === reason)
+                        if (matchedReason) {
+                          setSelectedReason(matchedReason.id)
+                          setCustomReason('')
+                        } else if (reason) {
+                          setSelectedReason('custom')
+                          setCustomReason(reason)
+                        }
+                      } else {
+                        setSelectedReason(null)
+                        setCustomReason('')
+                      }
+                      // Find excluded doc's reason
+                      const excludedRec = activeGroup.records.find(r => {
+                        const d = overrides[`sup-pg${r.engagementPageId}`]?.detail
+                        return d?.userOverrideDecision?.includes('Not Superseded')
+                      })
+                      if (excludedRec) {
+                        const exReason = overrides[`sup-pg${excludedRec.engagementPageId}`]?.detail?.overrideReason ?? ''
+                        const matchedReasons = REJECTION_REASONS.filter(r => exReason.includes(r.label))
+                        if (matchedReasons.length > 0) {
+                          setNotSupersededReason(new Set(matchedReasons.map(r => r.id)))
+                          setNotSupersededCustom('')
+                        } else if (exReason) {
+                          setNotSupersededReason(new Set())
+                          setNotSupersededCustom(exReason)
+                        }
+                      } else {
+                        setNotSupersededReason(new Set())
+                        setNotSupersededCustom('')
+                      }
+                    } else {
+                      setSelectedReason(null)
+                      setCustomReason('')
+                      setNotSupersededReason(new Set())
+                      setNotSupersededCustom('')
+                    }
                   }
-                  setSelectedReason(null)
-                  setCustomReason('')
-                  setNotSupersededReason(new Set())
-                  setNotSupersededCustom('')
                 }
                 setShowOverridePanel(p => !p)
               }}
@@ -910,7 +976,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
 
                   {/* Action buttons */}
                   <div style={{ display: 'flex', gap: '0.5rem', marginBlockStart: '0.5rem' }}>
-                    {isActiveFlipped && (
+                    {isGroupOverridden && (
                       <button type="button" onClick={handleUndoOverride}
                         style={{
                           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem',
