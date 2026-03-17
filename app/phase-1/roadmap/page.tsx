@@ -881,23 +881,39 @@ export default function DeliveryRoadmapPage() {
     // ── 3. Identify current sprint name to filter work items ──
     const currentSprintName = currentSprintInfo?.name ?? null
 
-    // ── 4. Discover members from work items assigned in current sprint ──
-    // Map: "displayName" -> Set of team names
+    // ── 4. Discover members from ALL work items (not just scopedItems/epic) ──
+    // Use full data.items so we capture every team member, not just those under one epic
+    const allWorkItems = data?.items ?? []
     const memberTeams = new Map<string, Set<TeamName>>()
 
-    for (const item of scopedItems) {
-      if (!item.assignedTo || !item.iterationPath) continue
+    let debugTotalItems = 0
+    let debugSkippedNoAssignee = 0
+    let debugSkippedSprintMismatch = 0
+    let debugSkippedNoTeam = 0
+    let debugMatched = 0
+
+    for (const item of allWorkItems) {
+      debugTotalItems++
+      if (!item.assignedTo || !item.iterationPath) { debugSkippedNoAssignee++; continue }
 
       // Only include items from current sprint
-      if (currentSprintName && !item.iterationPath.includes(currentSprintName)) continue
+      if (currentSprintName && !item.iterationPath.includes(currentSprintName)) { debugSkippedSprintMismatch++; continue }
 
       const team = extractTeamFromPath(item.iterationPath)
-      if (!team) continue // not one of our 3 teams
+      if (!team) { debugSkippedNoTeam++; continue }
 
+      debugMatched++
       const teams = memberTeams.get(item.assignedTo) ?? new Set<TeamName>()
       teams.add(team)
       memberTeams.set(item.assignedTo, teams)
     }
+
+    console.log(`[v0] Capacity discovery: total=${debugTotalItems}, noAssignee=${debugSkippedNoAssignee}, sprintMismatch=${debugSkippedSprintMismatch}, noTeam=${debugSkippedNoTeam}, matched=${debugMatched}, uniqueMembers=${memberTeams.size}`)
+    console.log(`[v0] Current sprint name: "${currentSprintName}"`)
+    console.log(`[v0] Members found:`, Array.from(memberTeams.keys()))
+    // Log a sample of iteration paths for debugging
+    const samplePaths = allWorkItems.slice(0, 5).map(i => i.iterationPath)
+    console.log(`[v0] Sample iterationPaths:`, samplePaths)
 
     // ── 5. Build member rows with role from team-config.ts ──
     const memberRows: MemberRow[] = []
@@ -980,7 +996,7 @@ export default function DeliveryRoadmapPage() {
       /** Members defaulting to Development because they're not in team-config.ts */
       unconfiguredMembers: unconfiguredUnique,
     }
-  }, [capacityData, scopedItems])
+  }, [capacityData, data, scopedItems])
 
   /* ── Release projection ── */
   const releaseProjection = useMemo(() => {
