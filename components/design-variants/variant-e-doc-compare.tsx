@@ -614,7 +614,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
           </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          {/* Reclassify Dropdown */}
+          {/* Reclassify Dropdown - Single Panel */}
           <div style={{ position: 'relative' }}>
             <button
               type="button"
@@ -662,28 +662,26 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
             
             {/* Reclassify Panel Popover - Single Panel */}
             {showOverridePanel && !allGroupAccepted && (() => {
-              // Derive change state from docRoles vs AI defaults
-              const hasRoleSwap = activeGroup?.records.some(r => {
-                const pageId = String(r.engagementPageId)
-                const currentRole = docRoles.get(pageId)
-                const aiRole = r.decisionType === 'Original' ? 'original' : 'superseded'
-                return currentRole && currentRole !== aiRole && currentRole !== 'not-superseded'
+              const _hasRoleSwap = activeGroup?.records.some(r => {
+                const _pid = String(r.engagementPageId)
+                const _cur = docRoles.get(_pid)
+                const _ai = r.decisionType === 'Original' ? 'original' : 'superseded'
+                return _cur && _cur !== _ai && _cur !== 'not-superseded'
               }) ?? false
-              const hasNotSuperseded = Array.from(docRoles.values()).some(v => v === 'not-superseded')
-              const hasAnyChange = hasRoleSwap || hasNotSuperseded
-              const originalCount = Array.from(docRoles.values()).filter(v => v === 'original').length
-              const supersededCount = Array.from(docRoles.values()).filter(v => v === 'superseded').length
-              const validationError = originalCount === 0
+              const _hasNotSup = Array.from(docRoles.values()).some(v => v === 'not-superseded')
+              const _hasAnyChange = _hasRoleSwap || _hasNotSup
+              const _origCount = Array.from(docRoles.values()).filter(v => v === 'original').length
+              const _supCount = Array.from(docRoles.values()).filter(v => v === 'superseded').length
+              const _valError = _origCount === 0
                 ? 'At least one document must be Original.'
-                : supersededCount === 0 && !hasNotSuperseded
+                : _supCount === 0 && !_hasNotSup
                   ? 'At least one document must be Superseded.'
                   : null
-              const swapReasonFilled = !hasRoleSwap || (selectedReason !== null || customReason.trim() !== '')
-              const notSupReasonFilled = !hasNotSuperseded || (notSupersededReason.size > 0 || notSupersededCustom.trim() !== '')
-              const canApply = hasAnyChange && !validationError && swapReasonFilled && notSupReasonFilled
-
+              const _swapFilled = !_hasRoleSwap || (selectedReason !== null || customReason.trim() !== '')
+              const _notSupFilled = !_hasNotSup || (notSupersededReason.size > 0 || notSupersededCustom.trim() !== '')
+              const _canApply = _hasAnyChange && !_valError && _swapFilled && _notSupFilled
               return (
-              <>
+              <div key="reclassify-panel-wrapper">
                 <div
                   onClick={() => { setShowOverridePanel(false) }}
                   style={{ position: 'fixed', inset: 0, zIndex: 49 }}
@@ -790,7 +788,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                   </div>
 
                   {/* Validation error */}
-                  {validationError && (
+                  {_valError && (
                     <div style={{
                       display: 'flex', alignItems: 'center', gap: '0.25rem',
                       padding: '0.375rem 0.5rem', marginBlockEnd: '0.5rem',
@@ -798,12 +796,12 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                       backgroundColor: 'oklch(0.96 0.04 25)', border: '0.0625rem solid oklch(0.88 0.08 25)',
                     }}>
                       <AlertTriangle style={{ inlineSize: '0.625rem', blockSize: '0.625rem', color: 'oklch(0.55 0.16 25)', flexShrink: 0 }} />
-                      <span style={{ fontSize: '0.625rem', color: 'oklch(0.4 0.08 25)' }}>{validationError}</span>
+                      <span style={{ fontSize: '0.625rem', color: 'oklch(0.4 0.08 25)' }}>{_valError}</span>
                     </div>
                   )}
 
                   {/* Reason for reclassification (role swap) */}
-                  {hasRoleSwap && (
+                  {_hasRoleSwap && (
                     <div style={{ marginBlockEnd: '0.625rem' }}>
                       <p style={{
                         fontSize: '0.625rem', fontWeight: 700, color: 'oklch(0.35 0.01 260)',
@@ -858,7 +856,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                   )}
 
                   {/* Reason for exclusion (not superseded) */}
-                  {hasNotSuperseded && (
+                  {_hasNotSup && (
                     <div style={{ marginBlockEnd: '0.625rem' }}>
                       <div style={{
                         display: 'flex', alignItems: 'flex-start', gap: '0.375rem',
@@ -925,7 +923,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                       </button>
                     )}
                     <button type="button"
-                      disabled={!canApply}
+                      disabled={!_canApply}
                       onClick={() => {
                         if (!activeGroup) return
                         // Build reason texts
@@ -993,17 +991,17 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                         flex: 1,
                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem',
                         padding: '0.375rem 0.5rem', border: 'none', borderRadius: '0.25rem',
-                        backgroundColor: !canApply ? 'oklch(0.9 0.01 260)' : 'oklch(0.45 0.18 145)',
+                        backgroundColor: !_canApply ? 'oklch(0.9 0.01 260)' : 'oklch(0.45 0.18 145)',
                         fontSize: '0.6875rem', fontWeight: 600,
-                        color: !canApply ? 'oklch(0.6 0.01 260)' : 'oklch(1 0 0)',
-                        cursor: !canApply ? 'not-allowed' : 'pointer',
+                        color: !_canApply ? 'oklch(0.6 0.01 260)' : 'oklch(1 0 0)',
+                        cursor: !_canApply ? 'not-allowed' : 'pointer',
                       }}>
                       <Check style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
                       Apply
                     </button>
                   </div>
                 </div>
-              </>
+              </div>
               )
             })()}
           </div>
