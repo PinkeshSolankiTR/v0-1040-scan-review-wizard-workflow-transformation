@@ -64,6 +64,19 @@ export const MEMBER_ROLES: Record<string, MemberActivity[]> = {
   // ],
 }
 
+/**
+ * Exclude members whose display name contains any of these substrings.
+ * Operations & Technology staff are not part of dev/test/support capacity.
+ */
+export const EXCLUDED_ORG_PATTERNS = [
+  '(Operations & Technology)',
+] as const
+
+/** Check if a member should be excluded based on their display name */
+export function isMemberExcluded(displayName: string): boolean {
+  return EXCLUDED_ORG_PATTERNS.some(pattern => displayName.includes(pattern))
+}
+
 /** Default activity for members not found in MEMBER_ROLES */
 export const DEFAULT_MEMBER_ACTIVITIES: MemberActivity[] = [
   { activity: 'Development', hrsPerDay: 6 },

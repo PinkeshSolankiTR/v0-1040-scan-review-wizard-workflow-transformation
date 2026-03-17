@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { ROADMAP as STATIC_ROADMAP, type Feature as StaticFeature, type Spike as StaticSpike } from './roadmap-data'
 import type { AdoWorkItemFlat, AdoQueryResponse } from '@/app/api/ado-query/route'
 import type { CapacityResponse } from '@/app/api/ado-capacity/route'
-import { MEMBER_ROLES, extractTeamFromPath, getMemberActivities, TARGET_RELEASE_DATE, type TeamName } from '@/lib/team-config'
+import { MEMBER_ROLES, extractTeamFromPath, getMemberActivities, isMemberExcluded, TARGET_RELEASE_DATE, type TeamName } from '@/lib/team-config'
 
 /* ── Fetcher ── */
 const fetcher = (url: string) =>
@@ -889,6 +889,7 @@ export default function DeliveryRoadmapPage() {
 
     for (const item of allWorkItems) {
       if (!item.assignedTo || !item.areaPath) continue
+      if (isMemberExcluded(item.assignedTo)) continue
 
       const team = extractTeamFromPath(item.areaPath)
       if (!team) continue
