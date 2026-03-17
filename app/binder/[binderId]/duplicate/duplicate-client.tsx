@@ -2255,124 +2255,153 @@ const avgConfidence = Math.round(group.averageConfidence * 100)
                             )}
                           </header>
 
-                          {/* Analysis body -- enriched AI reasoning */}
+                          {/* Analysis body -- Option B: structured narrative with document context */}
                           <div style={{ padding: '0.5rem 0.625rem' }}>
                             {!isGroupOverridden && (() => {
                               const allCompared = relatedRecords.flatMap(r => r.comparedValues ?? [])
                               const seenMatch = new Set<string>()
                               const seenDiffer = new Set<string>()
-                              const matchFields = allCompared.filter(v => v.valueA === v.valueB && !seenMatch.has(v.field) && seenMatch.add(v.field)).map(v => v.field)
-                              const differFields = allCompared.filter(v => v.valueA !== v.valueB && !seenDiffer.has(v.field) && seenDiffer.add(v.field)).map(v => v.field)
-                              const confPercent = Math.round((primaryRec.confidenceLevel ?? 0) * 100)
+                              const matchingFields = allCompared.filter(v => v.valueA === v.valueB && !seenMatch.has(v.field) && seenMatch.add(v.field))
+                              const differingFields = allCompared.filter(v => v.valueA !== v.valueB && !seenDiffer.has(v.field) && seenDiffer.add(v.field))
                               const formType = activeGroup?.formType ?? 'Unknown'
+                              const entity = activeGroup?.formEntity ?? ''
 
-                              // Build contextual summary
-                              const summaryParts: string[] = []
-                              summaryParts.push(`This ${formType} document was analyzed against ${effectiveDocs.length - 1} other document${effectiveDocs.length > 2 ? 's' : ''} for potential duplicate classification.`)
-                              if (matchFields.length > 0) {
-                                summaryParts.push(`The following fields matched: ${matchFields.join(', ')}.`)
-                              }
-                              if (differFields.length > 0) {
-                                summaryParts.push(`Fields that differed: ${differFields.join(', ')}.`)
-                              }
-                              summaryParts.push(`Based on this analysis, the AI assigned a confidence level of ${confPercent}%.`)
-                              if (matchFields.length > differFields.length && matchFields.length > 0) {
-                                summaryParts.push('The majority of identifying fields match, suggesting these documents are duplicates of the same filing.')
-                              }
+                              // Group fields by category
+                              const matchCategories = new Map<string, string[]>()
+                              matchingFields.forEach(v => {
+                                const rec = allCompared.find(c => c.field === v.field)
+                                const cat = (rec as Record<string, unknown>)?.category as string ?? 'Other'
+                                if (!matchCategories.has(cat)) matchCategories.set(cat, [])
+                                matchCategories.get(cat)!.push(v.field)
+                              })
+                              const differCategories = new Map<string, string[]>()
+                              differingFields.forEach(v => {
+                                const rec = allCompared.find(c => c.field === v.field)
+                                const cat = (rec as Record<string, unknown>)?.category as string ?? 'Other'
+                                if (!differCategories.has(cat)) differCategories.set(cat, [])
+                                differCategories.get(cat)!.push(v.field)
+                              })
 
-                              // Parse structured reasons
-                              const reasons = primaryRec.decisionReason
-                                ?.split('||')
-                                .map(item => { const [type, text] = item.split('|'); return { type, text } })
-                                .filter(item => item.text) ?? []
+                              const allFieldsMatch = differingFields.length === 0 && matchingFields.length > 0
+                              const hasAmountDiffs = differingFields.some(v => {
+                                const rec = allCompared.find(c => c.field === v.field)
+                                return ((rec as Record<string, unknown>)?.category as string ?? '').toLowerCase() === 'income'
+                              })
+                              const hasDocNumberDiff = differingFields.some(v => v.field.toLowerCase().includes('document number'))
 
                               return (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                  {/* Contextual summary paragraph */}
+                                  {/* Document context header */}
+                                  <div style={{
+                                    display: 'flex', flexDirection: 'column', gap: '0.1875rem',
+                                    padding: '0.375rem 0.5rem', borderRadius: '0.25rem',
+                                    backgroundColor: 'oklch(0.97 0.005 260)',
+                                    border: '0.0625rem solid oklch(0.92 0.01 260)',
+                                  }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                                      <span style={{ fontSize: '0.5625rem', fontWeight: 700, color: 'oklch(0.4 0.01 260)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                        Document Type
+                                      </span>
+                                      <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.25 0.01 260)' }}>
+                                        {formType}{entity && entity !== formType ? ` (${entity})` : ''}
+                                      </span>
+                                    </div>
+                                    <span style={{ fontSize: '0.625rem', color: 'oklch(0.45 0.01 260)' }}>
+                                      {effectiveDocs.length} documents compared for potential duplicates
+                                    </span>
+                                  </div>
+
+                                  {/* Narrative explanation */}
                                   <p style={{
-                                    fontSize: '0.6875rem', lineHeight: 1.55,
+                                    fontSize: '0.6875rem', lineHeight: 1.6,
                                     color: 'oklch(0.3 0.01 260)', margin: 0,
                                   }}>
-                                    {summaryParts.join(' ')}
+                                    {allFieldsMatch
+                                      ? `Both ${formType} forms share identical values across all ${matchingFields.length} compared fields (${matchingFields.map(v => v.field).join(', ')}). This is consistent with duplicate copies of the same filing being included in the binder.`
+                                      : matchingFields.length > differingFields.length
+                                        ? `These ${formType} documents from ${entity || 'the same source'} share identical values for ${matchingFields.map(v => v.field).join(', ')}. ${differingFields.length > 0 ? `The only difference${differingFields.length > 1 ? 's are' : ' is'} in ${differingFields.map(v => v.field).join(', ')}` : ''}, which is consistent with duplicate copies of the same filing.`
+                                        : `The AI compared these ${formType} documents and found ${matchingFields.length} matching field${matchingFields.length !== 1 ? 's' : ''} out of ${matchingFields.length + differingFields.length} total. ${differingFields.length > 0 ? `Fields that differ: ${differingFields.map(v => v.field).join(', ')}.` : ''}`
+                                    }
+                                    {hasDocNumberDiff && ' The Document Number difference is expected for duplicate copies generated with separate tracking identifiers.'}
+                                    {hasAmountDiffs && ' Income-related fields differ between documents -- verify these are true duplicates rather than separate filings for different income sources.'}
                                   </p>
 
-                                  {/* Matching fields highlight */}
-                                  {matchFields.length > 0 && (
-                                    <div style={{
-                                      display: 'flex', flexWrap: 'wrap', gap: '0.25rem',
-                                      padding: '0.375rem 0.5rem', borderRadius: '0.25rem',
-                                      backgroundColor: 'oklch(0.96 0.02 145)',
-                                      border: '0.0625rem solid oklch(0.9 0.04 145)',
-                                    }}>
-                                      <span style={{ fontSize: '0.5625rem', fontWeight: 700, color: 'oklch(0.4 0.14 145)', inlineSize: '100%', marginBlockEnd: '0.125rem' }}>
-                                        Matching Fields ({matchFields.length})
-                                      </span>
-                                      {matchFields.map(f => (
-                                        <span key={f} style={{
-                                          fontSize: '0.5625rem', fontWeight: 600,
-                                          padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem',
-                                          backgroundColor: 'oklch(0.92 0.04 145)', color: 'oklch(0.35 0.14 145)',
-                                        }}>
-                                          {f}
+                                  {/* Fields grouped by category */}
+                                  <div style={{ display: 'flex', gap: '0.375rem' }}>
+                                    {matchingFields.length > 0 && (
+                                      <div style={{
+                                        flex: 1,
+                                        display: 'flex', flexDirection: 'column', gap: '0.25rem',
+                                        padding: '0.375rem 0.5rem', borderRadius: '0.25rem',
+                                        backgroundColor: 'oklch(0.96 0.02 145)',
+                                        border: '0.0625rem solid oklch(0.9 0.04 145)',
+                                      }}>
+                                        <span style={{ fontSize: '0.5625rem', fontWeight: 700, color: 'oklch(0.4 0.14 145)' }}>
+                                          Matching ({matchingFields.length})
                                         </span>
-                                      ))}
-                                    </div>
-                                  )}
-
-                                  {/* Differing fields highlight */}
-                                  {differFields.length > 0 && (
-                                    <div style={{
-                                      display: 'flex', flexWrap: 'wrap', gap: '0.25rem',
-                                      padding: '0.375rem 0.5rem', borderRadius: '0.25rem',
-                                      backgroundColor: 'oklch(0.97 0.02 60)',
-                                      border: '0.0625rem solid oklch(0.9 0.04 60)',
-                                    }}>
-                                      <span style={{ fontSize: '0.5625rem', fontWeight: 700, color: 'oklch(0.45 0.14 60)', inlineSize: '100%', marginBlockEnd: '0.125rem' }}>
-                                        Differing Fields ({differFields.length})
-                                      </span>
-                                      {differFields.map(f => (
-                                        <span key={f} style={{
-                                          fontSize: '0.5625rem', fontWeight: 600,
-                                          padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem',
-                                          backgroundColor: 'oklch(0.93 0.04 60)', color: 'oklch(0.4 0.14 60)',
-                                        }}>
-                                          {f}
-                                        </span>
-                                      ))}
-                                    </div>
-                                  )}
-
-                                  {/* Structured AI reasons */}
-                                  {reasons.length > 0 && (
-                                    <div style={{
-                                      display: 'flex', flexDirection: 'column', gap: '0.25rem',
-                                      padding: '0.375rem 0.5rem', borderRadius: '0.25rem',
-                                      backgroundColor: 'oklch(0.98 0.003 240)',
-                                      border: '0.0625rem solid oklch(0.92 0.01 240)',
-                                    }}>
-                                      <span style={{ fontSize: '0.5625rem', fontWeight: 700, color: 'oklch(0.4 0.01 260)', marginBlockEnd: '0.125rem' }}>
-                                        Classification Rationale
-                                      </span>
-                                      {reasons.map((item, i) => {
-                                        const iconMap: Record<string, { icon: React.ReactNode; color: string }> = {
-                                          'NEWER_VERSION': { icon: <RefreshCw style={{ inlineSize: '0.6875rem', blockSize: '0.6875rem' }} />, color: 'oklch(0.45 0.15 145)' },
-                                          'SAME_RECIPIENT': { icon: <User style={{ inlineSize: '0.6875rem', blockSize: '0.6875rem' }} />, color: 'oklch(0.45 0.12 250)' },
-                                          'UPDATED_VALUES': { icon: <FileEdit style={{ inlineSize: '0.6875rem', blockSize: '0.6875rem' }} />, color: 'oklch(0.5 0.14 60)' },
-                                          'CORRECTED_MARK': { icon: <CheckCircle2 style={{ inlineSize: '0.6875rem', blockSize: '0.6875rem' }} />, color: 'oklch(0.45 0.15 145)' },
-                                          'EXACT_MATCH': { icon: <Copy style={{ inlineSize: '0.6875rem', blockSize: '0.6875rem' }} />, color: 'oklch(0.45 0.15 145)' },
-                                          'SAME_DOCUMENT': { icon: <FileCheck style={{ inlineSize: '0.6875rem', blockSize: '0.6875rem' }} />, color: 'oklch(0.45 0.12 250)' },
-                                          'KEEP_ONE': { icon: <Check style={{ inlineSize: '0.6875rem', blockSize: '0.6875rem' }} />, color: 'oklch(0.45 0.15 145)' },
-                                        }
-                                        const config = iconMap[item.type] || { icon: <Info style={{ inlineSize: '0.6875rem', blockSize: '0.6875rem' }} />, color: 'oklch(0.5 0.01 260)' }
-                                        return (
-                                          <div key={`${doc.id}-reason-${i}`} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                                            <span style={{ color: config.color, flexShrink: 0 }}>{config.icon}</span>
-                                            <span style={{ fontSize: '0.6875rem', color: 'oklch(0.35 0.01 260)' }}>{item.text}</span>
+                                        {Array.from(matchCategories.entries()).map(([cat, fields]) => (
+                                          <div key={cat} style={{ display: 'flex', flexDirection: 'column', gap: '0.125rem' }}>
+                                            <span style={{ fontSize: '0.5rem', fontWeight: 600, color: 'oklch(0.5 0.1 145)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{cat}</span>
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.1875rem' }}>
+                                              {fields.map(f => (
+                                                <span key={f} style={{
+                                                  fontSize: '0.5625rem', fontWeight: 500,
+                                                  padding: '0.0625rem 0.25rem', borderRadius: '0.125rem',
+                                                  backgroundColor: 'oklch(0.92 0.04 145)', color: 'oklch(0.35 0.14 145)',
+                                                }}>{f}</span>
+                                              ))}
+                                            </div>
                                           </div>
-                                        )
-                                      })}
-                                    </div>
-                                  )}
+                                        ))}
+                                      </div>
+                                    )}
+
+                                    {differingFields.length > 0 && (
+                                      <div style={{
+                                        flex: 1,
+                                        display: 'flex', flexDirection: 'column', gap: '0.25rem',
+                                        padding: '0.375rem 0.5rem', borderRadius: '0.25rem',
+                                        backgroundColor: 'oklch(0.97 0.02 60)',
+                                        border: '0.0625rem solid oklch(0.9 0.04 60)',
+                                      }}>
+                                        <span style={{ fontSize: '0.5625rem', fontWeight: 700, color: 'oklch(0.45 0.14 60)' }}>
+                                          Differing ({differingFields.length})
+                                        </span>
+                                        {Array.from(differCategories.entries()).map(([cat, fields]) => (
+                                          <div key={cat} style={{ display: 'flex', flexDirection: 'column', gap: '0.125rem' }}>
+                                            <span style={{ fontSize: '0.5rem', fontWeight: 600, color: 'oklch(0.55 0.1 60)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{cat}</span>
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.1875rem' }}>
+                                              {fields.map(f => (
+                                                <span key={f} style={{
+                                                  fontSize: '0.5625rem', fontWeight: 500,
+                                                  padding: '0.0625rem 0.25rem', borderRadius: '0.125rem',
+                                                  backgroundColor: 'oklch(0.93 0.04 60)', color: 'oklch(0.4 0.14 60)',
+                                                }}>{f}</span>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {/* Verification guidance */}
+                                  <div style={{
+                                    display: 'flex', alignItems: 'flex-start', gap: '0.375rem',
+                                    padding: '0.375rem 0.5rem', borderRadius: '0.25rem',
+                                    backgroundColor: 'oklch(0.97 0.01 250)',
+                                    border: '0.0625rem solid oklch(0.92 0.02 250)',
+                                  }}>
+                                    <Info style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.5 0.1 250)', flexShrink: 0, marginBlockStart: '0.0625rem' }} />
+                                    <span style={{ fontSize: '0.625rem', color: 'oklch(0.35 0.01 260)', lineHeight: 1.5 }}>
+                                      {allFieldsMatch
+                                        ? 'All compared fields match exactly. Confirm both copies contain the same information and are not separate filings from the same payer for different services or periods.'
+                                        : hasAmountDiffs
+                                          ? 'Income-related fields differ. Verify these are true duplicates rather than separate filings for different income sources from the same payer.'
+                                          : `Review the ${differingFields.length} differing field${differingFields.length !== 1 ? 's' : ''} to confirm these represent duplicate copies rather than distinct filings.`
+                                      }
+                                    </span>
+                                  </div>
                                 </div>
                               )
                             })()}
