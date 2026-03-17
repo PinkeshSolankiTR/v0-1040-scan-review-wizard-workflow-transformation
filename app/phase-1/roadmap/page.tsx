@@ -838,6 +838,7 @@ export default function DeliveryRoadmapPage() {
     if (!capacityData?.teams) return null
 
     const TARGET_RELEASE = new Date('2026-06-28')
+    const DEFAULT_HRS_PER_DAY = 6
 
     type MemberRow = {
       displayName: string
@@ -859,6 +860,9 @@ export default function DeliveryRoadmapPage() {
 
     // All iterations across teams (deduplicated by name for timeline)
     const allIterationsMap = new Map<string, { name: string; startDate: string | null; finishDate: string | null; timeFrame: string }>()
+
+    // Check if any team has real capacity data from ADO
+    const hasRealCapacityData = capacityData.teams.some(t => t.members.length > 0 && t.members.some(m => m.activities.length > 0 && !m.isEstimated))
 
     for (const team of capacityData.teams) {
       const currentIt = team.currentIteration
@@ -905,15 +909,15 @@ export default function DeliveryRoadmapPage() {
           const role = activity.name || 'Other'
           const sprintHrs = effectiveWorkDays * activity.capacityPerDay
 
- memberRows.push({
-  displayName: member.displayName,
-  team: team.name.replace('surePrep-rw-', ''),
-  role,
-  capacityPerDay: activity.capacityPerDay,
-  daysOff: daysOffCount,
-  sprintCapacityHrs: sprintHrs,
-  isEstimated: member.isEstimated ?? false,
-  })
+          memberRows.push({
+            displayName: member.displayName,
+            team: team.name.replace('surePrep-rw-', ''),
+            role,
+            capacityPerDay: activity.capacityPerDay,
+            daysOff: daysOffCount,
+            sprintCapacityHrs: sprintHrs,
+            isEstimated: member.isEstimated ?? false,
+          })
 
           const roleLower = role.toLowerCase()
           if (roleLower === 'development') { totalDevCapacity += sprintHrs; devCount++ }
@@ -927,6 +931,46 @@ export default function DeliveryRoadmapPage() {
         if (!allIterationsMap.has(it.name)) {
           allIterationsMap.set(it.name, { name: it.name, startDate: it.startDate, finishDate: it.finishDate, timeFrame: it.timeFrame })
         }
+      }
+    }
+
+    // FALLBACK: If no members from capacity API or team members API,
+    // derive team roster from work item assignees
+    if (memberRows.length === 0 && scopedItems) {
+      const uniqueAssignees = new Set<string>()
+      for (const item of scopedItems) {
+        if (item.assignedTo) uniqueAssignees.add(item.assignedTo)
+      }
+
+      // Find current sprint working days from the iterations
+      const currentSprint = Array.from(allIterationsMap.values()).find(s => s.timeFrame === 'current')
+      let sprintWorkingDays = 10
+      if (currentSprint?.startDate && currentSprint?.finishDate) {
+        const start = new Date(currentSprint.startDate)
+        const end = new Date(currentSprint.finishDate)
+        let workDays = 0
+        const d = new Date(start)
+        while (d <= end) {
+          const day = d.getDay()
+          if (day !== 0 && day !== 6) workDays++
+          d.setDate(d.getDate() + 1)
+        }
+        sprintWorkingDays = workDays
+      }
+
+      for (const name of uniqueAssignees) {
+        const sprintHrs = sprintWorkingDays * DEFAULT_HRS_PER_DAY
+        memberRows.push({
+          displayName: name,
+          team: 'All Teams',
+          role: 'Development',
+          capacityPerDay: DEFAULT_HRS_PER_DAY,
+          daysOff: 0,
+          sprintCapacityHrs: sprintHrs,
+          isEstimated: true,
+        })
+        totalDevCapacity += sprintHrs
+        devCount++
       }
     }
 
@@ -967,8 +1011,9 @@ export default function DeliveryRoadmapPage() {
       },
       teams: capacityData.teams.map(t => t.name.replace('surePrep-rw-', '')),
       anyEstimated: memberRows.some(r => r.isEstimated),
+      hasRealCapacityData,
     }
-  }, [capacityData])
+  }, [capacityData, scopedItems])
 
   /* ── Release projection ── */
   const releaseProjection = useMemo(() => {
@@ -1525,7 +1570,7 @@ export default function DeliveryRoadmapPage() {
 
                   {capacityInsights && (
                     <>
-                      <CollapsibleSection icon={Users} title="Team Capacity" subtitle={`${capacityInsights.sprints.current?.name ?? 'Current Sprint'}${capacityInsights.anyEstimated ? '  (from ADO Team Roster - capacity not configured in ADO)' : ''}`}>
+                      <CollapsibleSection icon={Users} title="Team Capacity" subtitle={`${capacityInsights.sprints.current?.name ?? 'Current Sprint'}${capacityInsights.anyEstimated ? '  (derived from work item assignments - 6 hrs/day default)' : ''}`}>
                         {/* Summary cards */}
                         <div className="grid grid-cols-6 gap-3 mb-4">
                           {[
