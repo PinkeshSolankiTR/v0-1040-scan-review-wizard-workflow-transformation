@@ -739,6 +739,26 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                                 setDocRoles(prev => {
                                   const next = new Map(prev)
                                   next.set(pageId, newRole)
+                                  // Auto-swap for 2-document groups
+                                  const eligibleRecords = activeGroup?.records.filter(
+                                    rec => !rejectedPageIds.has(String(rec.engagementPageId))
+                                  ) ?? []
+                                  if (eligibleRecords.length === 2) {
+                                    const otherRecord = eligibleRecords.find(
+                                      rec => String(rec.engagementPageId) !== pageId
+                                    )
+                                    if (otherRecord) {
+                                      const otherId = String(otherRecord.engagementPageId)
+                                      if (newRole === 'original') {
+                                        // If this becomes Original, other must be Superseded
+                                        next.set(otherId, 'superseded')
+                                      } else if (newRole === 'superseded') {
+                                        // If this becomes Superseded, other must be Original
+                                        next.set(otherId, 'original')
+                                      }
+                                      // If 'not-superseded', don't auto-change the other
+                                    }
+                                  }
                                   return next
                                 })
                               }}
