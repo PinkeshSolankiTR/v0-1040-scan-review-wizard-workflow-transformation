@@ -881,39 +881,22 @@ export default function DeliveryRoadmapPage() {
     // ── 3. Identify current sprint name to filter work items ──
     const currentSprintName = currentSprintInfo?.name ?? null
 
-    // ── 4. Discover members from ALL work items (not just scopedItems/epic) ──
-    // Use full data.items so we capture every team member, not just those under one epic
+    // ── 4. Discover members from ALL work items using areaPath for team ──
+    // Area paths contain team info: "TaxProf\surePrep-rw-wizards2\..."
+    // Iteration paths do NOT: "TaxProf\2026\Q1" (project-level, no team)
     const allWorkItems = data?.items ?? []
     const memberTeams = new Map<string, Set<TeamName>>()
 
-    let debugTotalItems = 0
-    let debugSkippedNoAssignee = 0
-    let debugSkippedSprintMismatch = 0
-    let debugSkippedNoTeam = 0
-    let debugMatched = 0
-
     for (const item of allWorkItems) {
-      debugTotalItems++
-      if (!item.assignedTo || !item.iterationPath) { debugSkippedNoAssignee++; continue }
+      if (!item.assignedTo || !item.areaPath) continue
 
-      // Only include items from current sprint
-      if (currentSprintName && !item.iterationPath.includes(currentSprintName)) { debugSkippedSprintMismatch++; continue }
+      const team = extractTeamFromPath(item.areaPath)
+      if (!team) continue
 
-      const team = extractTeamFromPath(item.iterationPath)
-      if (!team) { debugSkippedNoTeam++; continue }
-
-      debugMatched++
       const teams = memberTeams.get(item.assignedTo) ?? new Set<TeamName>()
       teams.add(team)
       memberTeams.set(item.assignedTo, teams)
     }
-
-    console.log(`[v0] Capacity discovery: total=${debugTotalItems}, noAssignee=${debugSkippedNoAssignee}, sprintMismatch=${debugSkippedSprintMismatch}, noTeam=${debugSkippedNoTeam}, matched=${debugMatched}, uniqueMembers=${memberTeams.size}`)
-    console.log(`[v0] Current sprint name: "${currentSprintName}"`)
-    console.log(`[v0] Members found:`, Array.from(memberTeams.keys()))
-    // Log a sample of iteration paths for debugging
-    const samplePaths = allWorkItems.slice(0, 5).map(i => i.iterationPath)
-    console.log(`[v0] Sample iterationPaths:`, samplePaths)
 
     // ── 5. Build member rows with role from team-config.ts ──
     const memberRows: MemberRow[] = []
@@ -1532,15 +1515,10 @@ export default function DeliveryRoadmapPage() {
                   {data?.items && capacityData?.teams && (
                     <div className="rounded-lg border border-dashed border-yellow-500 bg-yellow-50 px-4 py-3 mb-4 text-[0.625rem] font-mono text-yellow-800 space-y-1">
                       <p className="font-bold">Capacity Debug (remove after fix):</p>
-                      <p>Total work items (data.items): {data.items.length}</p>
-                      <p>Scoped items: {scopedItems.length}</p>
-                      <p>Capacity API teams: {capacityData.teams.map(t => t.name).join(', ')}</p>
-                      <p>Current iterations: {capacityData.teams.map(t => `${t.name}=${t.currentIteration?.name ?? 'NONE'}`).join(' | ')}</p>
-                      <p>Sample iterationPaths (first 5): {data.items.slice(0, 5).map(i => i.iterationPath).join(' | ')}</p>
-                      <p>Sample assignedTo (first 10 unique): {[...new Set(data.items.filter(i => i.assignedTo).map(i => i.assignedTo))].slice(0, 10).join(' | ')}</p>
-                      <p>Items with team in path: {data.items.filter(i => i.iterationPath && (i.iterationPath.toLowerCase().includes('wizards') || i.iterationPath.toLowerCase().includes('infinity'))).length}</p>
-                      <p>capacityInsights null? {capacityInsights === null ? 'YES' : 'NO'}</p>
-                      {capacityInsights && <p>memberRows count: {capacityInsights.memberRows.length}</p>}
+                      <p>Total work items: {data.items.length} | Items with team in areaPath: {data.items.filter(i => i.areaPath && (i.areaPath.toLowerCase().includes('wizards') || i.areaPath.toLowerCase().includes('infinity'))).length}</p>
+                      <p>Sample areaPaths: {[...new Set(data.items.filter(i => i.areaPath).map(i => i.areaPath))].slice(0, 5).join(' | ')}</p>
+                      <p>Unique members found: {capacityInsights?.memberRows.length ?? 0} | Teams: {capacityInsights?.teams.join(', ') ?? 'none'}</p>
+                      <p>Members: {capacityInsights?.memberRows.map(r => `${r.displayName} [${r.team}/${r.role}]`).join(' | ') ?? 'none'}</p>
                     </div>
                   )}
 
