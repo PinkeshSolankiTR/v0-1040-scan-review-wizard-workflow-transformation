@@ -935,11 +935,43 @@ export default function DeliveryRoadmapPage() {
     }
 
     // FALLBACK: If no members from capacity API or team members API,
-    // derive team roster from work item assignees
+    // derive team roster from work item assignees with team from iterationPath
     if (memberRows.length === 0 && scopedItems) {
-      const uniqueAssignees = new Set<string>()
+      // Map of team names we care about
+      const TEAM_KEYWORDS = ['wizards1', 'wizards2', 'infinity'] as const
+      type TeamKey = typeof TEAM_KEYWORDS[number]
+
+      // Build a map: assignee -> { team, activity } from their work items
+      const assigneeInfo = new Map<string, { teams: Set<string>; hasTestItems: boolean; hasSupportItems: boolean }>()
+
       for (const item of scopedItems) {
-        if (item.assignedTo) uniqueAssignees.add(item.assignedTo)
+        if (!item.assignedTo) continue
+        const info = assigneeInfo.get(item.assignedTo) ?? { teams: new Set<string>(), hasTestItems: false, hasSupportItems: false }
+
+        // Extract team from iterationPath: "TaxProf\surePrep-rw-wizards1\Sprint" -> "wizards1"
+        if (item.iterationPath) {
+          const pathLower = item.iterationPath.toLowerCase()
+          for (const tk of TEAM_KEYWORDS) {
+            if (pathLower.includes(tk)) {
+              info.teams.add(tk)
+              break
+            }
+          }
+        }
+
+        // Infer activity from work item type or tags
+        const typeLower = item.workItemType.toLowerCase()
+        const titleLower = item.title.toLowerCase()
+        const tagLower = (item.tags ?? []).join(' ').toLowerCase()
+
+        if (typeLower.includes('test') || titleLower.includes('test') || tagLower.includes('qa') || tagLower.includes('testing')) {
+          info.hasTestItems = true
+        }
+        if (typeLower.includes('support') || titleLower.includes('support') || tagLower.includes('support')) {
+          info.hasSupportItems = true
+        }
+
+        assigneeInfo.set(item.assignedTo, info)
       }
 
       // Find current sprint working days from the iterations
@@ -958,19 +990,31 @@ export default function DeliveryRoadmapPage() {
         sprintWorkingDays = workDays
       }
 
-      for (const name of uniqueAssignees) {
+      for (const [name, info] of assigneeInfo) {
+        // Determine team: use the most frequent team, or first found
+        const teamName = info.teams.size > 0 ? Array.from(info.teams)[0] : null
+        // Only include members who belong to one of our 3 teams
+        if (!teamName) continue
+
+        // Determine activity: Testing > Support > Development
+        let role: 'Development' | 'Testing' | 'Support' = 'Development'
+        if (info.hasTestItems) role = 'Testing'
+        else if (info.hasSupportItems) role = 'Support'
+
         const sprintHrs = sprintWorkingDays * DEFAULT_HRS_PER_DAY
         memberRows.push({
           displayName: name,
-          team: 'All Teams',
-          role: 'Development',
+          team: teamName,
+          role,
           capacityPerDay: DEFAULT_HRS_PER_DAY,
           daysOff: 0,
           sprintCapacityHrs: sprintHrs,
           isEstimated: true,
         })
-        totalDevCapacity += sprintHrs
-        devCount++
+
+        if (role === 'Development') { totalDevCapacity += sprintHrs; devCount++ }
+        else if (role === 'Testing') { totalQaCapacity += sprintHrs; qaCount++ }
+        else if (role === 'Support') { totalSupportCapacity += sprintHrs; supportCount++ }
       }
     }
 
