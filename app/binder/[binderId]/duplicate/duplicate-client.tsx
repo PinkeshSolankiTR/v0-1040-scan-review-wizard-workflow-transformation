@@ -1814,14 +1814,6 @@ const avgConfidence = Math.round(group.averageConfidence * 100)
                     )}
                   </div>
 
-                  {/* Page count */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBlockStart: '0.375rem' }}>
-                    <span style={{
-                      fontSize: '0.625rem', color: 'oklch(0.5 0.01 260)',
-                    }}>
-                      {activeGroup?.records.length ?? 0} {(activeGroup?.records.length ?? 0) === 1 ? 'pair' : 'pairs'}
-                    </span>
-                  </div>
                 </div>
 
                 {/* Collapsible confidence badge toggle */}

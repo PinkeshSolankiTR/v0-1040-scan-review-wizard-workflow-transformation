@@ -1813,14 +1813,6 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                     )}
                   </div>
 
-                  {/* Confidence badge row */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBlockStart: '0.375rem' }}>
-                    <span style={{
-                      fontSize: '0.625rem', color: 'oklch(0.5 0.01 260)',
-                    }}>
-                      {activeGroup?.records.length ?? 0} pages
-                    </span>
-                  </div>
                 </div>
 
                 {/* Collapsible confidence badge toggle */}
