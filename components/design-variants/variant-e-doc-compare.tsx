@@ -107,7 +107,7 @@ function groupByFormType(data: SupersededRecord[]): FormGroup[] {
 /* ── Helper: restore reclassify panel state from stored overrides ── */
 function restoreReclassifyState(
   group: FormGroup,
-  overrides: Record<string, { detail?: OverrideDetail }>,
+  overrides: Record<string, OverrideDetail>,
   isActiveFlipped: boolean,
   activeFlippedIdx: number | undefined,
 ) {
@@ -116,7 +116,7 @@ function restoreReclassifyState(
   let savedExclReason: string | null = null
   for (const rc of group.records) {
     const pid = String(rc.engagementPageId)
-    const storedOv = overrides[`sup-pg${pid}`]?.detail
+    const storedOv = overrides[`sup-pg${pid}`]
     if (storedOv && storedOv.userOverrideDecision) {
       if (storedOv.userOverrideDecision.includes('Not Superseded')) {
         roles.set(pid, 'not-superseded')
@@ -301,10 +301,10 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
       if (supRecord) {
         const key = `sup-pg${supRecord.engagementPageId}`
         const storedOverride = overrides[key]
-        const detail: OverrideDetail = {
-          originalAIDecision: `Page ${supRecord.engagementPageId} = ${supRecord.decisionType}`,
-          userOverrideDecision: `Page ${supRecord.engagementPageId} = ${supRecord.decisionType === 'Superseded' ? 'Original' : 'Superseded'}`,
-          overrideReason: storedOverride?.detail?.overrideReason ?? null,
+                const detail: OverrideDetail = {
+                  originalAIDecision: `Page ${supRecord.engagementPageId} = ${supRecord.decisionType}`,
+                  userOverrideDecision: `Page ${supRecord.engagementPageId} = ${supRecord.decisionType === 'Superseded' ? 'Original' : 'Superseded'}`,
+                  overrideReason: storedOverride?.overrideReason ?? null,
           formType: supRecord.documentRef?.formType ?? activeGroup.formType,
           fieldContext: supRecord.comparedValues ?? [],
         }
@@ -911,7 +911,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                         const isHighlighted = isSelectedSup || isSelectedOrig
                         // Determine sidebar label from stored overrides
                         const sPageId = String(r.engagementPageId)
-                        const sDetail = overrides[`sup-pg${sPageId}`]?.detail
+                        const sDetail = overrides[`sup-pg${sPageId}`]
                         const sRejected = rejectedPageIds.has(sPageId)
                         const sExcluded = sDetail?.userOverrideDecision?.includes('Not Superseded')
                         let sLabel: string, sBg: string, sColor: string
@@ -951,7 +951,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
             const confColor = avgConf >= 90 ? 'oklch(0.55 0.17 145)' : avgConf >= 70 ? 'oklch(0.65 0.14 80)' : 'oklch(0.6 0.18 15)'
             const panelActionLabel = avgConf >= 90 ? 'High Confidence' : avgConf >= 70 ? 'Moderate Confidence' : 'Low Confidence'
             const panelTooltip = avgConf >= 90 ? 'AI is confident. Reviewer can approve quickly.' : avgConf >= 70 ? 'AI has moderate confidence. Reviewer should verify key fields.' : 'AI is uncertain. Reviewer must examine carefully.'
-            const isGroupOverridden = isActiveFlipped || (activeGroup?.records.some(r => { const detail = overrides[`sup-pg${r.engagementPageId}`]?.detail; return detail?.userOverrideDecision?.includes('Not Superseded') || (detail && detail.userOverrideDecision !== `Page ${r.engagementPageId} = ${r.decisionType}`) }) ?? false)
+            const isGroupOverridden = isActiveFlipped || (activeGroup?.records.some(r => { const ovd = overrides[`sup-pg${r.engagementPageId}`]; return ovd?.userOverrideDecision?.includes('Not Superseded') || (ovd && ovd.userOverrideDecision !== `Page ${r.engagementPageId} = ${r.decisionType}`) }) ?? false)
             const panelGroupRejected = isGroupRejected
             const panelIdentifier = activeGroup ? extractIdentifier(activeGroup.records) : null
 
@@ -1019,7 +1019,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem', marginBlockStart: '0.25rem' }}>
                             {allRecords.map(r => {
                               const isRej = rejectedPageIds.has(String(r.engagementPageId))
-                              const sd = overrides[`sup-pg${r.engagementPageId}`]?.detail
+                              const sd = overrides[`sup-pg${r.engagementPageId}`]
                               const sDec = sd?.userOverrideDecision
                               let newLabel: string
                               if (isRej || sDec?.includes('Not Superseded')) newLabel = 'Not Superseded'
@@ -1036,8 +1036,8 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                         </div>
                         {/* Reclassification reason */}
                         {(() => {
-                          const changedRec = allRecords.find(r => { const d = overrides[`sup-pg${r.engagementPageId}`]?.detail; if (!d) return false; if (d.userOverrideDecision?.includes('Not Superseded')) return false; return d.userOverrideDecision !== d.originalAIDecision })
-                          const reason = changedRec ? overrides[`sup-pg${changedRec.engagementPageId}`]?.detail?.overrideReason : null
+                          const changedRec = allRecords.find(r => { const d = overrides[`sup-pg${r.engagementPageId}`]; if (!d) return false; if (d.userOverrideDecision?.includes('Not Superseded')) return false; return d.userOverrideDecision !== d.originalAIDecision })
+                          const reason = changedRec ? overrides[`sup-pg${changedRec.engagementPageId}`]?.overrideReason : null
                           const displayReason = reason && reason !== 'Verifier decision' ? reason : null
                           return displayReason ? (
                             <div style={{ padding: '0.375rem 0.5rem', borderRadius: '0.25rem', backgroundColor: 'oklch(1 0 0)', border: '0.0625rem solid oklch(0.88 0.01 260)' }}>
@@ -1048,9 +1048,9 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                         })()}
                         {/* Exclusion reason */}
                         {(() => {
-                          const excludedRecs = allRecords.filter(r => { const d = overrides[`sup-pg${r.engagementPageId}`]?.detail; return d?.userOverrideDecision?.includes('Not Superseded') })
+                          const excludedRecs = allRecords.filter(r => { const d = overrides[`sup-pg${r.engagementPageId}`]; return d?.userOverrideDecision?.includes('Not Superseded') })
                           if (excludedRecs.length === 0) return null
-                          const exclReason = overrides[`sup-pg${excludedRecs[0].engagementPageId}`]?.detail?.overrideReason
+                          const exclReason = overrides[`sup-pg${excludedRecs[0].engagementPageId}`]?.overrideReason
                           const displayExclR = exclReason && exclReason !== 'Verifier decision' ? exclReason : null
                           return (
                             <div style={{ padding: '0.5rem 0.625rem', borderRadius: '0.25rem', backgroundColor: 'oklch(0.97 0.005 260)', border: '0.0625rem solid oklch(0.91 0.005 260)' }}>
