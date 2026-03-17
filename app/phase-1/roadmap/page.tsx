@@ -7,13 +7,14 @@ import {
   Sparkles, ArrowLeft, ChevronDown, ChevronRight, Layers, Hash,
   Crosshair, Wrench, ExternalLink, RefreshCw, Loader2, AlertTriangle,
   CloudOff, User, Tag, FolderGit2, MapPin, Search, Filter,
-  ShieldAlert, Users, Clock,
+  ShieldAlert, Users, Clock, CalendarDays, TrendingUp, Target,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { ROADMAP as STATIC_ROADMAP, type Feature as StaticFeature, type Spike as StaticSpike } from './roadmap-data'
 import type { AdoWorkItemFlat, AdoQueryResponse } from '@/app/api/ado-query/route'
+import type { CapacityResponse } from '@/app/api/ado-capacity/route'
 
 /* ── Fetcher ── */
 const fetcher = (url: string) =>
@@ -651,6 +652,11 @@ export default function DeliveryRoadmapPage() {
     revalidateOnFocus: false,
     dedupingInterval: 60_000,
   })
+  const { data: capacityData, error: capacityError, isLoading: capacityLoading } = useSWR<CapacityResponse>(
+    activeTab === 'dashboard' ? '/api/ado-capacity' : null, fetcher, {
+    revalidateOnFocus: false,
+    dedupingInterval: 120_000,
+  })
 
   const isLive = !error && !!data?.items
 
@@ -826,6 +832,170 @@ export default function DeliveryRoadmapPage() {
       assignees,
     }
   }, [scopedItems, allItems])
+
+  /* ── Team Capacity insights ── */
+  const capacityInsights = useMemo(() => {
+    if (!capacityData?.teams) return null
+
+    const TARGET_RELEASE = new Date('2026-06-28')
+
+    type MemberRow = {
+      displayName: string
+      team: string
+      role: string
+      capacityPerDay: number
+      daysOff: number
+      sprintCapacityHrs: number
+    }
+
+    const memberRows: MemberRow[] = []
+    let totalDevCapacity = 0
+    let totalQaCapacity = 0
+    let totalSupportCapacity = 0
+    let devCount = 0
+    let qaCount = 0
+    let supportCount = 0
+
+    // All iterations across teams (deduplicated by name for timeline)
+    const allIterationsMap = new Map<string, { name: string; startDate: string | null; finishDate: string | null; timeFrame: string }>()
+
+    for (const team of capacityData.teams) {
+      const currentIt = team.currentIteration
+      // Calculate working days in current sprint
+      let sprintWorkingDays = 10 // default 2-week sprint
+      if (currentIt?.startDate && currentIt?.finishDate) {
+        const start = new Date(currentIt.startDate)
+        const end = new Date(currentIt.finishDate)
+        let workDays = 0
+        const d = new Date(start)
+        while (d <= end) {
+          const day = d.getDay()
+          if (day !== 0 && day !== 6) workDays++
+          d.setDate(d.getDate() + 1)
+        }
+        sprintWorkingDays = workDays
+      }
+
+      for (const member of team.members) {
+        // Count days off within current sprint
+        let daysOffCount = 0
+        if (currentIt?.startDate && currentIt?.finishDate) {
+          const sprintStart = new Date(currentIt.startDate)
+          const sprintEnd = new Date(currentIt.finishDate)
+          for (const off of member.daysOff) {
+            const offStart = new Date(off.start)
+            const offEnd = new Date(off.end)
+            const overlapStart = offStart > sprintStart ? offStart : sprintStart
+            const overlapEnd = offEnd < sprintEnd ? offEnd : sprintEnd
+            if (overlapStart <= overlapEnd) {
+              const d = new Date(overlapStart)
+              while (d <= overlapEnd) {
+                const day = d.getDay()
+                if (day !== 0 && day !== 6) daysOffCount++
+                d.setDate(d.getDate() + 1)
+              }
+            }
+          }
+        }
+
+        const effectiveWorkDays = Math.max(0, sprintWorkingDays - daysOffCount)
+
+        for (const activity of member.activities) {
+          const role = activity.name || 'Other'
+          const sprintHrs = effectiveWorkDays * activity.capacityPerDay
+
+          memberRows.push({
+            displayName: member.displayName,
+            team: team.name.replace('surePrep-rw-', ''),
+            role,
+            capacityPerDay: activity.capacityPerDay,
+            daysOff: daysOffCount,
+            sprintCapacityHrs: sprintHrs,
+          })
+
+          const roleLower = role.toLowerCase()
+          if (roleLower === 'development') { totalDevCapacity += sprintHrs; devCount++ }
+          else if (roleLower === 'testing') { totalQaCapacity += sprintHrs; qaCount++ }
+          else if (roleLower === 'support') { totalSupportCapacity += sprintHrs; supportCount++ }
+        }
+      }
+
+      // Collect iterations
+      for (const it of team.allIterations) {
+        if (!allIterationsMap.has(it.name)) {
+          allIterationsMap.set(it.name, { name: it.name, startDate: it.startDate, finishDate: it.finishDate, timeFrame: it.timeFrame })
+        }
+      }
+    }
+
+    // Build sprint timeline
+    const allSprints = Array.from(allIterationsMap.values())
+      .filter(s => s.startDate && s.finishDate)
+      .sort((a, b) => new Date(a.startDate!).getTime() - new Date(b.startDate!).getTime())
+
+    const currentSprint = allSprints.find(s => s.timeFrame === 'current')
+    const futureSprints = allSprints.filter(s => s.timeFrame === 'future' && new Date(s.finishDate!) <= TARGET_RELEASE)
+    const pastSprints = allSprints.filter(s => s.timeFrame === 'past')
+    const sprintsRemaining = futureSprints.length + (currentSprint ? 1 : 0)
+
+    // Mark target sprint (the sprint whose finish date is closest to and >= target release)
+    let targetSprintName: string | null = null
+    for (const s of allSprints) {
+      if (s.finishDate && new Date(s.finishDate) >= TARGET_RELEASE) {
+        targetSprintName = s.name
+        break
+      }
+    }
+
+    return {
+      memberRows,
+      summary: {
+        devCount, qaCount, supportCount,
+        totalDevCapacity, totalQaCapacity, totalSupportCapacity,
+        totalCapacity: totalDevCapacity + totalQaCapacity + totalSupportCapacity,
+      },
+      sprints: {
+        all: allSprints,
+        current: currentSprint,
+        future: futureSprints,
+        past: pastSprints,
+        sprintsRemaining,
+        targetSprintName,
+        targetDate: TARGET_RELEASE,
+      },
+      teams: capacityData.teams.map(t => t.name.replace('surePrep-rw-', '')),
+    }
+  }, [capacityData])
+
+  /* ── Release projection ── */
+  const releaseProjection = useMemo(() => {
+    if (!dashboardData || !capacityInsights) return null
+
+    const remaining = dashboardData.heroStats.totalItems - dashboardData.heroStats.doneItems
+    const sprintsRemaining = capacityInsights.sprints.sprintsRemaining
+    const pastSprints = capacityInsights.sprints.past
+
+    // Calculate velocity from past sprints using iteration path matching
+    // For now, use items done / past sprints count as rough velocity
+    const totalDone = dashboardData.heroStats.doneItems
+    const pastSprintCount = pastSprints.length || 1
+    const avgVelocity = Math.round(totalDone / pastSprintCount)
+    const projectedSprintsNeeded = avgVelocity > 0 ? Math.ceil(remaining / avgVelocity) : Infinity
+
+    let status: 'on-track' | 'at-risk' | 'delayed'
+    if (projectedSprintsNeeded <= sprintsRemaining) status = 'on-track'
+    else if (projectedSprintsNeeded <= sprintsRemaining + 2) status = 'at-risk'
+    else status = 'delayed'
+
+    return {
+      remaining,
+      avgVelocity,
+      projectedSprintsNeeded: projectedSprintsNeeded === Infinity ? null : projectedSprintsNeeded,
+      sprintsRemaining,
+      status,
+      targetDate: capacityInsights.sprints.targetDate,
+    }
+  }, [dashboardData, capacityInsights])
 
   /* Static data */
   const staticWizardFeatures = STATIC_ROADMAP.features.filter(f => f.category === 'wizard')
@@ -1254,8 +1424,184 @@ export default function DeliveryRoadmapPage() {
                     </div>
                   </CollapsibleSection>
 
+                  {/* ── Section 5: Team Capacity ── */}
+                  {capacityLoading && (
+                    <div className="flex items-center justify-center py-10 gap-2 mb-6">
+                      <Loader2 className="size-5 animate-spin text-muted-foreground" />
+                      <p className="text-xs text-muted-foreground">Loading team capacity data...</p>
+                    </div>
+                  )}
+
+                  {capacityError && !capacityLoading && (
+                    <div className="rounded-lg border border-border px-4 py-6 text-center mb-6" style={{ backgroundColor: 'oklch(0.99 0 0)' }}>
+                      <p className="text-xs text-muted-foreground">Could not load team capacity data. Ensure ADO PAT has access to Team APIs.</p>
+                    </div>
+                  )}
+
+                  {capacityInsights && (
+                    <>
+                      <CollapsibleSection icon={Users} title="Team Capacity" subtitle={capacityInsights.sprints.current?.name ?? 'Current Sprint'}>
+                        {/* Summary cards */}
+                        <div className="grid grid-cols-6 gap-3 mb-4">
+                          {[
+                            { label: 'Developers', value: capacityInsights.summary.devCount, color: 'oklch(0.4 0.14 240)' },
+                            { label: 'QA / Testing', value: capacityInsights.summary.qaCount, color: 'oklch(0.4 0.16 145)' },
+                            { label: 'Support', value: capacityInsights.summary.supportCount, color: 'oklch(0.45 0.12 60)' },
+                            { label: 'Dev Capacity (hrs)', value: capacityInsights.summary.totalDevCapacity, color: 'oklch(0.4 0.14 240)' },
+                            { label: 'QA Capacity (hrs)', value: capacityInsights.summary.totalQaCapacity, color: 'oklch(0.4 0.16 145)' },
+                            { label: 'Total Capacity (hrs)', value: capacityInsights.summary.totalCapacity, color: 'oklch(0.25 0 0)' },
+                          ].map(stat => (
+                            <div key={stat.label} className="rounded-lg border border-border px-3 py-3 text-center" style={{ backgroundColor: 'oklch(0.99 0 0)' }}>
+                              <p className="text-xl font-bold" style={{ color: stat.color }}>{stat.value}</p>
+                              <p className="text-[0.5625rem] text-muted-foreground mt-0.5">{stat.label}</p>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Per-team member table */}
+                        <div className="rounded-lg border border-border overflow-hidden">
+                          <table className="w-full text-[0.6875rem]">
+                            <thead>
+                              <tr style={{ backgroundColor: 'oklch(0.97 0.005 260)' }}>
+                                <th className="text-left px-3 py-2 font-semibold text-foreground border-b border-border">Member</th>
+                                <th className="text-center px-2 py-2 font-semibold text-muted-foreground border-b border-border" style={{ width: '5rem' }}>Team</th>
+                                <th className="text-center px-2 py-2 font-semibold text-muted-foreground border-b border-border" style={{ width: '5.5rem' }}>Activity</th>
+                                <th className="text-center px-2 py-2 font-semibold text-muted-foreground border-b border-border" style={{ width: '4.5rem' }}>Hrs/Day</th>
+                                <th className="text-center px-2 py-2 font-semibold text-muted-foreground border-b border-border" style={{ width: '4.5rem' }}>Days Off</th>
+                                <th className="text-center px-2 py-2 font-semibold text-muted-foreground border-b border-border" style={{ width: '5.5rem' }}>Sprint Hrs</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {capacityInsights.memberRows.map((row, idx) => {
+                                const roleLower = row.role.toLowerCase()
+                                const roleColor = roleLower === 'development' ? 'oklch(0.4 0.14 240)'
+                                  : roleLower === 'testing' ? 'oklch(0.4 0.16 145)'
+                                  : 'oklch(0.45 0.12 60)'
+                                const roleBg = roleLower === 'development' ? 'oklch(0.94 0.04 240)'
+                                  : roleLower === 'testing' ? 'oklch(0.94 0.04 145)'
+                                  : 'oklch(0.94 0.03 60)'
+                                return (
+                                  <tr key={`${row.displayName}-${row.role}-${row.team}`} style={{ backgroundColor: idx % 2 === 0 ? 'oklch(1 0 0)' : 'oklch(0.99 0.003 260)' }}>
+                                    <td className="px-3 py-2 border-b border-border font-medium text-foreground">{row.displayName}</td>
+                                    <td className="text-center px-2 py-2 border-b border-border text-muted-foreground">{row.team}</td>
+                                    <td className="text-center px-2 py-2 border-b border-border">
+                                      <span className="inline-flex items-center rounded-sm px-1.5 py-0 text-[0.5rem] font-semibold" style={{ backgroundColor: roleBg, color: roleColor }}>
+                                        {row.role}
+                                      </span>
+                                    </td>
+                                    <td className="text-center px-2 py-2 border-b border-border font-mono text-foreground">{row.capacityPerDay}</td>
+                                    <td className="text-center px-2 py-2 border-b border-border font-mono" style={{ color: row.daysOff > 0 ? 'oklch(0.5 0.16 60)' : 'oklch(0.6 0.01 260)' }}>
+                                      {row.daysOff > 0 ? `${row.daysOff}d` : '0'}
+                                    </td>
+                                    <td className="text-center px-2 py-2 border-b border-border font-mono font-bold text-foreground">{row.sprintCapacityHrs}</td>
+                                  </tr>
+                                )
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </CollapsibleSection>
+
+                      {/* ── Section 6: Release Projection ── */}
+                      <CollapsibleSection icon={Target} title="Release Projection" subtitle={`Target: June 28, 2026`}>
+                        {releaseProjection ? (
+                          <>
+                            {/* Status banner */}
+                            <div className="rounded-lg border px-4 py-3 mb-4 flex items-center gap-3" style={{
+                              backgroundColor: releaseProjection.status === 'on-track' ? 'oklch(0.96 0.03 145)'
+                                : releaseProjection.status === 'at-risk' ? 'oklch(0.96 0.03 60)'
+                                : 'oklch(0.96 0.03 25)',
+                              borderColor: releaseProjection.status === 'on-track' ? 'oklch(0.85 0.08 145)'
+                                : releaseProjection.status === 'at-risk' ? 'oklch(0.85 0.08 60)'
+                                : 'oklch(0.85 0.08 25)',
+                            }}>
+                              <div className="size-3 rounded-full" style={{
+                                backgroundColor: releaseProjection.status === 'on-track' ? 'oklch(0.5 0.2 145)'
+                                  : releaseProjection.status === 'at-risk' ? 'oklch(0.6 0.2 60)'
+                                  : 'oklch(0.5 0.22 25)',
+                              }} />
+                              <span className="text-sm font-bold" style={{
+                                color: releaseProjection.status === 'on-track' ? 'oklch(0.35 0.14 145)'
+                                  : releaseProjection.status === 'at-risk' ? 'oklch(0.4 0.14 60)'
+                                  : 'oklch(0.4 0.18 25)',
+                              }}>
+                                {releaseProjection.status === 'on-track' ? 'On Track' : releaseProjection.status === 'at-risk' ? 'At Risk' : 'Delayed'}
+                              </span>
+                              <span className="text-[0.6875rem] text-muted-foreground">
+                                {releaseProjection.projectedSprintsNeeded !== null
+                                  ? `${releaseProjection.projectedSprintsNeeded} sprints needed, ${releaseProjection.sprintsRemaining} sprints remaining`
+                                  : `${releaseProjection.remaining} items remaining, no velocity data yet`}
+                              </span>
+                            </div>
+
+                            {/* Key metrics */}
+                            <div className="grid grid-cols-4 gap-3 mb-4">
+                              {[
+                                { label: 'Items Remaining', value: releaseProjection.remaining, color: 'oklch(0.25 0 0)' },
+                                { label: 'Avg Velocity / Sprint', value: releaseProjection.avgVelocity, color: 'oklch(0.4 0.14 240)' },
+                                { label: 'Sprints Needed', value: releaseProjection.projectedSprintsNeeded ?? '--', color: releaseProjection.status === 'delayed' ? 'oklch(0.5 0.22 25)' : 'oklch(0.25 0 0)' },
+                                { label: 'Sprints Remaining', value: releaseProjection.sprintsRemaining, color: 'oklch(0.4 0.16 145)' },
+                              ].map(stat => (
+                                <div key={stat.label} className="rounded-lg border border-border px-3 py-3 text-center" style={{ backgroundColor: 'oklch(0.99 0 0)' }}>
+                                  <p className="text-xl font-bold" style={{ color: stat.color }}>{stat.value}</p>
+                                  <p className="text-[0.5625rem] text-muted-foreground mt-0.5">{stat.label}</p>
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* Sprint timeline */}
+                            <div className="rounded-lg border border-border overflow-hidden">
+                              <div className="px-3 py-2 border-b border-border" style={{ backgroundColor: 'oklch(0.97 0.005 260)' }}>
+                                <span className="text-[0.6875rem] font-semibold text-foreground">Sprint Timeline</span>
+                              </div>
+                              <div className="overflow-x-auto px-3 py-3">
+                                <div className="flex gap-1.5" style={{ minWidth: 'max-content' }}>
+                                  {capacityInsights.sprints.all.map(sprint => {
+                                    const isCurrent = sprint.timeFrame === 'current'
+                                    const isPast = sprint.timeFrame === 'past'
+                                    const isTarget = sprint.name === capacityInsights.sprints.targetSprintName
+                                    const start = sprint.startDate ? new Date(sprint.startDate) : null
+                                    const end = sprint.finishDate ? new Date(sprint.finishDate) : null
+                                    const fmt = (d: Date) => `${d.getMonth() + 1}/${d.getDate()}`
+
+                                    return (
+                                      <div
+                                        key={sprint.name}
+                                        className="rounded px-2 py-1.5 text-center flex-shrink-0"
+                                        style={{
+                                          minWidth: '5rem',
+                                          backgroundColor: isCurrent ? 'oklch(0.94 0.04 240)' : isPast ? 'oklch(0.96 0.01 260)' : 'oklch(0.99 0 0)',
+                                          border: isTarget ? '2px solid oklch(0.5 0.22 25)' : isCurrent ? '1.5px solid oklch(0.6 0.14 240)' : '1px solid oklch(0.9 0.01 260)',
+                                        }}
+                                      >
+                                        <p className="text-[0.5625rem] font-semibold truncate" style={{ color: isCurrent ? 'oklch(0.35 0.14 240)' : 'oklch(0.4 0.01 260)' }}>
+                                          {sprint.name.replace(/^.*_/, '')}
+                                        </p>
+                                        {start && end && (
+                                          <p className="text-[0.5rem] text-muted-foreground">{fmt(start)}-{fmt(end)}</p>
+                                        )}
+                                        {isTarget && (
+                                          <p className="text-[0.5rem] font-bold mt-0.5" style={{ color: 'oklch(0.5 0.22 25)' }}>TARGET</p>
+                                        )}
+                                        {isCurrent && !isTarget && (
+                                          <p className="text-[0.5rem] font-bold mt-0.5" style={{ color: 'oklch(0.35 0.14 240)' }}>CURRENT</p>
+                                        )}
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                              </div>
+                            </div>
+                          </>
+                        ) : (
+                          <p className="text-xs text-muted-foreground italic">Waiting for capacity and work item data to calculate projection...</p>
+                        )}
+                      </CollapsibleSection>
+                    </>
+                  )}
+
                   <p className="text-center text-xs text-muted-foreground/50 mt-8">
-                    Dashboard derived from live ADO data (Epic 4651627). All metrics auto-calculated from work item states.
+                    Dashboard derived from live ADO data (Epic 4651627). All metrics auto-calculated from work item states and team capacity.
                   </p>
                 </>
               )}
