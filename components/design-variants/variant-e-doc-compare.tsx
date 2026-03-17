@@ -39,6 +39,7 @@ import {
   Columns2,
   X,
   CheckCircle,
+  GripVertical,
 } from 'lucide-react'
 import type { SupersededRecord, OverrideDetail } from '@/lib/types'
 
@@ -50,6 +51,20 @@ type PanelId = 'documents' | 'aiAnalysis' | 'fieldComparison'
   { id: 'corrected', label: 'Corrected form detected - should be retained' },
   { id: 'more-data', label: 'More complete data exists on this document' },
   ] as const
+
+/* ── Extract SSN / Employee ID / TIN from compared values ── */
+const IDENTIFIER_FIELDS = ['Recipient SSN', 'Employee SSN', 'Recipient TIN', 'Payer TIN', 'Account Number'] as const
+function extractIdentifier(records: SupersededRecord[]): { label: string; value: string } | null {
+  const allValues = records.flatMap(r => r.comparedValues ?? [])
+  for (const fieldName of IDENTIFIER_FIELDS) {
+    const found = allValues.find(v => v.field === fieldName)
+    if (found) {
+      const shortLabel = fieldName.replace('Recipient ', '').replace('Employee ', '').replace('Payer ', '')
+      return { label: shortLabel, value: found.valueA }
+    }
+  }
+  return null
+}
 
 /* ── Predefined rejection reasons ── */
 const REJECTION_REASONS = [
@@ -156,6 +171,33 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
     })
   }, [])
   const isDocExpanded = expandedPanels.has('documents')
+
+  /* ── Resizable sidebar state ── */
+  const [sidebarWidth, setSidebarWidth] = useState(270) // default ~17rem
+  const isDragging = useRef(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  const handleDragStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    isDragging.current = true
+    const onMove = (ev: MouseEvent) => {
+      if (!isDragging.current || !containerRef.current) return
+      const containerLeft = containerRef.current.getBoundingClientRect().left
+      const newWidth = Math.min(Math.max(ev.clientX - containerLeft, 200), 480) // min 200px, max 480px
+      setSidebarWidth(newWidth)
+    }
+    const onUp = () => {
+      isDragging.current = false
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onUp)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
+  }, [])
 
   /* Track which group is expanded and which record is selected */
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
@@ -1390,17 +1432,19 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
       )}
 
       {/* ── Main 3-panel layout ── */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'minmax(14rem, 18rem) 1fr',
-        minBlockSize: '38rem',
-      }}>
+      <div
+        ref={containerRef}
+        style={{
+          display: 'grid',
+          gridTemplateColumns: `${sidebarWidth}px auto 1fr`,
+          minBlockSize: '38rem',
+        }}
+      >
 
         {/* ── LEFT SIDEBAR: Inline accordions per form group ── */}
         <aside
           aria-label="Superseded document sidebar"
           style={{
-            borderInlineEnd: '0.0625rem solid oklch(0.91 0.005 260)',
             backgroundColor: 'oklch(0.98 0.003 260)',
             display: 'flex',
             flexDirection: 'column',
@@ -1498,12 +1542,29 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                       disabled={isThisGroupRejected || allGroupAccepted}
                     />
                     <div style={{ flex: '1 1 0', minInlineSize: 0 }}>
-                      <span style={{
-                        display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'oklch(0.2 0.01 260)',
-                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                      }}>
-                        {group.formType}: {group.formEntity.toUpperCase()}
-                      </span>
+                      {(() => {
+                        const identifier = extractIdentifier(group.records)
+                        return (
+                          <>
+                            <span style={{
+                              display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'oklch(0.2 0.01 260)',
+                              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                            }}>
+                              {group.formType}: {group.formEntity.toUpperCase()}
+                            </span>
+                            {identifier && (
+                              <span style={{
+                                display: 'block', fontSize: '0.625rem', fontWeight: 500, color: 'oklch(0.5 0.01 260)',
+                                fontFamily: 'var(--font-mono)',
+                                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                marginBlockStart: '0.125rem',
+                              }}>
+                                {identifier.label}: {identifier.value}
+                              </span>
+                            )}
+                          </>
+                        )
+                      })()}
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginBlockStart: '0.25rem', flexWrap: 'wrap' }}>
                         {isThisGroupRejected ? (
                           <span 
@@ -1673,14 +1734,37 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
           </div>
         </aside>
 
-        {/* ── RIGHT: 3 independently collapsible panels ── */}
+        {/* ── Resizable divider handle ── */}
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize sidebar"
+          onMouseDown={handleDragStart}
+          style={{
+            inlineSize: '0.375rem',
+            cursor: 'col-resize',
+            backgroundColor: 'oklch(0.93 0.005 260)',
+            borderInline: '0.0625rem solid oklch(0.88 0.005 260)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'background-color 0.15s',
+            flexShrink: 0,
+          }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'oklch(0.85 0.01 240)' }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'oklch(0.93 0.005 260)' }}
+        >
+          <GripVertical style={{ inlineSize: '0.625rem', blockSize: '0.625rem', color: 'oklch(0.6 0.01 260)', opacity: 0.6 }} />
+        </div>
+
+          {/* ── RIGHT: 3 independently collapsible panels ── */}
         {/* Order: AI Analysis (top) > Field Comparison > Document Viewer (bottom) */}
         {/* Strategy: AI-first layout builds user trust in AI over time */}
         <div style={{ display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
 
           {/* ═══════════════════════════════════════════════════════════
               PANEL 1: AI Analysis (collapsible) -- PRIMARY
-              ═══════════════════════════════��═══════════════════════════ */}
+              ═════════════════════════════════════════════════════════════ */}
           {(() => {
             const groupSuperseded = activeGroup?.records.find(r => r.decisionType === 'Superseded')
             const groupOriginal = activeGroup?.records.find(r => r.decisionType === 'Original')
@@ -1700,60 +1784,99 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
             const mismatches = groupCompared.filter(v => !v.match)
             const isGroupOverridden = isActiveFlipped
             const panelGroupRejected = isGroupRejected
+            const panelIdentifier = activeGroup ? extractIdentifier(activeGroup.records) : null
 
             return (
               <div style={{ borderBlockEnd: '0.0625rem solid oklch(0.91 0.005 260)' }}>
+                {/* ── Fixed title bar (always visible) ── */}
+                <div style={{
+                  padding: '0.625rem 0.75rem',
+                  borderBlockEnd: '0.0625rem solid oklch(0.91 0.005 260)',
+                  backgroundColor: 'oklch(1 0 0)',
+                }}>
+                  {/* Title row: form type + entity */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{
+                      fontSize: '0.8125rem', fontWeight: 700, color: 'oklch(0.2 0.01 260)',
+                    }}>
+                      {activeGroup?.formType}: {activeGroup?.formEntity.toUpperCase()}
+                    </span>
+                    {panelIdentifier && (
+                      <span style={{
+                        fontSize: '0.6875rem', fontWeight: 500, color: 'oklch(0.45 0.01 260)',
+                        fontFamily: 'var(--font-mono)',
+                      }}>
+                        {panelIdentifier.label}: {panelIdentifier.value}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Confidence badge row */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBlockStart: '0.375rem' }}>
+                    {panelGroupRejected ? (
+                      <span
+                        style={{
+                          display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+                          fontSize: '0.6875rem', fontWeight: 700, fontFamily: 'var(--font-mono)',
+                          padding: '0.1875rem 0.5rem', borderRadius: '0.25rem',
+                          backgroundColor: 'oklch(0.92 0.02 260)', color: 'oklch(0.45 0.01 260)',
+                        }}
+                      >
+                        <X style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
+                        Not Superseded
+                      </span>
+                    ) : isGroupOverridden ? (
+                      <span
+                        style={{
+                          display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+                          fontSize: '0.6875rem', fontWeight: 700, fontFamily: 'var(--font-mono)',
+                          padding: '0.1875rem 0.5rem', borderRadius: '0.25rem',
+                          backgroundColor: 'oklch(0.92 0.06 60)', color: 'oklch(0.45 0.16 60)',
+                        }}
+                      >
+                        <ArrowLeftRight style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
+                        Manual Override
+                      </span>
+                    ) : (
+                      <span
+                        style={{
+                          display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+                          fontSize: '0.6875rem', fontWeight: 700,
+                          padding: '0.1875rem 0.5rem', borderRadius: '0.25rem',
+                          backgroundColor: `${confColor} / 0.12`, color: confColor,
+                        }}
+                        title={panelTooltip}
+                      >
+                        <Sparkles style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
+                        {panelActionLabel}
+                      </span>
+                    )}
+                    <span style={{
+                      fontSize: '0.625rem', color: 'oklch(0.5 0.01 260)',
+                    }}>
+                      {activeGroup?.records.length ?? 0} pages
+                    </span>
+                  </div>
+                </div>
+
+                {/* ── Collapsible AI reasoning toggle ── */}
                 <button
                   type="button"
                   onClick={() => togglePanel('aiAnalysis')}
                   style={{
-                    display: 'flex', alignItems: 'center', gap: '0.5rem',
-                    inlineSize: '100%', padding: '0.5rem 0.75rem',
+                    display: 'flex', alignItems: 'center', gap: '0.375rem',
+                    inlineSize: '100%', padding: '0.375rem 0.75rem',
                     border: 'none', cursor: 'pointer', textAlign: 'start',
-                    fontSize: '0.75rem', fontWeight: 700,
-                    color: isGroupOverridden ? 'oklch(0.5 0.16 60)' : 'var(--ai-accent)',
-                    backgroundColor: isGroupOverridden ? 'oklch(0.97 0.04 60)' : 'oklch(0.97 0.005 240)',
-                    textTransform: 'uppercase', letterSpacing: '0.04em',
+                    fontSize: '0.6875rem', fontWeight: 600,
+                    color: 'oklch(0.4 0.01 260)',
+                    backgroundColor: 'oklch(0.98 0.003 260)',
                   }}
                 >
                   {expandedPanels.has('aiAnalysis')
-                    ? <ChevronDown style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} />
-                    : <ChevronRight style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} />
+                    ? <ChevronDown style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
+                    : <ChevronRight style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
                   }
-                  <Sparkles style={{ inlineSize: '0.875rem', blockSize: '0.875rem' }} />
-                  {panelGroupRejected ? 'Not Superseded' : 'What we found'}
-                  {panelGroupRejected ? (
-                    <span style={{
-                      fontSize: '0.625rem', fontWeight: 700, fontFamily: 'var(--font-mono)',
-                      padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem',
-                      backgroundColor: 'oklch(0.92 0.02 260)', color: 'oklch(0.45 0.01 260)',
-                      marginInlineStart: '0.25rem',
-                    }}>
-                      Excluded by Verifier
-                    </span>
-                  ) : isGroupOverridden ? (
-                    <span style={{
-                      fontSize: '0.625rem', fontWeight: 700, fontFamily: 'var(--font-mono)',
-                      padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem',
-                      backgroundColor: 'oklch(0.92 0.06 60)', color: 'oklch(0.45 0.16 60)',
-                      marginInlineStart: '0.25rem',
-                    }}>
-                      Manual Override
-                    </span>
-                  ) : (
-                    <span 
-                      style={{
-                        fontSize: '0.625rem', fontWeight: 700,
-                        padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem',
-                        backgroundColor: `${confColor} / 0.12`, color: confColor,
-                        marginInlineStart: '0.25rem',
-                      }}
-                      title={panelTooltip}
-                    >
-                      {panelActionLabel}
-                    </span>
-                  )}
-
+                  AI Reasoning
                 </button>
 
                 {expandedPanels.has('aiAnalysis') && (
