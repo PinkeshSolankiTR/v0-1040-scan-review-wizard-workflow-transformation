@@ -1794,17 +1794,18 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                   borderBlockEnd: '0.0625rem solid oklch(0.91 0.005 260)',
                   backgroundColor: 'oklch(1 0 0)',
                 }}>
-                  {/* Title row: form type + entity */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  {/* Title + identifier (two-line) */}
+                  <div>
                     <span style={{
-                      fontSize: '0.8125rem', fontWeight: 700, color: 'oklch(0.2 0.01 260)',
+                      display: 'block', fontSize: '0.8125rem', fontWeight: 700, color: 'oklch(0.2 0.01 260)',
                     }}>
                       {activeGroup?.formType}: {activeGroup?.formEntity.toUpperCase()}
                     </span>
                     {panelIdentifier && (
                       <span style={{
-                        fontSize: '0.6875rem', fontWeight: 500, color: 'oklch(0.45 0.01 260)',
+                        display: 'block', fontSize: '0.6875rem', fontWeight: 500, color: 'oklch(0.45 0.01 260)',
                         fontFamily: 'var(--font-mono)',
+                        marginBlockStart: '0.125rem',
                       }}>
                         {panelIdentifier.label}: {panelIdentifier.value}
                       </span>
