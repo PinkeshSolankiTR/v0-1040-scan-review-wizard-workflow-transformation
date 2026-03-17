@@ -1589,6 +1589,18 @@ export default function DeliveryRoadmapPage() {
                         )}
                       </CollapsibleSection>
 
+                      {/* DEBUG: Projection math (remove after fix) */}
+                      {releaseProjection && (
+                        <div className="rounded-lg border border-dashed border-yellow-500 bg-yellow-50 px-4 py-3 mb-4 text-[0.625rem] font-mono text-yellow-800 space-y-1">
+                          <p className="font-bold">Projection Debug:</p>
+                          <p>remaining={releaseProjection.remaining} | avgVelocity={releaseProjection.avgVelocity} items/sprint | pastSprints={capacityInsights?.sprints.past.length} | sprintsRemaining={releaseProjection.sprintsRemaining}</p>
+                          <p>currentTotal={releaseProjection.currentTotal} members ({releaseProjection.currentDevs} Dev, {releaseProjection.currentQa} QA)</p>
+                          <p>totalCapacityHrsPerSprint={releaseProjection.totalCapacityHrsPerSprint} | hrsPerItem={releaseProjection.hrsPerItem} | totalHrsNeeded={releaseProjection.totalHrsNeeded}</p>
+                          <p>hrsAvailableUntilRelease={releaseProjection.hrsAvailableUntilRelease} | hrsGap={releaseProjection.hrsGap}</p>
+                          <p>additionalMembersNeeded={releaseProjection.additionalMembersNeeded} (devs={releaseProjection.additionalDevs}, qa={releaseProjection.additionalQa})</p>
+                        </div>
+                      )}
+
                       {/* ── Section 6: Release Projection ── */}
                       <CollapsibleSection icon={Target} title="Release Projection" subtitle={`Target: June 28, 2026`}>
                         {releaseProjection ? (
