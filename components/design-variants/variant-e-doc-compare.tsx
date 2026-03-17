@@ -1017,7 +1017,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
               aria-expanded={showRejectPanel}
             >
               <X style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem' }} />
-              {isGroupRejected ? 'Rejected' : hasPartialRejects ? `Reject (${rejectedPageIds.size} rejected)` : 'Reject'}
+              {isGroupRejected ? 'Not Superseded' : hasPartialRejects ? `Not Superseded (${rejectedPageIds.size})` : 'Not Superseded'}
               {!isGroupRejected && !allGroupAccepted && <ChevronDown style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />}
             </button>
             
@@ -1399,7 +1399,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
               }}
             >
               <Undo2 style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem' }} />
-              Undo Rejection{hasPartialRejects && !isGroupRejected ? ` (${rejectedPageIds.size})` : ''}
+                    Undo Exclusion{hasPartialRejects && !isGroupRejected ? ` (${rejectedPageIds.size})` : ''}
             </button>
           ) : null}
 
@@ -1429,14 +1429,16 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                 /* Default mode: label only */
                 <button
                   type="button"
-                  onClick={() => setShowAcceptDropdown(!showAcceptDropdown)}
+                  onClick={() => { handleAcceptGroup(); setShowAcceptDropdown(false) }}
+                  disabled={isGroupRejected || allGroupAccepted}
                   style={{
                     display: 'flex', alignItems: 'center', gap: '0.375rem',
                     padding: '0.375rem 0.75rem', border: 'none',
                     borderRadius: '0.25rem 0 0 0.25rem',
-                    backgroundColor: 'oklch(0.45 0.18 145)',
+                    backgroundColor: (isGroupRejected || allGroupAccepted) ? 'oklch(0.8 0.06 145)' : 'oklch(0.45 0.18 145)',
                     fontSize: '0.75rem', fontWeight: 600, color: 'oklch(1 0 0)',
-                    cursor: 'pointer',
+                    cursor: (isGroupRejected || allGroupAccepted) ? 'not-allowed' : 'pointer',
+                    opacity: (isGroupRejected || allGroupAccepted) ? 0.6 : 1,
                   }}
                 >
                   <Check style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem' }} />
@@ -1471,35 +1473,6 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                 boxShadow: '0 0.25rem 0.75rem oklch(0 0 0 / 0.12)',
                 overflow: 'hidden',
               }}>
-                {/* Tier 2: Accept This Pair */}
-                <button
-                  type="button"
-                  onClick={() => { handleAcceptGroup(); setShowAcceptDropdown(false) }}
-                  disabled={isGroupRejected || allGroupAccepted}
-                  style={{
-                    display: 'flex', flexDirection: 'column', gap: '0.125rem',
-                    inlineSize: '100%', padding: '0.5rem 0.75rem',
-                    border: 'none', backgroundColor: 'transparent',
-                    cursor: (isGroupRejected || allGroupAccepted) ? 'not-allowed' : 'pointer',
-                    opacity: (isGroupRejected || allGroupAccepted) ? 0.4 : 1,
-                    textAlign: 'start',
-                  }}
-                  onMouseEnter={e => { if (!isGroupRejected && !allGroupAccepted) (e.currentTarget.style.backgroundColor = 'oklch(0.97 0.003 240)') }}
-                  onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent' }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                    <Check style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.45 0.18 145)' }} />
-                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'oklch(0.25 0.01 260)' }}>
-                      Accept This Pair
-                    </span>
-                  </div>
-                  <span style={{ fontSize: '0.625rem', color: 'oklch(0.5 0.01 260)', paddingInlineStart: '1.125rem' }}>
-                    Confirm AI classification for the active pair
-                  </span>
-                </button>
-
-                <div style={{ blockSize: '0.0625rem', backgroundColor: 'oklch(0.92 0.005 260)' }} />
-
                 {/* Tier 1: Accept High Confidence */}
                 <button
                   type="button"
@@ -1823,9 +1796,9 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                               padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem',
                               backgroundColor: 'oklch(0.92 0.02 260)', color: 'oklch(0.45 0.01 260)',
                             }}
-                            title="All documents in this group were rejected"
+                            title="All documents in this group were marked as not superseded"
                           >
-                            Not a Match
+                            Not Superseded
                           </span>
                         ) : hasThisGroupPartialRejects ? (
                           <>
@@ -1846,7 +1819,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                                 backgroundColor: 'oklch(0.94 0.04 25)', color: 'oklch(0.5 0.14 25)',
                               }}
                             >
-                              {groupRejectedCount} rejected
+                              {groupRejectedCount} not superseded
                             </span>
                           </>
                         ) : (
@@ -1958,7 +1931,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                                 padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem',
                                 backgroundColor: 'oklch(0.92 0.02 260)', color: 'oklch(0.45 0.01 260)',
                               }}>
-                                Rejected
+                                Not Superseded
                               </span>
                             ) : (
                               <span style={{
@@ -2032,7 +2005,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                     : <ChevronRight style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} />
                   }
                   <Sparkles style={{ inlineSize: '0.875rem', blockSize: '0.875rem' }} />
-                  {panelGroupRejected ? 'Review Outcome' : 'What we found'}
+                  {panelGroupRejected ? 'Not Superseded' : 'What we found'}
                   {panelGroupRejected ? (
                     <span style={{
                       fontSize: '0.625rem', fontWeight: 700, fontFamily: 'var(--font-mono)',
@@ -2040,7 +2013,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                       backgroundColor: 'oklch(0.92 0.02 260)', color: 'oklch(0.45 0.01 260)',
                       marginInlineStart: '0.25rem',
                     }}>
-                      Not a Match
+                      Excluded by Verifier
                     </span>
                   ) : isGroupOverridden ? (
                     <span style={{
@@ -2086,7 +2059,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
                           <AlertTriangle style={{ inlineSize: '0.875rem', blockSize: '0.875rem', color: 'oklch(0.55 0.01 260)' }} />
                           <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'oklch(0.3 0.01 260)' }}>
-                            Pair Dismissed by Reviewer
+                            Not Superseded -- Excluded by Verifier
                           </span>
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', paddingInlineStart: '1.25rem' }}>
@@ -2173,7 +2146,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                                 textDecoration: isRejected ? 'line-through' : 'none',
                                 opacity: isRejected ? 0.6 : 1,
                               }}>
-                                Pg {r.documentRef?.pageNumber ?? r.engagementPageId}: {isRejected ? 'Rejected' : r.decisionType}
+                                Pg {r.documentRef?.pageNumber ?? r.engagementPageId}: {isRejected ? 'Not Superseded' : r.decisionType}
                               </span>
                               )
                             })}
@@ -2195,7 +2168,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                               // Determine the new label after override
                               let newLabel: string
                               if (isRejected) {
-                                newLabel = 'Rejected'
+                                newLabel = 'Not Superseded'
                               } else if (r.engagementPageId === overriddenRecord?.engagementPageId) {
                                 newLabel = 'Original' // superseded -> original
                               } else if (r.decisionType === 'Original') {
@@ -2228,56 +2201,133 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                       )
                     })()}
 
-                    {/* Hide AI explanation after user applies override or rejects */}
-                    {/* Compact icon + text explanation */}
-                    {!panelGroupRejected && !isGroupOverridden && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                        {groupSuperseded?.decisionReason
-                          ?.split('||')
-                          .map(item => {
-                            const [type, text] = item.split('|')
-                            return { type, text }
-                          })
-                          .filter(item => item.text)
-                          .map((item, i) => {
-                            const iconMap: Record<string, { icon: React.ReactNode; color: string }> = {
-                              'NEWER_VERSION': { 
-                                icon: <RefreshCw style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} />, 
-                                color: 'oklch(0.45 0.15 145)' 
-                              },
-                              'SAME_RECIPIENT': { 
-                                icon: <User style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} />, 
-                                color: 'oklch(0.45 0.12 250)' 
-                              },
-                              'UPDATED_VALUES': { 
-                                icon: <FileEdit style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} />, 
-                                color: 'oklch(0.5 0.14 60)' 
-                              },
-                              'CORRECTED_MARK': { 
-                                icon: <CheckCircle2 style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} />, 
-                                color: 'oklch(0.45 0.15 145)' 
-                              },
-                            }
-                            const config = iconMap[item.type] || { 
-                              icon: <Info style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} />, 
-                              color: 'oklch(0.5 0.01 260)' 
-                            }
-                            return (
-                              <div 
-                                key={`reason-${i}`} 
-                                style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}
-                              >
-                                <span style={{ color: config.color, flexShrink: 0 }}>{config.icon}</span>
-                                <span style={{ fontSize: '0.6875rem', color: 'oklch(0.35 0.01 260)' }}>
-                                  {item.text}
-                                </span>
-                              </div>
-                            )
-                          })
-                        }
+                    {/* AI explanation -- contextual summary referencing field names and document types */}
+                    {!panelGroupRejected && !isGroupOverridden && (() => {
+                      const formType = activeGroup?.formType ?? 'Unknown'
+                      const matchingFields = comparedValues.filter(v => v.match).map(v => v.field)
+                      const differingFields = comparedValues.filter(v => !v.match).map(v => v.field)
+                      const confPercent = Math.round((activeGroup?.records[0]?.confidenceLevel ?? 0) * 100)
+                      const recordCount = activeGroup?.records.length ?? 0
 
-                      </div>
-                    )}
+                      // Build contextual summary paragraph
+                      const summaryParts: string[] = []
+                      summaryParts.push(
+                        `${recordCount} ${formType} documents were analyzed for potential superseded classification.`
+                      )
+                      if (matchingFields.length > 0) {
+                        summaryParts.push(
+                          `The following fields matched across documents: ${matchingFields.join(', ')}.`
+                        )
+                      }
+                      if (differingFields.length > 0) {
+                        summaryParts.push(
+                          `Fields that differed: ${differingFields.join(', ')}.`
+                        )
+                      }
+                      summaryParts.push(
+                        `Based on this analysis, the AI assigned a confidence level of ${confPercent}%.`
+                      )
+                      if (differingFields.length > 0 && matchingFields.length > differingFields.length) {
+                        summaryParts.push(
+                          'The majority of identifying fields match, suggesting these documents relate to the same filing but represent different versions.'
+                        )
+                      }
+
+                      // Parse structured reasons from decisionReason
+                      const reasons = groupSuperseded?.decisionReason
+                        ?.split('||')
+                        .map(item => { const [type, text] = item.split('|'); return { type, text } })
+                        .filter(item => item.text) ?? []
+
+                      return (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                          {/* Contextual summary paragraph */}
+                          <p style={{
+                            fontSize: '0.6875rem', lineHeight: 1.55,
+                            color: 'oklch(0.3 0.01 260)', margin: 0,
+                          }}>
+                            {summaryParts.join(' ')}
+                          </p>
+
+                          {/* Matching fields highlight */}
+                          {matchingFields.length > 0 && (
+                            <div style={{
+                              display: 'flex', flexWrap: 'wrap', gap: '0.25rem',
+                              padding: '0.375rem 0.5rem', borderRadius: '0.25rem',
+                              backgroundColor: 'oklch(0.96 0.02 145)',
+                              border: '0.0625rem solid oklch(0.9 0.04 145)',
+                            }}>
+                              <span style={{ fontSize: '0.5625rem', fontWeight: 700, color: 'oklch(0.4 0.14 145)', inlineSize: '100%', marginBlockEnd: '0.125rem' }}>
+                                Matching Fields ({matchingFields.length})
+                              </span>
+                              {matchingFields.map(f => (
+                                <span key={f} style={{
+                                  fontSize: '0.5625rem', fontWeight: 600,
+                                  padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem',
+                                  backgroundColor: 'oklch(0.92 0.04 145)', color: 'oklch(0.35 0.14 145)',
+                                }}>
+                                  {f}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Differing fields highlight */}
+                          {differingFields.length > 0 && (
+                            <div style={{
+                              display: 'flex', flexWrap: 'wrap', gap: '0.25rem',
+                              padding: '0.375rem 0.5rem', borderRadius: '0.25rem',
+                              backgroundColor: 'oklch(0.97 0.02 60)',
+                              border: '0.0625rem solid oklch(0.9 0.04 60)',
+                            }}>
+                              <span style={{ fontSize: '0.5625rem', fontWeight: 700, color: 'oklch(0.45 0.14 60)', inlineSize: '100%', marginBlockEnd: '0.125rem' }}>
+                                Differing Fields ({differingFields.length})
+                              </span>
+                              {differingFields.map(f => (
+                                <span key={f} style={{
+                                  fontSize: '0.5625rem', fontWeight: 600,
+                                  padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem',
+                                  backgroundColor: 'oklch(0.93 0.04 60)', color: 'oklch(0.4 0.14 60)',
+                                }}>
+                                  {f}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Structured AI reasons */}
+                          {reasons.length > 0 && (
+                            <div style={{
+                              display: 'flex', flexDirection: 'column', gap: '0.25rem',
+                              padding: '0.375rem 0.5rem', borderRadius: '0.25rem',
+                              backgroundColor: 'oklch(0.98 0.003 240)',
+                              border: '0.0625rem solid oklch(0.92 0.01 240)',
+                            }}>
+                              <span style={{ fontSize: '0.5625rem', fontWeight: 700, color: 'oklch(0.4 0.01 260)', marginBlockEnd: '0.125rem' }}>
+                                Classification Rationale
+                              </span>
+                              {reasons.map((item, i) => {
+                                const iconMap: Record<string, { icon: React.ReactNode; color: string }> = {
+                                  'NEWER_VERSION': { icon: <RefreshCw style={{ inlineSize: '0.6875rem', blockSize: '0.6875rem' }} />, color: 'oklch(0.45 0.15 145)' },
+                                  'SAME_RECIPIENT': { icon: <User style={{ inlineSize: '0.6875rem', blockSize: '0.6875rem' }} />, color: 'oklch(0.45 0.12 250)' },
+                                  'UPDATED_VALUES': { icon: <FileEdit style={{ inlineSize: '0.6875rem', blockSize: '0.6875rem' }} />, color: 'oklch(0.5 0.14 60)' },
+                                  'CORRECTED_MARK': { icon: <CheckCircle2 style={{ inlineSize: '0.6875rem', blockSize: '0.6875rem' }} />, color: 'oklch(0.45 0.15 145)' },
+                                  'EARLIEST_VERSION': { icon: <RefreshCw style={{ inlineSize: '0.6875rem', blockSize: '0.6875rem' }} />, color: 'oklch(0.5 0.12 25)' },
+                                  'REPLACED_TWICE': { icon: <RefreshCw style={{ inlineSize: '0.6875rem', blockSize: '0.6875rem' }} />, color: 'oklch(0.5 0.14 60)' },
+                                }
+                                const config = iconMap[item.type] || { icon: <Info style={{ inlineSize: '0.6875rem', blockSize: '0.6875rem' }} />, color: 'oklch(0.5 0.01 260)' }
+                                return (
+                                  <div key={`reason-${i}`} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                                    <span style={{ color: config.color, flexShrink: 0 }}>{config.icon}</span>
+                                    <span style={{ fontSize: '0.6875rem', color: 'oklch(0.35 0.01 260)' }}>{item.text}</span>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })()}
                   </div>
                 )}
               </div>
@@ -2287,7 +2337,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
           {/* ═══════════════════════════════════════════════════════════
               REJECTION SUMMARY CARD (shown when group is rejected)
               ════════════════════════════════════════════════════���══════ */}
-          {/* No separate rejection card -- rejection info is shown in the Review Outcome panel above */}
+          {/* No separate rejection card -- rejection info is shown in the Not Superseded panel above */}
 
           {/* ═══════════════════════════════════════════════════════════
               PANEL 2: Field Comparison (collapsible, hidden when rejected)
