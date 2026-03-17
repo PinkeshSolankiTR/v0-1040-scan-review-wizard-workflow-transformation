@@ -484,7 +484,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
     setCustomReason('')
   }
 
-  /* ── Reject handler: mark docs as not qualifying for superseded review ── */
+  /* ── Reject handler: mark entire group as not superseded ── */
   const handleRejectDoc = () => {
     if (!activeGroup) return
     const predefinedLabels = Array.from(selectedRejectReasons)
@@ -494,66 +494,18 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
     const reasonLabel = allLabels.length > 0 ? allLabels.join('; ') : 'Other'
     const detail = allLabels.join('. ')
     
-    if (rejectTargetPageId) {
-      // Partial reject: single document
-      setRejectedDocs(prev => {
-        const next = new Map(prev)
-        next.set(rejectTargetPageId, { reason: reasonLabel, detail, formType: activeGroup.formType })
-        return next
-      })
-
-      // Determine the effective Original (accounting for existing overrides)
-      const flippedIdx = flippedGroups.get(activeGroup.formType)
-      const effectiveOrigPageId = flippedIdx !== undefined
-        ? String(activeGroup.supersededRecords[flippedIdx]?.engagementPageId)
-        : activeGroup.originalRecord ? String(activeGroup.originalRecord.engagementPageId) : null
-
-      const isRejectingEffectiveOriginal = rejectTargetPageId === effectiveOrigPageId
-
-      if (isRejectingEffectiveOriginal && newOriginalAfterReject) {
-        // User picked a new Original to replace the rejected one
-        const newOrigIdx = activeGroup.supersededRecords.findIndex(
-          s => String(s.engagementPageId) === newOriginalAfterReject
-        )
-        if (newOrigIdx >= 0) {
-          setFlippedGroups(prev => {
-            const next = new Map(prev)
-            next.set(activeGroup.formType, newOrigIdx)
-            return next
-          })
-        }
-      } else if (isRejectingEffectiveOriginal) {
-        // Rejecting the overridden Original but no new one picked -- clear override
-        setFlippedGroups(prev => {
-          const next = new Map(prev)
-          next.delete(activeGroup.formType)
-          return next
-        })
-      } else if (flippedIdx !== undefined) {
-        // Rejecting a superseded doc: if it was the flipped doc, clear the override
-        const flippedPageId = String(activeGroup.supersededRecords[flippedIdx]?.engagementPageId)
-        if (rejectTargetPageId === flippedPageId) {
-          setFlippedGroups(prev => {
-            const next = new Map(prev)
-            next.delete(activeGroup.formType)
-            return next
-          })
-        }
+    // Always reject all documents in the group
+    setRejectedDocs(prev => {
+      const next = new Map(prev)
+      for (const r of activeGroup.records) {
+        next.set(String(r.engagementPageId), { reason: reasonLabel, detail, formType: activeGroup.formType })
       }
-    } else {
-      // Reject all: every doc in the group
-      setRejectedDocs(prev => {
-        const next = new Map(prev)
-        for (const r of activeGroup.records) {
-          next.set(String(r.engagementPageId), { reason: reasonLabel, detail, formType: activeGroup.formType })
-        }
-        return next
-      })
-    }
+      return next
+    })
     
     // Reset state
     setShowRejectPanel(false)
-    setRejectStep('select')
+    setRejectStep('reason')
     setRejectTargetPageId(null)
     setNewOriginalAfterReject(null)
     setSelectedRejectReasons(new Set())
@@ -994,9 +946,8 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
               type="button"
               onClick={() => {
                 if (!showRejectPanel) {
-                  const isMultiPage = effectiveRecords.length > 2
-                  setRejectStep(isMultiPage ? 'select' : 'reason')
-                  setRejectTargetPageId(isMultiPage ? null : null) // null = reject all for 2-page
+                  setRejectStep('reason')
+                  setRejectTargetPageId(null) // null = reject entire group
                   setNewOriginalAfterReject(null)
                   setSelectedRejectReasons(new Set())
                   setCustomRejectReason('')
@@ -1017,27 +968,16 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
               aria-expanded={showRejectPanel}
             >
               <X style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem' }} />
-              {isGroupRejected ? 'Not Superseded' : hasPartialRejects ? `Not Superseded (${rejectedPageIds.size})` : 'Not Superseded'}
+              Not Superseded
               {!isGroupRejected && !allGroupAccepted && <ChevronDown style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />}
             </button>
             
             {/* Reject Panel Popover */}
             {showRejectPanel && !isGroupRejected && !allGroupAccepted && (() => {
-              const isMultiPage = effectiveRecords.length > 2
-              // Determine if selected reject target is the current Original
-              const currentOriginalPageId = effectiveOriginal ? String(effectiveOriginal.engagementPageId) : null
-              const isRejectingOriginal = rejectTargetPageId !== null && rejectTargetPageId === currentOriginalPageId
-              // Remaining docs after potential rejection (for new Original selection)
-              const remainingAfterReject = rejectTargetPageId
-                ? effectiveRecords.filter(r => String(r.engagementPageId) !== rejectTargetPageId)
-                : []
-              // Can proceed from select step?
-              const canProceedFromSelect = rejectTargetPageId !== null && (!isRejectingOriginal || newOriginalAfterReject !== null)
-
               return (
               <>
                 <div
-                  onClick={() => { setShowRejectPanel(false); setRejectTargetPageId(null); setNewOriginalAfterReject(null); setRejectStep('select'); }}
+                  onClick={() => { setShowRejectPanel(false); setRejectTargetPageId(null); setNewOriginalAfterReject(null); setRejectStep('reason'); }}
                   style={{ position: 'fixed', inset: 0, zIndex: 49 }}
                   aria-hidden="true"
                 />
@@ -1050,22 +990,21 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                   backgroundColor: 'oklch(1 0 0)',
                   boxShadow: '0 0.25rem 0.75rem oklch(0 0 0 / 0.12)',
                 }}>
-                  {/* ── Already rejected docs with undo ── */}
-                  {hasPartialRejects && rejectStep === 'select' && (() => {
-                    const rejectedRecords = activeGroup?.records.filter(r => rejectedPageIds.has(String(r.engagementPageId))) ?? []
-                    return (
-                      <div style={{
-                        marginBlockEnd: '0.625rem',
-                        paddingBlockEnd: '0.625rem',
-                        borderBlockEnd: '0.0625rem solid oklch(0.91 0.01 260)',
+                  {/* ── Single step: Provide reason to reject entire group ── */}
+                  <>
+                      <p style={{
+                        fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.35 0.01 260)',
+                        textTransform: 'uppercase', letterSpacing: '0.04em',
+                        marginBlockEnd: '0.25rem',
                       }}>
-                        <p style={{
-                          fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.5 0.01 260)',
-                          textTransform: 'uppercase', letterSpacing: '0.04em',
-                          marginBlockEnd: '0.375rem',
-                        }}>
-                          Rejected ({rejectedRecords.length})
-                        </p>
+                        Not Superseded
+                      </p>
+                      <p style={{
+                        fontSize: '0.625rem', color: 'oklch(0.5 0.01 260)',
+                        marginBlockEnd: '0.625rem', lineHeight: '1.4',
+                      }}>
+                        All {effectiveRecords.length} documents in this group will be marked as not superseded and will be available in SPBinder as independent records once the review is complete.
+                      </p>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                           {rejectedRecords.map(r => {
                             const pageId = String(r.engagementPageId)
@@ -1289,7 +1228,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                       </p>
 
                       <fieldset style={{ border: 'none', padding: 0, margin: 0 }}>
-                        <legend className="sr-only">Select rejection reasons</legend>
+                        <legend className="sr-only">Select reason for not superseded</legend>
                         {REJECTION_REASONS.map((reason) => (
                           <label
                             key={reason.id}
@@ -1342,7 +1281,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                           <textarea
                             value={customRejectReason}
                             onChange={(e) => setCustomRejectReason(e.target.value)}
-                            placeholder="Enter your reason for rejecting..."
+                            placeholder="Describe why this group is not superseded..."
                             style={{
                               marginBlockStart: '0.5rem',
                               inlineSize: '100%',
@@ -1375,7 +1314,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                           }}
                         >
                           <X style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
-                          Confirm Rejection
+                          Confirm Not Superseded
                         </button>
                       </div>
                     </>
@@ -1399,7 +1338,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
               }}
             >
               <Undo2 style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem' }} />
-                    Undo Exclusion{hasPartialRejects && !isGroupRejected ? ` (${rejectedPageIds.size})` : ''}
+                    Undo Exclusion
             </button>
           ) : null}
 
@@ -1819,7 +1758,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                                 backgroundColor: 'oklch(0.94 0.04 25)', color: 'oklch(0.5 0.14 25)',
                               }}
                             >
-                              {groupRejectedCount} not superseded
+                              Not Superseded
                             </span>
                           </>
                         ) : (
