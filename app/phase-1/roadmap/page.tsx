@@ -498,15 +498,25 @@ export default function DeliveryRoadmapPage() {
 
     for (const item of data.items) allMap.set(item.id, item)
 
-    // Root items = those without a parent (or parent not in the dataset)
-    const roots = data.items.filter(i => i.parentId === null || !allMap.has(i.parentId))
+    // Only show epic 4651627 and its descendants
+    const TARGET_EPIC_ID = 4651627
+    const roots = data.items.filter(i => i.id === TARGET_EPIC_ID)
 
-    // Global stats
-    let total = data.items.length
+    // Stats scoped to epic 4651627 and its descendants only
+    const collectDescendantIds = (id: number, visited: Set<number> = new Set()): Set<number> => {
+      if (visited.has(id)) return visited
+      visited.add(id)
+      const item = allMap.get(id)
+      if (item) for (const cid of item.childIds) collectDescendantIds(cid, visited)
+      return visited
+    }
+    const epicDescendants = collectDescendantIds(TARGET_EPIC_ID)
+    const scopedItems = data.items.filter(i => epicDescendants.has(i.id))
+    let total = scopedItems.length
     let done = 0
     let active = 0
     const types = new Map<string, number>()
-    for (const item of data.items) {
+    for (const item of scopedItems) {
       if (isDone(item.state)) done++
       if (isActive(item.state)) active++
       types.set(item.workItemType, (types.get(item.workItemType) ?? 0) + 1)
