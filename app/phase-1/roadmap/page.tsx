@@ -846,6 +846,7 @@ export default function DeliveryRoadmapPage() {
       capacityPerDay: number
       daysOff: number
       sprintCapacityHrs: number
+      isEstimated: boolean
     }
 
     const memberRows: MemberRow[] = []
@@ -904,14 +905,15 @@ export default function DeliveryRoadmapPage() {
           const role = activity.name || 'Other'
           const sprintHrs = effectiveWorkDays * activity.capacityPerDay
 
-          memberRows.push({
-            displayName: member.displayName,
-            team: team.name.replace('surePrep-rw-', ''),
-            role,
-            capacityPerDay: activity.capacityPerDay,
-            daysOff: daysOffCount,
-            sprintCapacityHrs: sprintHrs,
-          })
+ memberRows.push({
+  displayName: member.displayName,
+  team: team.name.replace('surePrep-rw-', ''),
+  role,
+  capacityPerDay: activity.capacityPerDay,
+  daysOff: daysOffCount,
+  sprintCapacityHrs: sprintHrs,
+  isEstimated: member.isEstimated ?? false,
+  })
 
           const roleLower = role.toLowerCase()
           if (roleLower === 'development') { totalDevCapacity += sprintHrs; devCount++ }
@@ -964,6 +966,7 @@ export default function DeliveryRoadmapPage() {
         targetDate: TARGET_RELEASE,
       },
       teams: capacityData.teams.map(t => t.name.replace('surePrep-rw-', '')),
+      anyEstimated: memberRows.some(r => r.isEstimated),
     }
   }, [capacityData])
 
@@ -1522,7 +1525,7 @@ export default function DeliveryRoadmapPage() {
 
                   {capacityInsights && (
                     <>
-                      <CollapsibleSection icon={Users} title="Team Capacity" subtitle={capacityInsights.sprints.current?.name ?? 'Current Sprint'}>
+                      <CollapsibleSection icon={Users} title="Team Capacity" subtitle={`${capacityInsights.sprints.current?.name ?? 'Current Sprint'}${capacityInsights.anyEstimated ? '  (from ADO Team Roster - capacity not configured in ADO)' : ''}`}>
                         {/* Summary cards */}
                         <div className="grid grid-cols-6 gap-3 mb-4">
                           {[
