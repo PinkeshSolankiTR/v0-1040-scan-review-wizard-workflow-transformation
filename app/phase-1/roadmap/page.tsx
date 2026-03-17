@@ -1511,17 +1511,6 @@ export default function DeliveryRoadmapPage() {
                     </div>
                   )}
 
-                  {/* DEBUG: capacity data diagnosis */}
-                  {data?.items && capacityData?.teams && (
-                    <div className="rounded-lg border border-dashed border-yellow-500 bg-yellow-50 px-4 py-3 mb-4 text-[0.625rem] font-mono text-yellow-800 space-y-1">
-                      <p className="font-bold">Capacity Debug (remove after fix):</p>
-                      <p>Total work items: {data.items.length} | Items with team in areaPath: {data.items.filter(i => i.areaPath && (i.areaPath.toLowerCase().includes('wizards') || i.areaPath.toLowerCase().includes('infinity'))).length}</p>
-                      <p>Sample areaPaths: {[...new Set(data.items.filter(i => i.areaPath).map(i => i.areaPath))].slice(0, 5).join(' | ')}</p>
-                      <p>Unique members found: {capacityInsights?.memberRows.length ?? 0} | Teams: {capacityInsights?.teams.join(', ') ?? 'none'}</p>
-                      <p>Members: {capacityInsights?.memberRows.map(r => `${r.displayName} [${r.team}/${r.role}]`).join(' | ') ?? 'none'}</p>
-                    </div>
-                  )}
-
                   {capacityInsights && (
                     <>
                       <CollapsibleSection icon={Users} title="Team Capacity" subtitle={`${capacityInsights.sprints.current?.name ?? 'Current Sprint'} -- ${capacityInsights.summary.uniqueMemberCount} members across ${capacityInsights.teams.length} teams${capacityInsights.unconfiguredMembers.length > 0 ? ` (${capacityInsights.unconfiguredMembers.length} defaulting to Dev)` : ''}`}>
