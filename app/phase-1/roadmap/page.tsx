@@ -640,7 +640,7 @@ function RiskSection({ label, icon: Icon, items, color }: { label: string; icon:
 
 /* ──────────────────────────────────────────────
    MAIN PAGE
-   ────────────────────────────────────────────── */
+   ─────────────────────────────────────────��──── */
 type RoadmapTab = 'ado' | 'static' | 'dashboard'
 type StateFilter = 'all' | 'active' | 'done' | 'new'
 
@@ -881,15 +881,19 @@ export default function DeliveryRoadmapPage() {
     // ── 3. Identify current sprint name to filter work items ──
     const currentSprintName = currentSprintInfo?.name ?? null
 
-    // ── 4. Discover members from ALL work items using areaPath for team ──
-    // Area paths contain team info: "TaxProf\surePrep-rw-wizards2\..."
-    // Iteration paths do NOT: "TaxProf\2026\Q1" (project-level, no team)
+    // ── 4. Discover members from current-sprint execution-level work items ──
+    // - Only include sprint-level types (User Story, Task, Bug) -- NOT Epic, Feature, Issue
+    // - Only include items whose iterationPath contains the current sprint name
+    // - Extract team from areaPath (contains team: "TaxProf\surePrep-rw-wizards2\...")
+    const EXCLUDED_WORK_ITEM_TYPES = new Set(['Epic', 'Feature', 'Issue'])
     const allWorkItems = data?.items ?? []
     const memberTeams = new Map<string, Set<TeamName>>()
 
     for (const item of allWorkItems) {
       if (!item.assignedTo || !item.areaPath) continue
+      if (EXCLUDED_WORK_ITEM_TYPES.has(item.workItemType)) continue
       if (isMemberExcluded(item.assignedTo)) continue
+      if (currentSprintName && (!item.iterationPath || !item.iterationPath.includes(currentSprintName))) continue
 
       const team = extractTeamFromPath(item.areaPath)
       if (!team) continue
