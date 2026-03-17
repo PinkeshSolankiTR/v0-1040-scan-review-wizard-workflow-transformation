@@ -1528,6 +1528,22 @@ export default function DeliveryRoadmapPage() {
                     </div>
                   )}
 
+                  {/* DEBUG: capacity data diagnosis */}
+                  {data?.items && capacityData?.teams && (
+                    <div className="rounded-lg border border-dashed border-yellow-500 bg-yellow-50 px-4 py-3 mb-4 text-[0.625rem] font-mono text-yellow-800 space-y-1">
+                      <p className="font-bold">Capacity Debug (remove after fix):</p>
+                      <p>Total work items (data.items): {data.items.length}</p>
+                      <p>Scoped items: {scopedItems.length}</p>
+                      <p>Capacity API teams: {capacityData.teams.map(t => t.name).join(', ')}</p>
+                      <p>Current iterations: {capacityData.teams.map(t => `${t.name}=${t.currentIteration?.name ?? 'NONE'}`).join(' | ')}</p>
+                      <p>Sample iterationPaths (first 5): {data.items.slice(0, 5).map(i => i.iterationPath).join(' | ')}</p>
+                      <p>Sample assignedTo (first 10 unique): {[...new Set(data.items.filter(i => i.assignedTo).map(i => i.assignedTo))].slice(0, 10).join(' | ')}</p>
+                      <p>Items with team in path: {data.items.filter(i => i.iterationPath && (i.iterationPath.toLowerCase().includes('wizards') || i.iterationPath.toLowerCase().includes('infinity'))).length}</p>
+                      <p>capacityInsights null? {capacityInsights === null ? 'YES' : 'NO'}</p>
+                      {capacityInsights && <p>memberRows count: {capacityInsights.memberRows.length}</p>}
+                    </div>
+                  )}
+
                   {capacityInsights && (
                     <>
                       <CollapsibleSection icon={Users} title="Team Capacity" subtitle={`${capacityInsights.sprints.current?.name ?? 'Current Sprint'} -- ${capacityInsights.summary.uniqueMemberCount} members across ${capacityInsights.teams.length} teams${capacityInsights.unconfiguredMembers.length > 0 ? ` (${capacityInsights.unconfiguredMembers.length} defaulting to Dev)` : ''}`}>
