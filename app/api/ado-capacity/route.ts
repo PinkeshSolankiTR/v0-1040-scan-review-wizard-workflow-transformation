@@ -80,7 +80,9 @@ async function fetchIterations(team: string, auth: string): Promise<IterationInf
 
 /* ── Fetch capacity for a specific iteration ── */
 async function fetchCapacity(team: string, iterationId: string, auth: string): Promise<TeamMemberCapacity[]> {
-  const resp = await fetch(teamApiUrl(team, `work/teamsettings/iterations/${iterationId}/capacities`), {
+  const capacityUrl = teamApiUrl(team, `work/teamsettings/iterations/${iterationId}/capacities`)
+  console.log(`[v0] Fetching capacity: ${capacityUrl}`)
+  const resp = await fetch(capacityUrl, {
     headers: { Authorization: auth, 'Content-Type': 'application/json' },
   })
   if (!resp.ok) {
@@ -89,6 +91,7 @@ async function fetchCapacity(team: string, iterationId: string, auth: string): P
     return []
   }
   const data = await resp.json()
+  console.log(`[v0] Capacity raw response for ${team}: count=${data.count ?? 'n/a'}, value.length=${(data.value ?? []).length}`)
   const members = ((data.value ?? []) as {
     teamMember: { displayName: string }
     activities: { name: string; capacityPerDay: number }[]
@@ -105,7 +108,9 @@ async function fetchCapacity(team: string, iterationId: string, auth: string): P
 
 /* ── Fetch team members directly from the Team Members API ── */
 async function fetchTeamMembers(team: string, auth: string): Promise<{ displayName: string; uniqueName: string }[]> {
-  const url = `https://dev.azure.com/${ADO_ORG}/_apis/projects/${encodeURIComponent(ADO_PROJECT)}/teams/${encodeURIComponent(team)}/members?api-version=${ADO_API_VERSION}`
+  // This API requires preview version
+  const url = `https://dev.azure.com/${ADO_ORG}/_apis/projects/${encodeURIComponent(ADO_PROJECT)}/teams/${encodeURIComponent(team)}/members?api-version=7.1-preview.2`
+  console.log(`[v0] Fetching team members: ${url}`)
   const resp = await fetch(url, {
     headers: { Authorization: auth, 'Content-Type': 'application/json' },
   })
@@ -115,12 +120,14 @@ async function fetchTeamMembers(team: string, auth: string): Promise<{ displayNa
     return []
   }
   const data = await resp.json()
-  return ((data.value ?? []) as {
+  const members = ((data.value ?? []) as {
     identity: { displayName: string; uniqueName: string }
   }[]).map(m => ({
     displayName: m.identity.displayName,
     uniqueName: m.identity.uniqueName,
   }))
+  console.log(`[v0] Team ${team}: got ${members.length} members`, members.slice(0, 3).map(m => m.displayName))
+  return members
 }
 
 /* ── Main handler ── */
@@ -145,6 +152,8 @@ export async function GET() {
         if (currentIteration) {
           members = await fetchCapacity(team, currentIteration.id, auth)
         }
+
+        console.log(`[v0] ${team}: capacity members=${members.length}, teamMembers=${teamMembers.length}, currentIteration=${currentIteration?.name ?? 'NONE'}`)
 
         // If capacity API returned no members but we have team members,
         // build capacity entries from the team roster with default 6 hrs/day
