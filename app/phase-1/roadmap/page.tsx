@@ -856,7 +856,6 @@ export default function DeliveryRoadmapPage() {
     let qaCount = 0
     let supportCount = 0
 
-
     // All iterations across teams (deduplicated by name for timeline)
     const allIterationsMap = new Map<string, { name: string; startDate: string | null; finishDate: string | null; timeFrame: string }>()
 
@@ -991,27 +990,41 @@ export default function DeliveryRoadmapPage() {
     const requiredVelocity = sprintsRemaining > 0 ? Math.ceil(remaining / sprintsRemaining) : remaining
 
     // --- Capacity-based estimation (hours) ---
-    // Use capacity hours as a more reliable metric than velocity when velocity is 0 or very low
-    const totalCapacityHrsPerSprint = capacityInsights.summary.totalCapacity
-    const devCapacityHrsPerSprint = capacityInsights.summary.totalDevCapacity
-    const qaCapacityHrsPerSprint = capacityInsights.summary.totalQaCapacity
+    const rawCapacityPerSprint = capacityInsights.summary.totalCapacity
 
-    // Estimate hours per item: if we have velocity, use capacity/velocity; otherwise assume 8 hrs/item as baseline
-    const hrsPerItem = avgVelocity > 0 ? totalCapacityHrsPerSprint / avgVelocity : 8
+    // If capacity API returned 0 (empty activities / API issue), estimate from team size
+    // Assume 6 hrs/day productive work x 10 working days = 60 hrs/member/sprint
+    const FALLBACK_HRS_PER_MEMBER_PER_SPRINT = 60
+    const totalCapacityHrsPerSprint = rawCapacityPerSprint > 0
+      ? rawCapacityPerSprint
+      : currentTotal * FALLBACK_HRS_PER_MEMBER_PER_SPRINT
+    const capacityIsEstimated = rawCapacityPerSprint === 0
+
+    // Estimate hours per item:
+    // If both velocity and capacity are known, use capacity/velocity
+    // If only velocity known, use fallback capacity / velocity
+    // If neither, use 8 hrs/item baseline
+    const hrsPerItem = avgVelocity > 0 && totalCapacityHrsPerSprint > 0
+      ? totalCapacityHrsPerSprint / avgVelocity
+      : 8
     const totalHrsNeeded = remaining * hrsPerItem
     const hrsAvailableUntilRelease = totalCapacityHrsPerSprint * sprintsRemaining
     const hrsGap = Math.max(0, totalHrsNeeded - hrsAvailableUntilRelease)
 
-    // Additional members needed based on capacity gap
     // Average capacity per member per sprint
-    const avgCapacityPerMember = currentTotal > 0 ? totalCapacityHrsPerSprint / currentTotal : 40 // fallback 40 hrs/sprint
+    const avgCapacityPerMember = currentTotal > 0
+      ? totalCapacityHrsPerSprint / currentTotal
+      : FALLBACK_HRS_PER_MEMBER_PER_SPRINT
     const avgCapacityPerMemberUntilRelease = avgCapacityPerMember * sprintsRemaining
-    const additionalMembersNeeded = avgCapacityPerMemberUntilRelease > 0 ? Math.ceil(hrsGap / avgCapacityPerMemberUntilRelease) : 0
+    const additionalMembersNeeded = avgCapacityPerMemberUntilRelease > 0
+      ? Math.ceil(hrsGap / avgCapacityPerMemberUntilRelease) : 0
 
     // Maintain current dev:qa ratio for breakdown
+    // If no dev/qa breakdown available, assume 70% dev / 30% QA
     const contributingMembers = Math.max(currentDevs + currentQa, 1)
-    const devRatio = currentDevs / contributingMembers
-    const qaRatio = currentQa / contributingMembers
+    const hasRoleData = currentDevs > 0 || currentQa > 0
+    const devRatio = hasRoleData ? currentDevs / contributingMembers : 0.7
+    const qaRatio = hasRoleData ? currentQa / contributingMembers : 0.3
     const additionalDevs = Math.max(0, Math.round(additionalMembersNeeded * devRatio))
     const additionalQa = Math.max(0, Math.round(additionalMembersNeeded * qaRatio))
     // If rounding ate everyone, ensure at least the total is met
@@ -1022,7 +1035,7 @@ export default function DeliveryRoadmapPage() {
     const velocityPerMember = contributingMembers > 0 && avgVelocity > 0
       ? avgVelocity / contributingMembers : null
 
-    // Projected velocity/capacity with additional resources
+    // Projected with additional resources
     const newTotalMembers = currentTotal + additionalMembersNeeded
     const projectedCapacityPerSprint = avgCapacityPerMember * newTotalMembers
     const projectedSprintsWithResources = projectedCapacityPerSprint > 0 && hrsPerItem > 0
@@ -1061,6 +1074,8 @@ export default function DeliveryRoadmapPage() {
       totalHrsNeeded: Math.round(totalHrsNeeded),
       hrsAvailableUntilRelease: Math.round(hrsAvailableUntilRelease),
       hrsGap: Math.round(hrsGap),
+      capacityIsEstimated,
+      hasRoleData,
     }
   }, [dashboardData, capacityInsights])
 
@@ -1621,65 +1636,104 @@ export default function DeliveryRoadmapPage() {
                               ))}
                             </div>
 
-                            {/* Resource Recommendation -- only show when not on track */}
-                            {releaseProjection.status !== 'on-track' && releaseProjection.additionalMembersNeeded > 0 && (
-                              <div className="rounded-lg border border-border overflow-hidden mb-4">
-                                <div className="px-3 py-2 border-b border-border flex items-center gap-2" style={{ backgroundColor: 'oklch(0.97 0.005 260)' }}>
-                                  <TrendingUp className="size-3.5 text-foreground" />
-                                  <span className="text-[0.6875rem] font-semibold text-foreground">Resource Recommendation</span>
-                                </div>
-                                <div className="px-4 py-3" style={{ backgroundColor: 'oklch(0.99 0 0)' }}>
-                                  <div className="grid grid-cols-3 gap-4 mb-3">
-                                    {/* Current team */}
+                            {/* Resource Recommendation -- always visible */}
+                            <div className="rounded-lg border border-border overflow-hidden mb-4">
+                              <div className="px-3 py-2 border-b border-border flex items-center gap-2" style={{ backgroundColor: 'oklch(0.97 0.005 260)' }}>
+                                <TrendingUp className="size-3.5 text-foreground" />
+                                <span className="text-[0.6875rem] font-semibold text-foreground">Resource Recommendation</span>
+                                {releaseProjection.capacityIsEstimated && (
+                                  <span className="text-[0.5rem] font-semibold px-1.5 py-0.5 rounded-sm" style={{ backgroundColor: 'oklch(0.94 0.03 60)', color: 'oklch(0.45 0.12 60)' }}>ESTIMATED</span>
+                                )}
+                              </div>
+                              <div className="px-4 py-3" style={{ backgroundColor: 'oklch(0.99 0 0)' }}>
+                                {releaseProjection.status === 'on-track' && releaseProjection.additionalMembersNeeded === 0 ? (
+                                  <div className="flex items-center gap-3 py-2">
+                                    <div className="size-2.5 rounded-full" style={{ backgroundColor: 'oklch(0.5 0.2 145)' }} />
                                     <div>
-                                      <p className="text-[0.5625rem] font-semibold text-muted-foreground mb-1.5">Current Team</p>
-                                      <div className="flex items-center gap-2">
-                                        <span className="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[0.5625rem] font-semibold" style={{ backgroundColor: 'oklch(0.94 0.04 240)', color: 'oklch(0.4 0.14 240)' }}>
-                                          {releaseProjection.currentDevs} Dev
-                                        </span>
-                                        <span className="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[0.5625rem] font-semibold" style={{ backgroundColor: 'oklch(0.94 0.04 145)', color: 'oklch(0.4 0.16 145)' }}>
-                                          {releaseProjection.currentQa} QA
-                                        </span>
-                                        <span className="text-[0.5625rem] text-muted-foreground">= {releaseProjection.totalCapacityHrsPerSprint} hrs/sprint</span>
-                                      </div>
-                                    </div>
-                                    {/* Additional needed */}
-                                    <div>
-                                      <p className="text-[0.5625rem] font-semibold mb-1.5" style={{ color: 'oklch(0.5 0.22 25)' }}>Additional Needed</p>
-                                      <div className="flex items-center gap-2">
-                                        <span className="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[0.5625rem] font-bold" style={{ backgroundColor: 'oklch(0.94 0.04 25)', color: 'oklch(0.45 0.18 25)' }}>
-                                          +{releaseProjection.additionalDevs} Dev
-                                        </span>
-                                        <span className="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[0.5625rem] font-bold" style={{ backgroundColor: 'oklch(0.94 0.04 25)', color: 'oklch(0.45 0.18 25)' }}>
-                                          +{releaseProjection.additionalQa} QA
-                                        </span>
-                                      </div>
-                                    </div>
-                                    {/* Projected after */}
-                                    <div>
-                                      <p className="text-[0.5625rem] font-semibold mb-1.5" style={{ color: 'oklch(0.35 0.14 145)' }}>With Additional Resources</p>
-                                      <div className="flex items-center gap-2">
-                                        <span className="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[0.5625rem] font-semibold" style={{ backgroundColor: 'oklch(0.94 0.04 145)', color: 'oklch(0.35 0.14 145)' }}>
-                                          {releaseProjection.currentDevs + releaseProjection.additionalDevs} Dev
-                                        </span>
-                                        <span className="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[0.5625rem] font-semibold" style={{ backgroundColor: 'oklch(0.94 0.04 145)', color: 'oklch(0.35 0.14 145)' }}>
-                                          {releaseProjection.currentQa + releaseProjection.additionalQa} QA
-                                        </span>
-                                        {releaseProjection.projectedSprintsWithResources && (
-                                          <span className="text-[0.5625rem] text-muted-foreground">= done in ~{releaseProjection.projectedSprintsWithResources} sprints</span>
-                                        )}
-                                      </div>
+                                      <p className="text-[0.6875rem] font-semibold" style={{ color: 'oklch(0.35 0.14 145)' }}>No additional resources needed</p>
+                                      <p className="text-[0.5625rem] text-muted-foreground">
+                                        Current team of {releaseProjection.currentTotal} members ({releaseProjection.currentDevs > 0 || releaseProjection.currentQa > 0 ? `${releaseProjection.currentDevs} Dev, ${releaseProjection.currentQa} QA` : `${releaseProjection.currentTotal} total`}) providing {releaseProjection.totalCapacityHrsPerSprint} hrs/sprint is sufficient to deliver {releaseProjection.remaining} items by target date.
+                                      </p>
                                     </div>
                                   </div>
-                                  <p className="text-[0.5625rem] text-muted-foreground leading-relaxed" style={{ borderTop: '1px solid oklch(0.92 0.01 260)', paddingTop: '0.5rem' }}>
-                                    Estimated <strong>{releaseProjection.hrsPerItem} hrs/item</strong> based on {releaseProjection.avgVelocity > 0 ? 'current velocity' : 'baseline estimate'}.
-                                    Current team provides <strong>{releaseProjection.totalCapacityHrsPerSprint} hrs/sprint</strong> across {releaseProjection.currentTotal} members.
-                                    Capacity gap of <strong>{releaseProjection.hrsGap.toLocaleString()} hrs</strong> needs to be covered by additional resources.
-                                    Assumes new resources ramp up immediately with equivalent throughput.
-                                  </p>
-                                </div>
+                                ) : (
+                                  <>
+                                    <div className="grid grid-cols-3 gap-4 mb-3">
+                                      {/* Current team */}
+                                      <div>
+                                        <p className="text-[0.5625rem] font-semibold text-muted-foreground mb-1.5">Current Team</p>
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          {releaseProjection.hasRoleData ? (
+                                            <>
+                                              <span className="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[0.5625rem] font-semibold" style={{ backgroundColor: 'oklch(0.94 0.04 240)', color: 'oklch(0.4 0.14 240)' }}>
+                                                {releaseProjection.currentDevs} Dev
+                                              </span>
+                                              <span className="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[0.5625rem] font-semibold" style={{ backgroundColor: 'oklch(0.94 0.04 145)', color: 'oklch(0.4 0.16 145)' }}>
+                                                {releaseProjection.currentQa} QA
+                                              </span>
+                                            </>
+                                          ) : (
+                                            <span className="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[0.5625rem] font-semibold" style={{ backgroundColor: 'oklch(0.94 0.03 260)', color: 'oklch(0.4 0.01 260)' }}>
+                                              {releaseProjection.currentTotal} members
+                                            </span>
+                                          )}
+                                          <span className="text-[0.5625rem] text-muted-foreground">= {releaseProjection.totalCapacityHrsPerSprint} hrs/sprint</span>
+                                        </div>
+                                      </div>
+                                      {/* Additional needed */}
+                                      <div>
+                                        <p className="text-[0.5625rem] font-semibold mb-1.5" style={{ color: 'oklch(0.5 0.22 25)' }}>Additional Needed</p>
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          {releaseProjection.hasRoleData ? (
+                                            <>
+                                              <span className="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[0.5625rem] font-bold" style={{ backgroundColor: 'oklch(0.94 0.04 25)', color: 'oklch(0.45 0.18 25)' }}>
+                                                +{releaseProjection.additionalDevs} Dev
+                                              </span>
+                                              <span className="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[0.5625rem] font-bold" style={{ backgroundColor: 'oklch(0.94 0.04 25)', color: 'oklch(0.45 0.18 25)' }}>
+                                                +{releaseProjection.additionalQa} QA
+                                              </span>
+                                            </>
+                                          ) : (
+                                            <span className="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[0.5625rem] font-bold" style={{ backgroundColor: 'oklch(0.94 0.04 25)', color: 'oklch(0.45 0.18 25)' }}>
+                                              +{releaseProjection.additionalMembersNeeded} members
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                      {/* Projected after */}
+                                      <div>
+                                        <p className="text-[0.5625rem] font-semibold mb-1.5" style={{ color: 'oklch(0.35 0.14 145)' }}>With Additional Resources</p>
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          {releaseProjection.hasRoleData ? (
+                                            <>
+                                              <span className="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[0.5625rem] font-semibold" style={{ backgroundColor: 'oklch(0.94 0.04 145)', color: 'oklch(0.35 0.14 145)' }}>
+                                                {releaseProjection.currentDevs + releaseProjection.additionalDevs} Dev
+                                              </span>
+                                              <span className="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[0.5625rem] font-semibold" style={{ backgroundColor: 'oklch(0.94 0.04 145)', color: 'oklch(0.35 0.14 145)' }}>
+                                                {releaseProjection.currentQa + releaseProjection.additionalQa} QA
+                                              </span>
+                                            </>
+                                          ) : (
+                                            <span className="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[0.5625rem] font-semibold" style={{ backgroundColor: 'oklch(0.94 0.04 145)', color: 'oklch(0.35 0.14 145)' }}>
+                                              {releaseProjection.currentTotal + releaseProjection.additionalMembersNeeded} members
+                                            </span>
+                                          )}
+                                          {releaseProjection.projectedSprintsWithResources && (
+                                            <span className="text-[0.5625rem] text-muted-foreground">= done in ~{releaseProjection.projectedSprintsWithResources} sprints</span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <p className="text-[0.5625rem] text-muted-foreground leading-relaxed" style={{ borderTop: '1px solid oklch(0.92 0.01 260)', paddingTop: '0.5rem' }}>
+                                      Estimated <strong>{releaseProjection.hrsPerItem} hrs/item</strong> based on {releaseProjection.avgVelocity > 0 ? 'current velocity' : 'baseline estimate (8 hrs/item)'}.
+                                      Current team provides <strong>{releaseProjection.totalCapacityHrsPerSprint} hrs/sprint</strong>{releaseProjection.capacityIsEstimated ? ' (estimated from team size)' : ''} across {releaseProjection.currentTotal} members.
+                                      {releaseProjection.hrsGap > 0 && <> Capacity gap of <strong>{releaseProjection.hrsGap.toLocaleString()} hrs</strong> needs to be covered by additional resources.</>}
+                                      {' '}Assumes new resources ramp up immediately with equivalent throughput.
+                                    </p>
+                                  </>
+                                )}
                               </div>
-                            )}
+                            </div>
 
                             {/* Sprint timeline */}
                             <div className="rounded-lg border border-border overflow-hidden">
