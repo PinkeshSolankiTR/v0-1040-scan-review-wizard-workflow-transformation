@@ -1005,55 +1005,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                       }}>
                         All {effectiveRecords.length} documents in this group will be marked as not superseded and will be available in SPBinder as independent records once the review is complete.
                       </p>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                          {rejectedRecords.map(r => {
-                            const pageId = String(r.engagementPageId)
-                            const rejectInfo = rejectedDocs.get(pageId)
-                            return (
-                              <div
-                                key={pageId}
-                                style={{
-                                  display: 'flex', alignItems: 'center', gap: '0.5rem',
-                                  padding: '0.375rem 0.625rem', borderRadius: '0.25rem',
-                                  backgroundColor: 'oklch(0.97 0.01 260)',
-                                  border: '0.0625rem solid oklch(0.91 0.01 260)',
-                                }}
-                              >
-                                <FileText style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.5 0.01 260)', flexShrink: 0 }} />
-                                <div style={{ flex: 1, minInlineSize: 0 }}>
-                                  <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.4 0.01 260)' }}>
-                                    Pg {r.documentRef?.pageNumber ?? r.engagementPageId}
-                                  </span>
-                                  {rejectInfo && (
-                                    <span style={{ fontSize: '0.5625rem', color: 'oklch(0.55 0.01 260)', marginInlineStart: '0.375rem' }}>
-                                      {rejectInfo.reason}
-                                    </span>
-                                  )}
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => handleUndoRejectDoc(pageId)}
-                                  style={{
-                                    display: 'flex', alignItems: 'center', gap: '0.25rem',
-                                    padding: '0.1875rem 0.5rem',
-                                    border: '0.0625rem solid oklch(0.85 0.01 260)',
-                                    borderRadius: '0.1875rem',
-                                    backgroundColor: 'oklch(1 0 0)',
-                                    fontSize: '0.5625rem', fontWeight: 600, color: 'oklch(0.45 0.01 260)',
-                                    cursor: 'pointer',
-                                    flexShrink: 0,
-                                  }}
-                                >
-                                  <Undo2 style={{ inlineSize: '0.5rem', blockSize: '0.5rem' }} />
-                                  Undo
-                                </button>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    )
-                  })()}
+
 
                   {/* ─�� Step 1: Select document (3+ pages only) ── */}
                   {isMultiPage && rejectStep === 'select' && (
@@ -1190,7 +1142,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                     </>
                   )}
 
-                  {/* ── Step 2 (or only step for 2-page groups): Reason ── */}
+                  {/* ── Step 2 (or only step for 2-page groups): Reason ���─ */}
                   {(rejectStep === 'reason' || !isMultiPage) && (
                     <>
                       {isMultiPage && (
@@ -1318,7 +1270,6 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                         </button>
                       </div>
                     </>
-                  )}
                 </div>
               </>
               )
