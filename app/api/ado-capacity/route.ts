@@ -54,7 +54,9 @@ function teamApiUrl(team: string, path: string): string {
 
 /* ── Fetch iterations for a team ── */
 async function fetchIterations(team: string, auth: string): Promise<IterationInfo[]> {
-  const resp = await fetch(teamApiUrl(team, 'work/teamsettings/iterations'), {
+  const iterUrl = teamApiUrl(team, 'work/teamsettings/iterations')
+  console.log(`[ADO Capacity] Fetching iterations URL: ${iterUrl}`)
+  const resp = await fetch(iterUrl, {
     headers: { Authorization: auth, 'Content-Type': 'application/json' },
   })
   if (!resp.ok) {
@@ -63,6 +65,7 @@ async function fetchIterations(team: string, auth: string): Promise<IterationInf
     return []
   }
   const data = await resp.json()
+  console.log(`[ADO Capacity] ${team}: iterations count=${(data.value ?? []).length}, current=${(data.value ?? []).find((v: { attributes?: { timeFrame?: string } }) => v.attributes?.timeFrame === 'current')?.name ?? 'NONE'}`)
   return ((data.value ?? []) as {
     id: string
     name: string
@@ -81,15 +84,24 @@ async function fetchIterations(team: string, auth: string): Promise<IterationInf
 /* ── Fetch capacity for a specific iteration ── */
 async function fetchCapacity(team: string, iterationId: string, auth: string): Promise<TeamMemberCapacity[]> {
   const capacityUrl = teamApiUrl(team, `work/teamsettings/iterations/${iterationId}/capacities`)
+  console.log(`[ADO Capacity] Fetching capacity URL: ${capacityUrl}`)
   const resp = await fetch(capacityUrl, {
     headers: { Authorization: auth, 'Content-Type': 'application/json' },
   })
+  const text = await resp.text()
+  console.log(`[ADO Capacity] Capacity response for ${team}: status=${resp.status}, body=${text.substring(0, 500)}`)
   if (!resp.ok) {
-    const text = await resp.text()
     console.error(`[ADO Capacity] Capacity fetch failed for ${team}/${iterationId} (${resp.status}):`, text)
     return []
   }
-  const data = await resp.json()
+  let data: { value?: unknown[]; count?: number }
+  try {
+    data = JSON.parse(text)
+  } catch {
+    console.error(`[ADO Capacity] Failed to parse JSON for ${team}:`, text.substring(0, 200))
+    return []
+  }
+  console.log(`[ADO Capacity] Parsed: count=${data.count}, value.length=${(data.value ?? []).length}`)
   const members = ((data.value ?? []) as {
     teamMember: { displayName: string }
     activities: { name: string; capacityPerDay: number }[]
@@ -143,9 +155,14 @@ export async function GET() {
         const teamMembers = teamMembersResults[idx]
         const currentIteration = allIterations.find(it => it.timeFrame === 'current') ?? null
 
+        console.log(`[ADO Capacity] ${team}: found ${allIterations.length} iterations, currentIteration=${currentIteration?.name ?? 'NONE'} (id=${currentIteration?.id ?? 'N/A'}), teamMembers=${teamMembers.length}`)
+
         let members: TeamMemberCapacity[] = []
         if (currentIteration) {
           members = await fetchCapacity(team, currentIteration.id, auth)
+          console.log(`[ADO Capacity] ${team}: fetchCapacity returned ${members.length} members`)
+        } else {
+          console.log(`[ADO Capacity] ${team}: NO current iteration found, skipping capacity fetch`)
         }
 
         // If capacity API returned no members but we have team members,
