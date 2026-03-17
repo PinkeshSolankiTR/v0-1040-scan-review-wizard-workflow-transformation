@@ -475,6 +475,94 @@ function StaticFeatureCard({ feature }: { feature: StaticFeature }) {
 }
 
 /* ──────────────────────────────────────────────
+   PO Dashboard: Feature progress row (expandable)
+   ────────────────────────────────────────────── */
+type FeatureProgressItem = {
+  id: number; title: string; state: string; url: string; assignedTo: string | null
+  total: number; done: number; active: number; remaining: number
+  byType: { type: string; total: number; done: number; active: number }[]
+  children: AdoWorkItemFlat[]
+}
+
+function FeatureRow({ feature, idx }: { feature: FeatureProgressItem; idx: number }) {
+  const [expanded, setExpanded] = useState(false)
+  const pct = feature.total > 0 ? Math.round((feature.done / feature.total) * 100) : 0
+  const barColor = pct === 100 ? 'oklch(0.5 0.18 145)' : feature.active > 0 ? 'oklch(0.55 0.18 240)' : 'oklch(0.7 0.01 260)'
+
+  return (
+    <>
+      <tr
+        style={{ backgroundColor: idx % 2 === 0 ? 'oklch(1 0 0)' : 'oklch(0.99 0.003 260)', cursor: feature.total > 0 ? 'pointer' : 'default' }}
+        onClick={() => feature.total > 0 && setExpanded(prev => !prev)}
+      >
+        <td className="px-3 py-2.5 border-b border-border">
+          <div className="flex items-center gap-2">
+            {feature.total > 0 && (
+              expanded
+                ? <ChevronDown className="size-3 text-muted-foreground shrink-0" />
+                : <ChevronRight className="size-3 text-muted-foreground shrink-0" />
+            )}
+            <a href={feature.url} target="_blank" rel="noopener noreferrer" className="font-semibold text-foreground hover:underline text-[0.6875rem] leading-snug" onClick={e => e.stopPropagation()}>
+              {feature.title}
+            </a>
+          </div>
+        </td>
+        <td className="text-center px-2 py-2.5 border-b border-border">
+          <span className="inline-flex items-center rounded-sm px-1.5 py-0 text-[0.5rem] font-semibold" style={stateStyle(feature.state)}>
+            {feature.state}
+          </span>
+        </td>
+        <td className="text-center px-2 py-2.5 border-b border-border text-[0.6875rem] font-mono text-foreground">{feature.total}</td>
+        <td className="text-center px-2 py-2.5 border-b border-border text-[0.6875rem] font-mono" style={{ color: 'oklch(0.4 0.16 145)' }}>{feature.done}</td>
+        <td className="text-center px-2 py-2.5 border-b border-border text-[0.6875rem] font-mono" style={{ color: 'oklch(0.4 0.14 240)' }}>{feature.active}</td>
+        <td className="text-center px-2 py-2.5 border-b border-border text-[0.6875rem] font-mono text-muted-foreground">{feature.remaining}</td>
+        <td className="px-3 py-2.5 border-b border-border">
+          <div className="flex items-center gap-2">
+            <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'oklch(0.92 0.01 260)' }}>
+              <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: barColor }} />
+            </div>
+            <span className="text-[0.625rem] font-mono text-muted-foreground shrink-0" style={{ minWidth: '2rem', textAlign: 'right' }}>{pct}%</span>
+          </div>
+        </td>
+      </tr>
+      {/* Expanded: show child items grouped by type */}
+      {expanded && (
+        <tr>
+          <td colSpan={7} className="px-0 py-0 border-b border-border" style={{ backgroundColor: 'oklch(0.98 0.003 260)' }}>
+            <div className="px-6 py-3">
+              {/* Type breakdown chips */}
+              <div className="flex items-center gap-2 mb-2.5">
+                <span className="text-[0.5625rem] font-semibold text-muted-foreground">By type:</span>
+                {feature.byType.map(bt => (
+                  <span key={bt.type} className="inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-[0.5625rem] border border-border" style={{ backgroundColor: 'oklch(1 0 0)' }}>
+                    <span className="font-semibold text-foreground">{bt.type}</span>
+                    <span className="text-muted-foreground">{bt.done}/{bt.total}</span>
+                  </span>
+                ))}
+              </div>
+              {/* Child item list */}
+              <div className="divide-y divide-border rounded border border-border overflow-hidden" style={{ backgroundColor: 'oklch(1 0 0)' }}>
+                {feature.children.map(child => (
+                  <a key={child.id} href={child.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-3 py-1.5 hover:bg-muted/30 transition-colors">
+                    <span className="text-[0.5625rem] font-mono text-muted-foreground shrink-0">{child.id}</span>
+                    <span className="inline-flex items-center rounded-sm px-1 py-0 text-[0.5rem] font-medium shrink-0" style={{ backgroundColor: 'oklch(0.94 0.01 260)', color: 'oklch(0.5 0.01 260)' }}>
+                      {child.workItemType}
+                    </span>
+                    <span className="text-[0.625rem] text-foreground leading-snug flex-1 min-w-0 truncate">{child.title}</span>
+                    {child.assignedTo && <span className="text-[0.5625rem] text-muted-foreground shrink-0">{child.assignedTo}</span>}
+                    <span className="inline-flex items-center rounded-sm px-1 py-0 text-[0.5rem] font-semibold shrink-0" style={stateStyle(child.state)}>{child.state}</span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  )
+}
+
+/* ──────────────────────────────────────────────
    PO Dashboard: Risk section card
    ────────────────────────────────────────────── */
 function RiskSection({ label, icon: Icon, items, color }: { label: string; icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>; items: AdoWorkItemFlat[]; color: string }) {
@@ -614,95 +702,75 @@ export default function DeliveryRoadmapPage() {
   const dashboardData = useMemo(() => {
     if (scopedItems.length === 0) return null
 
-    // Separate features from epic
+    // All Features directly under the epic
     const features = scopedItems.filter(i => i.workItemType === 'Feature')
-    const spikes = scopedItems.filter(i => ['Spike', 'Task', 'User Story', 'Product Backlog Item'].includes(i.workItemType))
+    // All non-Feature, non-Epic items (Spikes, Tasks, User Stories, etc.)
+    const childWorkItems = scopedItems.filter(i => !['Feature', 'Epic'].includes(i.workItemType))
 
-    // Classify features as wizard or cross-cutting by title keywords
-    const WIZARD_KEYWORDS = ['superseded', 'duplicate', 'pre-verification', 'verification', 'cfa', 'nfr', 'finalization', 'tax exempt', 'cbd']
-    const CROSS_CUTTING_KEYWORDS = ['llm', 'explainability', 'confidence', 'accuracy', 'scalability', 'performance']
-
-    const classifyFeature = (title: string): 'wizard' | 'cross-cutting' | 'other' => {
-      const t = title.toLowerCase()
-      if (WIZARD_KEYWORDS.some(k => t.includes(k))) return 'wizard'
-      if (CROSS_CUTTING_KEYWORDS.some(k => t.includes(k))) return 'cross-cutting'
-      return 'other'
-    }
-
-    const extractWizardName = (title: string): string => {
-      const t = title.toLowerCase()
-      for (const kw of WIZARD_KEYWORDS) {
-        if (t.includes(kw)) return kw.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
-      }
-      return title.split(' ').slice(0, 2).join(' ')
-    }
-
-    // Pipeline stages with keyword matchers
-    const PIPELINE_STAGES = [
-      { id: 'code-analysis', label: 'Code Analysis', keywords: ['code analysis'] },
-      { id: 'gap-analysis', label: 'Gap Analysis', keywords: ['gap analysis'] },
-      { id: 'tech-arch', label: 'Tech Architecture', keywords: ['technical architecture', 'architecture analysis'] },
-      { id: 'ai-prompt', label: 'AI Prompt/Spec', keywords: ['ai prompt', 'decision specification'] },
-      { id: 'data-analysis', label: 'Data Analysis', keywords: ['top 100 binders', 'data analysis', 'binder analysis'] },
-      { id: 'ai-ml-eval', label: 'AI/ML Evaluation', keywords: ['ai/ml evaluation', 'ml evaluation'] },
-      { id: 'sop-encoding', label: 'SOP Encoding', keywords: ['sop', 'encode', 'consolidate'] },
-    ] as const
-
-    // Build wizard maturity matrix
-    const wizardFeatures = features.filter(f => classifyFeature(f.title) === 'wizard')
-    const crossCuttingFeatures = features.filter(f => classifyFeature(f.title) === 'cross-cutting')
-
-    // For each wizard, find its children spikes and map to pipeline stages
-    const wizardMatrix = wizardFeatures.map(wf => {
-      const wizardName = extractWizardName(wf.title)
-      const childIds = new Set<number>()
-      const collectChildren = (id: number) => {
+    // Helper: collect all descendant items of a given parent
+    const getDescendants = (parentId: number): AdoWorkItemFlat[] => {
+      const result: AdoWorkItemFlat[] = []
+      const visit = (id: number) => {
         const item = allItems.get(id)
         if (!item) return
-        for (const cid of item.childIds) { childIds.add(cid); collectChildren(cid) }
+        for (const cid of item.childIds) {
+          const child = allItems.get(cid)
+          if (child) { result.push(child); visit(cid) }
+        }
       }
-      collectChildren(wf.id)
-      const childItems = Array.from(childIds).map(id => allItems.get(id)).filter(Boolean) as AdoWorkItemFlat[]
+      visit(parentId)
+      return result
+    }
 
-      const stages = PIPELINE_STAGES.map(stage => {
-        const matching = childItems.filter(ci => stage.keywords.some(kw => ci.title.toLowerCase().includes(kw)))
-        if (matching.length === 0) return { ...stage, status: 'none' as const, count: 0, done: 0 }
-        const doneCount = matching.filter(m => isDone(m.state)).length
-        const activeCount = matching.filter(m => isActive(m.state)).length
-        const status = doneCount === matching.length ? 'done' as const : activeCount > 0 ? 'active' as const : 'new' as const
-        return { ...stage, status, count: matching.length, done: doneCount }
-      })
+    // Build Feature progress rows
+    const featureProgress = features.map(f => {
+      const children = getDescendants(f.id)
+      const total = children.length
+      const done = children.filter(c => isDone(c.state)).length
+      const active = children.filter(c => isActive(c.state)).length
+      const remaining = total - done - active
 
-      const totalChildren = childItems.length
-      const doneChildren = childItems.filter(c => isDone(c.state)).length
-
-      return { id: wf.id, name: wizardName, title: wf.title, stages, state: wf.state, total: totalChildren, done: doneChildren, url: wf.url }
-    })
-
-    // Cross-cutting health
-    const crossCuttingHealth = crossCuttingFeatures.map(cf => {
-      const childIds = new Set<number>()
-      const collectChildren = (id: number) => {
-        const item = allItems.get(id)
-        if (!item) return
-        for (const cid of item.childIds) { childIds.add(cid); collectChildren(cid) }
+      // Group children by work item type
+      const byType = new Map<string, { total: number; done: number; active: number }>()
+      for (const c of children) {
+        const entry = byType.get(c.workItemType) ?? { total: 0, done: 0, active: 0 }
+        entry.total++
+        if (isDone(c.state)) entry.done++
+        if (isActive(c.state)) entry.active++
+        byType.set(c.workItemType, entry)
       }
-      collectChildren(cf.id)
-      const childItems = Array.from(childIds).map(id => allItems.get(id)).filter(Boolean) as AdoWorkItemFlat[]
-      const total = childItems.length
-      const done = childItems.filter(c => isDone(c.state)).length
-      const active = childItems.filter(c => isActive(c.state)).length
-      return { id: cf.id, title: cf.title, total, done, active, state: cf.state, url: cf.url }
+
+      return {
+        id: f.id,
+        title: f.title,
+        state: f.state,
+        url: f.url,
+        assignedTo: f.assignedTo,
+        total,
+        done,
+        active,
+        remaining,
+        byType: Array.from(byType.entries()).map(([type, counts]) => ({ type, ...counts })),
+        children,
+      }
+    }).sort((a, b) => {
+      // Sort: active features first, then by completion %, then alphabetical
+      const aActive = isActive(a.state) ? 0 : isDone(a.state) ? 2 : 1
+      const bActive = isActive(b.state) ? 0 : isDone(b.state) ? 2 : 1
+      if (aActive !== bActive) return aActive - bActive
+      const aPct = a.total > 0 ? a.done / a.total : 0
+      const bPct = b.total > 0 ? b.done / b.total : 0
+      return bPct - aPct
     })
 
     // Risk radar
-    const unassigned = spikes.filter(s => !s.assignedTo)
-    const stale = spikes.filter(s => ['new', 'proposed'].includes(s.state.toLowerCase()))
+    const unassigned = childWorkItems.filter(s => !s.assignedTo)
+    const stale = childWorkItems.filter(s => ['new', 'proposed'].includes(s.state.toLowerCase()))
     const removed = scopedItems.filter(s => ['removed', 'cut'].includes(s.state.toLowerCase()))
 
     // Assignee distribution
     const assigneeMap = new Map<string, { active: number; done: number; total: number }>()
-    for (const s of spikes) {
+    for (const s of childWorkItems) {
       const name = s.assignedTo || 'Unassigned'
       const entry = assigneeMap.get(name) ?? { active: 0, done: 0, total: 0 }
       entry.total++
@@ -723,11 +791,9 @@ export default function DeliveryRoadmapPage() {
 
     return {
       heroStats: { totalItems, doneItems, activeItems, unassignedCount, newProposedCount },
-      wizardMatrix,
-      crossCuttingHealth,
+      featureProgress,
       risk: { unassigned, stale, removed },
       assignees,
-      PIPELINE_STAGES,
     }
   }, [scopedItems, allItems])
 
@@ -1041,137 +1107,53 @@ export default function DeliveryRoadmapPage() {
                     ))}
                   </div>
 
-                  {/* ── Section 2: Wizard Maturity Matrix ── */}
+                  {/* ── Section 2: Feature Progress ── */}
                   <div className="mb-8">
                     <div className="flex items-center gap-2 mb-3">
-                      <Crosshair className="size-4 text-foreground" />
-                      <h3 className="text-sm font-bold text-foreground">Wizard Maturity Matrix</h3>
-                      <span className="text-[0.5625rem] text-muted-foreground">Pipeline stage completion per wizard</span>
+                      <Layers className="size-4 text-foreground" />
+                      <h3 className="text-sm font-bold text-foreground">Feature Progress</h3>
+                      <span className="text-[0.5625rem] text-muted-foreground">Click a row to see child items (Spikes, Stories, Tasks)</span>
                     </div>
                     <div className="rounded-lg border border-border overflow-hidden">
                       <div className="overflow-x-auto">
                         <table className="w-full text-[0.6875rem]">
                           <thead>
                             <tr style={{ backgroundColor: 'oklch(0.97 0.005 260)' }}>
-                              <th className="text-left px-3 py-2.5 font-semibold text-foreground border-b border-border" style={{ minWidth: '9rem' }}>Wizard</th>
-                              {dashboardData.PIPELINE_STAGES.map(stage => (
-                                <th key={stage.id} className="text-center px-2 py-2.5 font-semibold text-muted-foreground border-b border-border" style={{ minWidth: '5.5rem' }}>
-                                  {stage.label}
-                                </th>
-                              ))}
-                              <th className="text-center px-3 py-2.5 font-semibold text-muted-foreground border-b border-border" style={{ minWidth: '4.5rem' }}>Overall</th>
+                              <th className="text-left px-3 py-2.5 font-semibold text-foreground border-b border-border" style={{ minWidth: '16rem' }}>Feature</th>
+                              <th className="text-center px-2 py-2.5 font-semibold text-muted-foreground border-b border-border" style={{ width: '4.5rem' }}>State</th>
+                              <th className="text-center px-2 py-2.5 font-semibold text-muted-foreground border-b border-border" style={{ width: '3.5rem' }}>Total</th>
+                              <th className="text-center px-2 py-2.5 font-semibold text-muted-foreground border-b border-border" style={{ width: '3.5rem' }}>Done</th>
+                              <th className="text-center px-2 py-2.5 font-semibold text-muted-foreground border-b border-border" style={{ width: '3.5rem' }}>Active</th>
+                              <th className="text-center px-2 py-2.5 font-semibold text-muted-foreground border-b border-border" style={{ width: '4rem' }}>Remaining</th>
+                              <th className="text-left px-3 py-2.5 font-semibold text-muted-foreground border-b border-border" style={{ minWidth: '8rem' }}>Progress</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {dashboardData.wizardMatrix.map((wizard, idx) => {
-                              const overallPct = wizard.total > 0 ? Math.round((wizard.done / wizard.total) * 100) : 0
-                              return (
-                                <tr key={wizard.id} style={{ backgroundColor: idx % 2 === 0 ? 'oklch(1 0 0)' : 'oklch(0.99 0.003 260)' }}>
-                                  <td className="px-3 py-2.5 border-b border-border">
-                                    <div className="flex items-center gap-2">
-                                      <a href={wizard.url} target="_blank" rel="noopener noreferrer" className="font-semibold text-foreground hover:underline">
-                                        {wizard.name}
-                                      </a>
-                                      <span className="inline-flex items-center rounded-sm px-1 py-0 text-[0.5rem] font-semibold" style={stateStyle(wizard.state)}>
-                                        {wizard.state}
-                                      </span>
-                                    </div>
-                                  </td>
-                                  {wizard.stages.map(stage => (
-                                    <td key={stage.id} className="text-center px-2 py-2.5 border-b border-border">
-                                      {stage.status === 'none' ? (
-                                        <span className="text-muted-foreground/30">--</span>
-                                      ) : (
-                                        <div className="flex items-center justify-center gap-1">
-                                          <span
-                                            className="inline-block size-2 rounded-full"
-                                            style={{
-                                              backgroundColor: stage.status === 'done' ? 'oklch(0.55 0.2 145)'
-                                                : stage.status === 'active' ? 'oklch(0.55 0.18 240)'
-                                                : 'transparent',
-                                              border: stage.status === 'new' ? '1.5px solid oklch(0.7 0.01 260)' : 'none',
-                                            }}
-                                          />
-                                          <span className="text-muted-foreground">{stage.done}/{stage.count}</span>
-                                        </div>
-                                      )}
-                                    </td>
-                                  ))}
-                                  <td className="text-center px-3 py-2.5 border-b border-border">
-                                    <div className="flex items-center gap-1.5 justify-center">
-                                      <div className="h-1.5 rounded-full overflow-hidden" style={{ width: '2.5rem', backgroundColor: 'oklch(0.92 0.01 260)' }}>
-                                        <div className="h-full rounded-full" style={{ width: `${overallPct}%`, backgroundColor: overallPct === 100 ? 'oklch(0.5 0.18 145)' : 'oklch(0.55 0.18 240)' }} />
-                                      </div>
-                                      <span className="font-mono text-muted-foreground">{overallPct}%</span>
-                                    </div>
-                                  </td>
-                                </tr>
-                              )
-                            })}
+                            {dashboardData.featureProgress.map((feature, idx) => (
+                              <FeatureRow key={feature.id} feature={feature} idx={idx} />
+                            ))}
                           </tbody>
                         </table>
                       </div>
-                      {/* Legend */}
-                      <div className="flex items-center gap-4 px-3 py-2 border-t border-border" style={{ backgroundColor: 'oklch(0.97 0.005 260)' }}>
-                        <span className="text-[0.5625rem] text-muted-foreground font-semibold">Legend:</span>
-                        {[
-                          { label: 'Done', color: 'oklch(0.55 0.2 145)', filled: true },
-                          { label: 'Active', color: 'oklch(0.55 0.18 240)', filled: true },
-                          { label: 'New', color: 'oklch(0.7 0.01 260)', filled: false },
-                          { label: 'N/A', color: 'none', filled: false, dash: true },
-                        ].map(l => (
-                          <span key={l.label} className="flex items-center gap-1 text-[0.5625rem] text-muted-foreground">
-                            {l.dash ? (
-                              <span className="text-muted-foreground/30">--</span>
-                            ) : (
-                              <span className="inline-block size-2 rounded-full" style={{ backgroundColor: l.filled ? l.color : 'transparent', border: !l.filled ? `1.5px solid ${l.color}` : 'none' }} />
-                            )}
-                            {l.label}
-                          </span>
-                        ))}
+                      {/* Summary footer */}
+                      <div className="flex items-center gap-6 px-3 py-2 border-t border-border text-[0.5625rem]" style={{ backgroundColor: 'oklch(0.97 0.005 260)' }}>
+                        <span className="font-semibold text-foreground">
+                          {dashboardData.featureProgress.length} Features
+                        </span>
+                        <span className="text-muted-foreground">
+                          {dashboardData.featureProgress.reduce((s, f) => s + f.total, 0)} total items
+                        </span>
+                        <span style={{ color: 'oklch(0.4 0.16 145)' }}>
+                          {dashboardData.featureProgress.reduce((s, f) => s + f.done, 0)} done
+                        </span>
+                        <span style={{ color: 'oklch(0.4 0.14 240)' }}>
+                          {dashboardData.featureProgress.reduce((s, f) => s + f.active, 0)} active
+                        </span>
+                        <span className="text-muted-foreground">
+                          {dashboardData.featureProgress.reduce((s, f) => s + f.remaining, 0)} remaining
+                        </span>
                       </div>
                     </div>
-                  </div>
-
-                  {/* ── Section 3: Cross-Cutting Health ── */}
-                  <div className="mb-8">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Wrench className="size-4 text-foreground" />
-                      <h3 className="text-sm font-bold text-foreground">Cross-Cutting Health</h3>
-                      <span className="text-[0.5625rem] text-muted-foreground">Infrastructure features all wizards depend on</span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      {dashboardData.crossCuttingHealth.map(cc => {
-                        const pct = cc.total > 0 ? Math.round((cc.done / cc.total) * 100) : 0
-                        const barColor = pct > 50 ? 'oklch(0.5 0.18 145)' : cc.active > 0 ? 'oklch(0.55 0.18 240)' : 'oklch(0.7 0.01 260)'
-                        return (
-                          <div key={cc.id} className="rounded-lg border border-border px-4 py-3" style={{ backgroundColor: 'oklch(0.99 0 0)' }}>
-                            <div className="flex items-center justify-between mb-2">
-                              <a href={cc.url} target="_blank" rel="noopener noreferrer" className="text-[0.75rem] font-semibold text-foreground hover:underline leading-snug flex-1 min-w-0">
-                                {cc.title.length > 50 ? cc.title.slice(0, 50) + '...' : cc.title}
-                              </a>
-                              <span className="inline-flex items-center rounded-sm px-1.5 py-0 text-[0.5rem] font-semibold shrink-0 ml-2" style={stateStyle(cc.state)}>
-                                {cc.state}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'oklch(0.92 0.01 260)' }}>
-                                <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: barColor }} />
-                              </div>
-                              <span className="text-[0.625rem] font-mono text-muted-foreground shrink-0">{cc.done}/{cc.total} ({pct}%)</span>
-                            </div>
-                            <div className="flex items-center gap-3 mt-1.5 text-[0.5625rem] text-muted-foreground">
-                              <span>{cc.done} done</span>
-                              <span>{cc.active} active</span>
-                              <span>{cc.total - cc.done - cc.active} remaining</span>
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                    {dashboardData.crossCuttingHealth.length === 0 && (
-                      <p className="text-xs text-muted-foreground italic px-1">No cross-cutting features detected in ADO data.</p>
-                    )}
                   </div>
 
                   {/* ── Section 4: Risk Radar ── */}
