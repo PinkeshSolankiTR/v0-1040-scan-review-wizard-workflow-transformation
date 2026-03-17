@@ -1665,26 +1665,35 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                                 {r.documentRef.formLabel.replace(group.formType, '').replace(/[()]/g, '').trim() || ''}
                               </span>
                             )}
-                            {rejectedPageIds.has(String(r.engagementPageId)) ? (
-                              <span style={{
-                                marginInlineStart: 'auto', flexShrink: 0,
-                                fontSize: '0.5625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em',
-                                padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem',
-                                backgroundColor: 'oklch(0.92 0.02 260)', color: 'oklch(0.45 0.01 260)',
-                              }}>
-                                Not Superseded
-                              </span>
-                            ) : (
-                              <span style={{
-                                marginInlineStart: 'auto', flexShrink: 0,
-                                fontSize: '0.5625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em',
-                                padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem',
-                                backgroundColor: isSup ? 'oklch(0.94 0.04 25)' : 'oklch(0.94 0.04 145)',
-                                color: isSup ? 'oklch(0.45 0.18 25)' : 'oklch(0.35 0.14 145)',
-                              }}>
-                                {isSup ? 'Superseded' : 'Original'}
-                              </span>
-                            )}
+                            {(() => {
+                              const pageId = String(r.engagementPageId)
+                              const isGroupRejected = rejectedPageIds.has(pageId)
+                              const storedDetail = overrides[`sup-pg${pageId}`]?.detail
+                              const isDocExcluded = storedDetail?.userOverrideDecision?.includes('Not Superseded')
+                              if (isGroupRejected || isDocExcluded) {
+                                return (
+                                  <span style={{
+                                    marginInlineStart: 'auto', flexShrink: 0,
+                                    fontSize: '0.5625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em',
+                                    padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem',
+                                    backgroundColor: 'oklch(0.92 0.02 260)', color: 'oklch(0.45 0.01 260)',
+                                  }}>
+                                    Not Superseded
+                                  </span>
+                                )
+                              }
+                              return (
+                                <span style={{
+                                  marginInlineStart: 'auto', flexShrink: 0,
+                                  fontSize: '0.5625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em',
+                                  padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem',
+                                  backgroundColor: isSup ? 'oklch(0.94 0.04 25)' : 'oklch(0.94 0.04 145)',
+                                  color: isSup ? 'oklch(0.45 0.18 25)' : 'oklch(0.35 0.14 145)',
+                                }}>
+                                  {isSup ? 'Superseded' : 'Original'}
+                                </span>
+                              )
+                            })()}
                           </button>
                         )
                       })}
@@ -1914,7 +1923,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                         backgroundColor: 'oklch(0.96 0.04 60)',
                       }}>
                         <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'oklch(0.4 0.14 60)' }}>
-                          User has overridden the AI classification
+                          Reclassified by Reviewer
                         </span>
 
                         {/* AI recommendation row */}
@@ -1957,9 +1966,12 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem', marginBlockStart: '0.25rem' }}>
                             {allRecords.map(r => {
                               const isRejected = rejectedPageIds.has(String(r.engagementPageId))
+                              // Check stored override detail for user's decision
+                              const storedDetail = overrides[`sup-pg${r.engagementPageId}`]?.detail
+                              const storedDecision = storedDetail?.userOverrideDecision
                               // Determine the new label after override
                               let newLabel: string
-                              if (isRejected) {
+                              if (isRejected || storedDecision?.includes('Not Superseded')) {
                                 newLabel = 'Not Superseded'
                               } else if (r.engagementPageId === overriddenRecord?.engagementPageId) {
                                 newLabel = 'Original' // superseded -> original
@@ -1968,7 +1980,8 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                               } else {
                                 newLabel = 'Superseded' // other superseded stay superseded
                               }
-                              const changed = !isRejected && (
+                              const isExcluded = newLabel === 'Not Superseded'
+                              const changed = !isExcluded && (
                                 (r.decisionType === 'Original' && newLabel === 'Superseded') ||
                                 (r.decisionType === 'Superseded' && newLabel === 'Original')
                               )
@@ -1976,11 +1989,11 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                                 <span key={r.engagementPageId} style={{
                                   fontSize: '0.625rem', fontWeight: 600,
                                   padding: '0.125rem 0.375rem', borderRadius: '0.1875rem',
-                                  backgroundColor: isRejected ? 'oklch(0.94 0.01 260)' : newLabel === 'Original' ? 'oklch(0.94 0.04 145)' : 'oklch(0.94 0.04 25)',
-                                  color: isRejected ? 'oklch(0.6 0.01 260)' : newLabel === 'Original' ? 'oklch(0.35 0.14 145)' : 'oklch(0.45 0.18 25)',
-                                  outline: changed ? '0.125rem solid oklch(0.65 0.14 60)' : 'none',
-                                  textDecoration: isRejected ? 'line-through' : 'none',
-                                  opacity: isRejected ? 0.6 : 1,
+                                  backgroundColor: isExcluded ? 'oklch(0.94 0.01 260)' : newLabel === 'Original' ? 'oklch(0.94 0.04 145)' : 'oklch(0.94 0.04 25)',
+                                  color: isExcluded ? 'oklch(0.6 0.01 260)' : newLabel === 'Original' ? 'oklch(0.35 0.14 145)' : 'oklch(0.45 0.18 25)',
+                                  outline: changed ? '0.125rem solid oklch(0.65 0.14 60)' : isExcluded ? '0.125rem solid oklch(0.75 0.01 260)' : 'none',
+                                  textDecoration: isExcluded ? 'line-through' : 'none',
+                                  opacity: isExcluded ? 0.6 : 1,
                                 }}>
                                   Pg {r.documentRef?.pageNumber ?? r.engagementPageId}: {newLabel}
                                   {changed && ' *'}
@@ -1989,6 +2002,62 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                             })}
                           </div>
                         </div>
+
+                        {/* Reclassification reason */}
+                        {(() => {
+                          const firstKey = `sup-pg${allRecords[0]?.engagementPageId}`
+                          const storedDetail = overrides[firstKey]?.detail
+                          const reason = storedDetail?.overrideReason
+                          return reason ? (
+                            <div style={{
+                              padding: '0.375rem 0.5rem', borderRadius: '0.25rem',
+                              backgroundColor: 'oklch(1 0 0)',
+                              border: '0.0625rem solid oklch(0.88 0.01 260)',
+                            }}>
+                              <span style={{
+                                fontSize: '0.5625rem', fontWeight: 700,
+                                textTransform: 'uppercase', letterSpacing: '0.04em',
+                                color: 'oklch(0.5 0.01 260)',
+                              }}>
+                                Reason
+                              </span>
+                              <p style={{
+                                margin: '0.125rem 0 0', fontSize: '0.6875rem', fontWeight: 600,
+                                color: 'oklch(0.3 0.01 260)', lineHeight: 1.4,
+                              }}>
+                                {reason}
+                              </p>
+                            </div>
+                          ) : null
+                        })()}
+
+                        {/* Not Superseded text for individually excluded documents */}
+                        {allRecords.some(r => {
+                          const pageId = String(r.engagementPageId)
+                          const storedDetail = overrides[`sup-pg${pageId}`]?.detail
+                          return storedDetail?.userOverrideDecision?.includes('Not Superseded')
+                        }) && (
+                          <div style={{
+                            padding: '0.5rem 0.625rem', borderRadius: '0.25rem',
+                            backgroundColor: 'oklch(0.97 0.005 260)',
+                            border: '0.0625rem solid oklch(0.91 0.005 260)',
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginBlockEnd: '0.375rem' }}>
+                              <AlertTriangle style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.55 0.01 260)' }} />
+                              <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.3 0.01 260)' }}>
+                                Document Excluded
+                              </span>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', paddingInlineStart: '1.125rem' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                                <span style={{ inlineSize: '0.25rem', blockSize: '0.25rem', borderRadius: '50%', backgroundColor: 'oklch(0.5 0.01 260)', flexShrink: 0 }} />
+                                <span style={{ fontSize: '0.625rem', color: 'oklch(0.35 0.01 260)' }}>
+                                  {"Document(s) marked as Not Superseded will remain as independent records in the binder"}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                       )
                     })()}
@@ -2164,7 +2233,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
 
           {/* ═══════════════════════════════════════════════════════════
               PANEL 2: Field Comparison (collapsible, hidden when rejected)
-              ═════��═════════════════════════════════════════════════════ */}
+              ═════��════���════════════════════════════════════════════════ */}
           {!isGroupRejected && comparedValues.length > 0 && (
             <div style={{ borderBlockEnd: '0.0625rem solid oklch(0.91 0.005 260)' }}>
               <button
