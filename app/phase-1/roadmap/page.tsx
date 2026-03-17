@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { ROADMAP as STATIC_ROADMAP, type Feature as StaticFeature, type Spike as StaticSpike } from './roadmap-data'
 import type { AdoWorkItemFlat, AdoQueryResponse } from '@/app/api/ado-query/route'
 import type { CapacityResponse } from '@/app/api/ado-capacity/route'
+import { MEMBER_ROLES, extractTeamFromPath, getMemberActivities, TARGET_RELEASE_DATE, type TeamName } from '@/lib/team-config'
 
 /* ── Fetcher ── */
 const fetcher = (url: string) =>
@@ -833,12 +834,13 @@ export default function DeliveryRoadmapPage() {
     }
   }, [scopedItems, allItems])
 
-  /* ── Team Capacity insights ── */
+  /* ── Team Capacity insights ──
+     PRIMARY source: work item assignees from current sprint
+     Role mapping: lib/team-config.ts (static config)
+     Sprint timeline: capacity API (iterations only)
+     ─────────────────────────────────────────────── */
   const capacityInsights = useMemo(() => {
-    if (!capacityData?.teams) return null
-
-    const TARGET_RELEASE = new Date('2026-06-28')
-    const DEFAULT_HRS_PER_DAY = 6
+    if (!capacityData?.teams || !scopedItems) return null
 
     type MemberRow = {
       displayName: string
@@ -847,9 +849,57 @@ export default function DeliveryRoadmapPage() {
       capacityPerDay: number
       daysOff: number
       sprintCapacityHrs: number
-      isEstimated: boolean
+      isConfigured: boolean // true if role came from team-config.ts
     }
 
+    // ── 1. Collect iterations from capacity API (this works reliably) ──
+    const allIterationsMap = new Map<string, { name: string; startDate: string | null; finishDate: string | null; timeFrame: string }>()
+    for (const team of capacityData.teams) {
+      for (const it of team.allIterations) {
+        if (!allIterationsMap.has(it.name)) {
+          allIterationsMap.set(it.name, { name: it.name, startDate: it.startDate, finishDate: it.finishDate, timeFrame: it.timeFrame })
+        }
+      }
+    }
+
+    // ── 2. Find current sprint info for working days calculation ──
+    const currentSprintInfo = Array.from(allIterationsMap.values()).find(s => s.timeFrame === 'current')
+    let sprintWorkingDays = 10 // default 2-week sprint
+    if (currentSprintInfo?.startDate && currentSprintInfo?.finishDate) {
+      const start = new Date(currentSprintInfo.startDate)
+      const end = new Date(currentSprintInfo.finishDate)
+      let workDays = 0
+      const d = new Date(start)
+      while (d <= end) {
+        const day = d.getDay()
+        if (day !== 0 && day !== 6) workDays++
+        d.setDate(d.getDate() + 1)
+      }
+      sprintWorkingDays = workDays
+    }
+
+    // ── 3. Identify current sprint name to filter work items ──
+    const currentSprintName = currentSprintInfo?.name ?? null
+
+    // ── 4. Discover members from work items assigned in current sprint ──
+    // Map: "displayName" -> Set of team names
+    const memberTeams = new Map<string, Set<TeamName>>()
+
+    for (const item of scopedItems) {
+      if (!item.assignedTo || !item.iterationPath) continue
+
+      // Only include items from current sprint
+      if (currentSprintName && !item.iterationPath.includes(currentSprintName)) continue
+
+      const team = extractTeamFromPath(item.iterationPath)
+      if (!team) continue // not one of our 3 teams
+
+      const teams = memberTeams.get(item.assignedTo) ?? new Set<TeamName>()
+      teams.add(team)
+      memberTeams.set(item.assignedTo, teams)
+    }
+
+    // ── 5. Build member rows with role from team-config.ts ──
     const memberRows: MemberRow[] = []
     let totalDevCapacity = 0
     let totalQaCapacity = 0
@@ -858,184 +908,55 @@ export default function DeliveryRoadmapPage() {
     let qaCount = 0
     let supportCount = 0
 
-    // All iterations across teams (deduplicated by name for timeline)
-    const allIterationsMap = new Map<string, { name: string; startDate: string | null; finishDate: string | null; timeFrame: string }>()
+    for (const [name, teams] of memberTeams) {
+      const teamName = Array.from(teams)[0] // primary team
+      const activities = getMemberActivities(name)
+      const isConfigured = MEMBER_ROLES[name] !== undefined
 
-    // Check if any team has real capacity data from ADO
-    const hasRealCapacityData = capacityData.teams.some(t => t.members.length > 0 && t.members.some(m => m.activities.length > 0 && !m.isEstimated))
-
-    for (const team of capacityData.teams) {
-      const currentIt = team.currentIteration
-      // Calculate working days in current sprint
-      let sprintWorkingDays = 10 // default 2-week sprint
-      if (currentIt?.startDate && currentIt?.finishDate) {
-        const start = new Date(currentIt.startDate)
-        const end = new Date(currentIt.finishDate)
-        let workDays = 0
-        const d = new Date(start)
-        while (d <= end) {
-          const day = d.getDay()
-          if (day !== 0 && day !== 6) workDays++
-          d.setDate(d.getDate() + 1)
-        }
-        sprintWorkingDays = workDays
-      }
-
-      for (const member of team.members) {
-        // Count days off within current sprint
-        let daysOffCount = 0
-        if (currentIt?.startDate && currentIt?.finishDate) {
-          const sprintStart = new Date(currentIt.startDate)
-          const sprintEnd = new Date(currentIt.finishDate)
-          for (const off of member.daysOff) {
-            const offStart = new Date(off.start)
-            const offEnd = new Date(off.end)
-            const overlapStart = offStart > sprintStart ? offStart : sprintStart
-            const overlapEnd = offEnd < sprintEnd ? offEnd : sprintEnd
-            if (overlapStart <= overlapEnd) {
-              const d = new Date(overlapStart)
-              while (d <= overlapEnd) {
-                const day = d.getDay()
-                if (day !== 0 && day !== 6) daysOffCount++
-                d.setDate(d.getDate() + 1)
-              }
-            }
-          }
-        }
-
-        const effectiveWorkDays = Math.max(0, sprintWorkingDays - daysOffCount)
-
-        for (const activity of member.activities) {
-          const role = activity.name || 'Other'
-          const sprintHrs = effectiveWorkDays * activity.capacityPerDay
-
-          memberRows.push({
-            displayName: member.displayName,
-            team: team.name.replace('surePrep-rw-', ''),
-            role,
-            capacityPerDay: activity.capacityPerDay,
-            daysOff: daysOffCount,
-            sprintCapacityHrs: sprintHrs,
-            isEstimated: member.isEstimated ?? false,
-          })
-
-          const roleLower = role.toLowerCase()
-          if (roleLower === 'development') { totalDevCapacity += sprintHrs; devCount++ }
-          else if (roleLower === 'testing') { totalQaCapacity += sprintHrs; qaCount++ }
-          else if (roleLower === 'support') { totalSupportCapacity += sprintHrs; supportCount++ }
-        }
-      }
-
-      // Collect iterations
-      for (const it of team.allIterations) {
-        if (!allIterationsMap.has(it.name)) {
-          allIterationsMap.set(it.name, { name: it.name, startDate: it.startDate, finishDate: it.finishDate, timeFrame: it.timeFrame })
-        }
-      }
-    }
-
-    // FALLBACK: If no members from capacity API or team members API,
-    // derive team roster from work item assignees with team from iterationPath
-    if (memberRows.length === 0 && scopedItems) {
-      // Map of team names we care about
-      const TEAM_KEYWORDS = ['wizards1', 'wizards2', 'infinity'] as const
-      type TeamKey = typeof TEAM_KEYWORDS[number]
-
-      // Build a map: assignee -> { team, activity } from their work items
-      const assigneeInfo = new Map<string, { teams: Set<string>; hasTestItems: boolean; hasSupportItems: boolean }>()
-
-      for (const item of scopedItems) {
-        if (!item.assignedTo) continue
-        const info = assigneeInfo.get(item.assignedTo) ?? { teams: new Set<string>(), hasTestItems: false, hasSupportItems: false }
-
-        // Extract team from iterationPath: "TaxProf\surePrep-rw-wizards1\Sprint" -> "wizards1"
-        if (item.iterationPath) {
-          const pathLower = item.iterationPath.toLowerCase()
-          for (const tk of TEAM_KEYWORDS) {
-            if (pathLower.includes(tk)) {
-              info.teams.add(tk)
-              break
-            }
-          }
-        }
-
-        // Infer activity from work item type or tags
-        const typeLower = item.workItemType.toLowerCase()
-        const titleLower = item.title.toLowerCase()
-        const tagLower = (item.tags ?? []).join(' ').toLowerCase()
-
-        if (typeLower.includes('test') || titleLower.includes('test') || tagLower.includes('qa') || tagLower.includes('testing')) {
-          info.hasTestItems = true
-        }
-        if (typeLower.includes('support') || titleLower.includes('support') || tagLower.includes('support')) {
-          info.hasSupportItems = true
-        }
-
-        assigneeInfo.set(item.assignedTo, info)
-      }
-
-      // Find current sprint working days from the iterations
-      const currentSprint = Array.from(allIterationsMap.values()).find(s => s.timeFrame === 'current')
-      let sprintWorkingDays = 10
-      if (currentSprint?.startDate && currentSprint?.finishDate) {
-        const start = new Date(currentSprint.startDate)
-        const end = new Date(currentSprint.finishDate)
-        let workDays = 0
-        const d = new Date(start)
-        while (d <= end) {
-          const day = d.getDay()
-          if (day !== 0 && day !== 6) workDays++
-          d.setDate(d.getDate() + 1)
-        }
-        sprintWorkingDays = workDays
-      }
-
-      for (const [name, info] of assigneeInfo) {
-        // Determine team: use the most frequent team, or first found
-        const teamName = info.teams.size > 0 ? Array.from(info.teams)[0] : null
-        // Only include members who belong to one of our 3 teams
-        if (!teamName) continue
-
-        // Determine activity: Testing > Support > Development
-        let role: 'Development' | 'Testing' | 'Support' = 'Development'
-        if (info.hasTestItems) role = 'Testing'
-        else if (info.hasSupportItems) role = 'Support'
-
-        const sprintHrs = sprintWorkingDays * DEFAULT_HRS_PER_DAY
+      for (const act of activities) {
+        const sprintHrs = sprintWorkingDays * act.hrsPerDay
         memberRows.push({
           displayName: name,
           team: teamName,
-          role,
-          capacityPerDay: DEFAULT_HRS_PER_DAY,
+          role: act.activity,
+          capacityPerDay: act.hrsPerDay,
           daysOff: 0,
           sprintCapacityHrs: sprintHrs,
-          isEstimated: true,
+          isConfigured,
         })
 
-        if (role === 'Development') { totalDevCapacity += sprintHrs; devCount++ }
-        else if (role === 'Testing') { totalQaCapacity += sprintHrs; qaCount++ }
-        else if (role === 'Support') { totalSupportCapacity += sprintHrs; supportCount++ }
+        if (act.activity === 'Development') { totalDevCapacity += sprintHrs; devCount++ }
+        else if (act.activity === 'Testing') { totalQaCapacity += sprintHrs; qaCount++ }
+        else if (act.activity === 'Support') { totalSupportCapacity += sprintHrs; supportCount++ }
       }
     }
 
-    // Build sprint timeline
+    // Sort: by team, then by name
+    memberRows.sort((a, b) => a.team.localeCompare(b.team) || a.displayName.localeCompare(b.displayName))
+
+    // ── 6. Build sprint timeline ──
     const allSprints = Array.from(allIterationsMap.values())
       .filter(s => s.startDate && s.finishDate)
       .sort((a, b) => new Date(a.startDate!).getTime() - new Date(b.startDate!).getTime())
 
     const currentSprint = allSprints.find(s => s.timeFrame === 'current')
-    const futureSprints = allSprints.filter(s => s.timeFrame === 'future' && new Date(s.finishDate!) <= TARGET_RELEASE)
+    const futureSprints = allSprints.filter(s => s.timeFrame === 'future' && new Date(s.finishDate!) <= TARGET_RELEASE_DATE)
     const pastSprints = allSprints.filter(s => s.timeFrame === 'past')
     const sprintsRemaining = futureSprints.length + (currentSprint ? 1 : 0)
 
     // Mark target sprint (the sprint whose finish date is closest to and >= target release)
     let targetSprintName: string | null = null
     for (const s of allSprints) {
-      if (s.finishDate && new Date(s.finishDate) >= TARGET_RELEASE) {
+      if (s.finishDate && new Date(s.finishDate) >= TARGET_RELEASE_DATE) {
         targetSprintName = s.name
         break
       }
     }
+
+    // Count unique members (deduplicated by name)
+    const uniqueMembers = new Set(memberRows.map(r => r.displayName))
+    const unconfiguredMembers = memberRows.filter(r => !r.isConfigured).map(r => r.displayName)
+    const unconfiguredUnique = [...new Set(unconfiguredMembers)]
 
     return {
       memberRows,
@@ -1043,6 +964,7 @@ export default function DeliveryRoadmapPage() {
         devCount, qaCount, supportCount,
         totalDevCapacity, totalQaCapacity, totalSupportCapacity,
         totalCapacity: totalDevCapacity + totalQaCapacity + totalSupportCapacity,
+        uniqueMemberCount: uniqueMembers.size,
       },
       sprints: {
         all: allSprints,
@@ -1051,11 +973,12 @@ export default function DeliveryRoadmapPage() {
         past: pastSprints,
         sprintsRemaining,
         targetSprintName,
-        targetDate: TARGET_RELEASE,
+        targetDate: TARGET_RELEASE_DATE,
       },
-      teams: capacityData.teams.map(t => t.name.replace('surePrep-rw-', '')),
-      anyEstimated: memberRows.some(r => r.isEstimated),
-      hasRealCapacityData,
+      teams: [...new Set(memberRows.map(r => r.team))].sort(),
+      sprintWorkingDays,
+      /** Members defaulting to Development because they're not in team-config.ts */
+      unconfiguredMembers: unconfiguredUnique,
     }
   }, [capacityData, scopedItems])
 
@@ -1072,30 +995,19 @@ export default function DeliveryRoadmapPage() {
     const pastSprintCount = pastSprints.length || 1
     const avgVelocity = pastSprintCount > 0 ? Math.round(totalDone / pastSprintCount) : 0
 
-    // Current team size -- count unique members with Dev/QA activities
+    // Current team from capacity insights (derived from work items + team-config)
     const currentDevs = capacityInsights.summary.devCount
     const currentQa = capacityInsights.summary.qaCount
     const currentSupport = capacityInsights.summary.supportCount
-    const currentTotal = currentDevs + currentQa + currentSupport
+    const currentTotal = capacityInsights.summary.uniqueMemberCount
 
-    // Required velocity to finish within remaining sprints
+    // Required velocity
     const requiredVelocity = sprintsRemaining > 0 ? Math.ceil(remaining / sprintsRemaining) : remaining
 
-    // --- Capacity-based estimation (hours) ---
-    const rawCapacityPerSprint = capacityInsights.summary.totalCapacity
+    // Capacity-based estimation (hours)
+    const totalCapacityHrsPerSprint = capacityInsights.summary.totalCapacity
 
-    // If capacity API returned 0 (empty activities / API issue), estimate from team size
-    // Assume 6 hrs/day productive work x 10 working days = 60 hrs/member/sprint
-    const FALLBACK_HRS_PER_MEMBER_PER_SPRINT = 60
-    const totalCapacityHrsPerSprint = rawCapacityPerSprint > 0
-      ? rawCapacityPerSprint
-      : currentTotal * FALLBACK_HRS_PER_MEMBER_PER_SPRINT
-    const capacityIsEstimated = rawCapacityPerSprint === 0
-
-    // Estimate hours per item:
-    // If both velocity and capacity are known, use capacity/velocity
-    // If only velocity known, use fallback capacity / velocity
-    // If neither, use 8 hrs/item baseline
+    // Hours per item: use velocity if available, else baseline 8 hrs/item
     const hrsPerItem = avgVelocity > 0 && totalCapacityHrsPerSprint > 0
       ? totalCapacityHrsPerSprint / avgVelocity
       : 8
@@ -1106,26 +1018,20 @@ export default function DeliveryRoadmapPage() {
     // Average capacity per member per sprint
     const avgCapacityPerMember = currentTotal > 0
       ? totalCapacityHrsPerSprint / currentTotal
-      : FALLBACK_HRS_PER_MEMBER_PER_SPRINT
+      : capacityInsights.sprintWorkingDays * 6 // fallback
     const avgCapacityPerMemberUntilRelease = avgCapacityPerMember * sprintsRemaining
     const additionalMembersNeeded = avgCapacityPerMemberUntilRelease > 0
       ? Math.ceil(hrsGap / avgCapacityPerMemberUntilRelease) : 0
 
-    // Maintain current dev:qa ratio for breakdown
-    // If no dev/qa breakdown available, assume 70% dev / 30% QA
+    // Dev:QA ratio from current team for breakdown
     const contributingMembers = Math.max(currentDevs + currentQa, 1)
-    const hasRoleData = currentDevs > 0 || currentQa > 0
-    const devRatio = hasRoleData ? currentDevs / contributingMembers : 0.7
-    const qaRatio = hasRoleData ? currentQa / contributingMembers : 0.3
+    const devRatio = currentDevs / contributingMembers
+    const qaRatio = currentQa / contributingMembers
     const additionalDevs = Math.max(0, Math.round(additionalMembersNeeded * devRatio))
     const additionalQa = Math.max(0, Math.round(additionalMembersNeeded * qaRatio))
-    // If rounding ate everyone, ensure at least the total is met
+    // Ensure rounding doesn't lose people
     const adjustedAdditionalDevs = (additionalDevs + additionalQa) < additionalMembersNeeded
       ? additionalDevs + (additionalMembersNeeded - additionalDevs - additionalQa) : additionalDevs
-
-    // Velocity per member (for display)
-    const velocityPerMember = contributingMembers > 0 && avgVelocity > 0
-      ? avgVelocity / contributingMembers : null
 
     // Projected with additional resources
     const newTotalMembers = currentTotal + additionalMembersNeeded
@@ -1139,7 +1045,6 @@ export default function DeliveryRoadmapPage() {
     else if (hrsGap <= hrsAvailableUntilRelease * 0.3) status = 'at-risk'
     else status = 'delayed'
 
-    // Velocity gap percentage
     const velocityGapPct = avgVelocity > 0 && requiredVelocity > avgVelocity
       ? Math.round(((requiredVelocity - avgVelocity) / avgVelocity) * 100) : null
 
@@ -1150,24 +1055,19 @@ export default function DeliveryRoadmapPage() {
       sprintsRemaining,
       status,
       targetDate: capacityInsights.sprints.targetDate,
-      // Resource recommendation
       currentDevs,
       currentQa,
       currentTotal,
-      velocityPerMember: velocityPerMember !== null ? Math.round(velocityPerMember * 10) / 10 : null,
       additionalMembersNeeded,
       additionalDevs: adjustedAdditionalDevs,
       additionalQa,
       projectedSprintsWithResources,
       velocityGapPct,
-      // Capacity-based metrics
       totalCapacityHrsPerSprint,
       hrsPerItem: Math.round(hrsPerItem * 10) / 10,
       totalHrsNeeded: Math.round(totalHrsNeeded),
       hrsAvailableUntilRelease: Math.round(hrsAvailableUntilRelease),
       hrsGap: Math.round(hrsGap),
-      capacityIsEstimated,
-      hasRoleData,
     }
   }, [dashboardData, capacityInsights])
 
@@ -1614,7 +1514,7 @@ export default function DeliveryRoadmapPage() {
 
                   {capacityInsights && (
                     <>
-                      <CollapsibleSection icon={Users} title="Team Capacity" subtitle={`${capacityInsights.sprints.current?.name ?? 'Current Sprint'}${capacityInsights.anyEstimated ? '  (derived from work item assignments - 6 hrs/day default)' : ''}`}>
+                      <CollapsibleSection icon={Users} title="Team Capacity" subtitle={`${capacityInsights.sprints.current?.name ?? 'Current Sprint'} -- ${capacityInsights.summary.uniqueMemberCount} members across ${capacityInsights.teams.length} teams${capacityInsights.unconfiguredMembers.length > 0 ? ` (${capacityInsights.unconfiguredMembers.length} defaulting to Dev)` : ''}`}>
                         {/* Summary cards */}
                         <div className="grid grid-cols-6 gap-3 mb-4">
                           {[
@@ -1656,7 +1556,10 @@ export default function DeliveryRoadmapPage() {
                                   : 'oklch(0.94 0.03 60)'
                                 return (
                                   <tr key={`${row.displayName}-${row.role}-${row.team}`} style={{ backgroundColor: idx % 2 === 0 ? 'oklch(1 0 0)' : 'oklch(0.99 0.003 260)' }}>
-                                    <td className="px-3 py-2 border-b border-border font-medium text-foreground">{row.displayName}</td>
+                                    <td className="px-3 py-2 border-b border-border font-medium text-foreground">
+  {row.displayName}
+  {!row.isConfigured && <span className="ml-1 text-[0.5rem] text-muted-foreground" title="Role defaulting to Development. Update lib/team-config.ts to set correct role.">*</span>}
+ </td>
                                     <td className="text-center px-2 py-2 border-b border-border text-muted-foreground">{row.team}</td>
                                     <td className="text-center px-2 py-2 border-b border-border">
                                       <span className="inline-flex items-center rounded-sm px-1.5 py-0 text-[0.5rem] font-semibold" style={{ backgroundColor: roleBg, color: roleColor }}>
@@ -1674,6 +1577,12 @@ export default function DeliveryRoadmapPage() {
                             </tbody>
                           </table>
                         </div>
+                        {capacityInsights.unconfiguredMembers.length > 0 && (
+                          <p className="text-[0.5625rem] text-muted-foreground mt-2 leading-relaxed">
+                            * {capacityInsights.unconfiguredMembers.length} member{capacityInsights.unconfiguredMembers.length > 1 ? 's' : ''} defaulting to Development (6 hrs/day).
+                            Update <code className="text-[0.5rem] px-1 py-0.5 rounded" style={{ backgroundColor: 'oklch(0.95 0 0)' }}>lib/team-config.ts</code> to set correct roles.
+                          </p>
+                        )}
                       </CollapsibleSection>
 
                       {/* ── Section 6: Release Projection ── */}
@@ -1733,9 +1642,6 @@ export default function DeliveryRoadmapPage() {
                               <div className="px-3 py-2 border-b border-border flex items-center gap-2" style={{ backgroundColor: 'oklch(0.97 0.005 260)' }}>
                                 <TrendingUp className="size-3.5 text-foreground" />
                                 <span className="text-[0.6875rem] font-semibold text-foreground">Resource Recommendation</span>
-                                {releaseProjection.capacityIsEstimated && (
-                                  <span className="text-[0.5rem] font-semibold px-1.5 py-0.5 rounded-sm" style={{ backgroundColor: 'oklch(0.94 0.03 60)', color: 'oklch(0.45 0.12 60)' }}>ESTIMATED</span>
-                                )}
                               </div>
                               <div className="px-4 py-3" style={{ backgroundColor: 'oklch(0.99 0 0)' }}>
                                 {releaseProjection.status === 'on-track' && releaseProjection.additionalMembersNeeded === 0 ? (
@@ -1744,7 +1650,7 @@ export default function DeliveryRoadmapPage() {
                                     <div>
                                       <p className="text-[0.6875rem] font-semibold" style={{ color: 'oklch(0.35 0.14 145)' }}>No additional resources needed</p>
                                       <p className="text-[0.5625rem] text-muted-foreground">
-                                        Current team of {releaseProjection.currentTotal} members ({releaseProjection.currentDevs > 0 || releaseProjection.currentQa > 0 ? `${releaseProjection.currentDevs} Dev, ${releaseProjection.currentQa} QA` : `${releaseProjection.currentTotal} total`}) providing {releaseProjection.totalCapacityHrsPerSprint} hrs/sprint is sufficient to deliver {releaseProjection.remaining} items by target date.
+                                        Current team of {releaseProjection.currentTotal} members ({releaseProjection.currentDevs} Dev, {releaseProjection.currentQa} QA) providing {releaseProjection.totalCapacityHrsPerSprint} hrs/sprint is sufficient to deliver {releaseProjection.remaining} items by target date.
                                       </p>
                                     </div>
                                   </div>
@@ -1755,20 +1661,12 @@ export default function DeliveryRoadmapPage() {
                                       <div>
                                         <p className="text-[0.5625rem] font-semibold text-muted-foreground mb-1.5">Current Team</p>
                                         <div className="flex items-center gap-2 flex-wrap">
-                                          {releaseProjection.hasRoleData ? (
-                                            <>
-                                              <span className="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[0.5625rem] font-semibold" style={{ backgroundColor: 'oklch(0.94 0.04 240)', color: 'oklch(0.4 0.14 240)' }}>
-                                                {releaseProjection.currentDevs} Dev
-                                              </span>
-                                              <span className="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[0.5625rem] font-semibold" style={{ backgroundColor: 'oklch(0.94 0.04 145)', color: 'oklch(0.4 0.16 145)' }}>
-                                                {releaseProjection.currentQa} QA
-                                              </span>
-                                            </>
-                                          ) : (
-                                            <span className="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[0.5625rem] font-semibold" style={{ backgroundColor: 'oklch(0.94 0.03 260)', color: 'oklch(0.4 0.01 260)' }}>
-                                              {releaseProjection.currentTotal} members
-                                            </span>
-                                          )}
+                                          <span className="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[0.5625rem] font-semibold" style={{ backgroundColor: 'oklch(0.94 0.04 240)', color: 'oklch(0.4 0.14 240)' }}>
+                                            {releaseProjection.currentDevs} Dev
+                                          </span>
+                                          <span className="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[0.5625rem] font-semibold" style={{ backgroundColor: 'oklch(0.94 0.04 145)', color: 'oklch(0.4 0.16 145)' }}>
+                                            {releaseProjection.currentQa} QA
+                                          </span>
                                           <span className="text-[0.5625rem] text-muted-foreground">= {releaseProjection.totalCapacityHrsPerSprint} hrs/sprint</span>
                                         </div>
                                       </div>
@@ -1776,40 +1674,24 @@ export default function DeliveryRoadmapPage() {
                                       <div>
                                         <p className="text-[0.5625rem] font-semibold mb-1.5" style={{ color: 'oklch(0.5 0.22 25)' }}>Additional Needed</p>
                                         <div className="flex items-center gap-2 flex-wrap">
-                                          {releaseProjection.hasRoleData ? (
-                                            <>
-                                              <span className="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[0.5625rem] font-bold" style={{ backgroundColor: 'oklch(0.94 0.04 25)', color: 'oklch(0.45 0.18 25)' }}>
-                                                +{releaseProjection.additionalDevs} Dev
-                                              </span>
-                                              <span className="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[0.5625rem] font-bold" style={{ backgroundColor: 'oklch(0.94 0.04 25)', color: 'oklch(0.45 0.18 25)' }}>
-                                                +{releaseProjection.additionalQa} QA
-                                              </span>
-                                            </>
-                                          ) : (
-                                            <span className="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[0.5625rem] font-bold" style={{ backgroundColor: 'oklch(0.94 0.04 25)', color: 'oklch(0.45 0.18 25)' }}>
-                                              +{releaseProjection.additionalMembersNeeded} members
-                                            </span>
-                                          )}
+                                          <span className="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[0.5625rem] font-bold" style={{ backgroundColor: 'oklch(0.94 0.04 25)', color: 'oklch(0.45 0.18 25)' }}>
+                                            +{releaseProjection.additionalDevs} Dev
+                                          </span>
+                                          <span className="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[0.5625rem] font-bold" style={{ backgroundColor: 'oklch(0.94 0.04 25)', color: 'oklch(0.45 0.18 25)' }}>
+                                            +{releaseProjection.additionalQa} QA
+                                          </span>
                                         </div>
                                       </div>
                                       {/* Projected after */}
                                       <div>
                                         <p className="text-[0.5625rem] font-semibold mb-1.5" style={{ color: 'oklch(0.35 0.14 145)' }}>With Additional Resources</p>
                                         <div className="flex items-center gap-2 flex-wrap">
-                                          {releaseProjection.hasRoleData ? (
-                                            <>
-                                              <span className="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[0.5625rem] font-semibold" style={{ backgroundColor: 'oklch(0.94 0.04 145)', color: 'oklch(0.35 0.14 145)' }}>
-                                                {releaseProjection.currentDevs + releaseProjection.additionalDevs} Dev
-                                              </span>
-                                              <span className="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[0.5625rem] font-semibold" style={{ backgroundColor: 'oklch(0.94 0.04 145)', color: 'oklch(0.35 0.14 145)' }}>
-                                                {releaseProjection.currentQa + releaseProjection.additionalQa} QA
-                                              </span>
-                                            </>
-                                          ) : (
-                                            <span className="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[0.5625rem] font-semibold" style={{ backgroundColor: 'oklch(0.94 0.04 145)', color: 'oklch(0.35 0.14 145)' }}>
-                                              {releaseProjection.currentTotal + releaseProjection.additionalMembersNeeded} members
-                                            </span>
-                                          )}
+                                          <span className="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[0.5625rem] font-semibold" style={{ backgroundColor: 'oklch(0.94 0.04 145)', color: 'oklch(0.35 0.14 145)' }}>
+                                            {releaseProjection.currentDevs + releaseProjection.additionalDevs} Dev
+                                          </span>
+                                          <span className="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[0.5625rem] font-semibold" style={{ backgroundColor: 'oklch(0.94 0.04 145)', color: 'oklch(0.35 0.14 145)' }}>
+                                            {releaseProjection.currentQa + releaseProjection.additionalQa} QA
+                                          </span>
                                           {releaseProjection.projectedSprintsWithResources && (
                                             <span className="text-[0.5625rem] text-muted-foreground">= done in ~{releaseProjection.projectedSprintsWithResources} sprints</span>
                                           )}
@@ -1818,9 +1700,9 @@ export default function DeliveryRoadmapPage() {
                                     </div>
                                     <p className="text-[0.5625rem] text-muted-foreground leading-relaxed" style={{ borderTop: '1px solid oklch(0.92 0.01 260)', paddingTop: '0.5rem' }}>
                                       Estimated <strong>{releaseProjection.hrsPerItem} hrs/item</strong> based on {releaseProjection.avgVelocity > 0 ? 'current velocity' : 'baseline estimate (8 hrs/item)'}.
-                                      Current team provides <strong>{releaseProjection.totalCapacityHrsPerSprint} hrs/sprint</strong>{releaseProjection.capacityIsEstimated ? ' (estimated from team size)' : ''} across {releaseProjection.currentTotal} members.
+                                      Current team provides <strong>{releaseProjection.totalCapacityHrsPerSprint} hrs/sprint</strong> across {releaseProjection.currentTotal} members.
                                       {releaseProjection.hrsGap > 0 && <> Capacity gap of <strong>{releaseProjection.hrsGap.toLocaleString()} hrs</strong> needs to be covered by additional resources.</>}
-                                      {' '}Assumes new resources ramp up immediately with equivalent throughput.
+                                      {' '}Roles from <code className="text-[0.5rem] px-1 py-0.5 rounded" style={{ backgroundColor: 'oklch(0.95 0 0)' }}>lib/team-config.ts</code>.
                                     </p>
                                   </>
                                 )}

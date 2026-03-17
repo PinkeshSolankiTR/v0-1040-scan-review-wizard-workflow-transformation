@@ -1,6 +1,7 @@
-/* ── Azure DevOps Team Capacity & Iterations API Route ──
-   Returns team member capacities (roles, hours/day, days off)
-   and sprint iteration data for all 3 teams.
+/* ── Azure DevOps Iterations API Route ──
+   Returns sprint iteration data for all 3 teams.
+   Member capacity is now derived from work items + lib/team-config.ts
+   on the frontend. This API only provides iterations/timeline.
    ─────────────────────────────────────────────────────────── */
 
 import { NextResponse } from 'next/server'
@@ -12,14 +13,6 @@ const ADO_API_VERSION = '7.1'
 const TEAMS = ['surePrep-rw-wizards1', 'surePrep-rw-wizards2', 'surePrep-rw-infinity']
 
 /* ── Exported types ── */
-export interface TeamMemberCapacity {
-  displayName: string
-  activities: { name: string; capacityPerDay: number }[]
-  daysOff: { start: string; end: string }[]
-  /** Whether capacity was derived from team roster (true) or from ADO capacity API (false) */
-  isEstimated?: boolean
-}
-
 export interface IterationInfo {
   id: string
   name: string
@@ -33,7 +26,6 @@ export interface TeamCapacityData {
   name: string
   currentIteration: IterationInfo | null
   allIterations: IterationInfo[]
-  members: TeamMemberCapacity[]
 }
 
 export interface CapacityResponse {
@@ -54,9 +46,7 @@ function teamApiUrl(team: string, path: string): string {
 
 /* ── Fetch iterations for a team ── */
 async function fetchIterations(team: string, auth: string): Promise<IterationInfo[]> {
-  const iterUrl = teamApiUrl(team, 'work/teamsettings/iterations')
-  console.log(`[ADO Capacity] Fetching iterations URL: ${iterUrl}`)
-  const resp = await fetch(iterUrl, {
+  const resp = await fetch(teamApiUrl(team, 'work/teamsettings/iterations'), {
     headers: { Authorization: auth, 'Content-Type': 'application/json' },
   })
   if (!resp.ok) {
@@ -65,7 +55,6 @@ async function fetchIterations(team: string, auth: string): Promise<IterationInf
     return []
   }
   const data = await resp.json()
-  console.log(`[ADO Capacity] ${team}: iterations count=${(data.value ?? []).length}, current=${(data.value ?? []).find((v: { attributes?: { timeFrame?: string } }) => v.attributes?.timeFrame === 'current')?.name ?? 'NONE'}`)
   return ((data.value ?? []) as {
     id: string
     name: string
@@ -81,109 +70,26 @@ async function fetchIterations(team: string, auth: string): Promise<IterationInf
   }))
 }
 
-/* ── Fetch capacity for a specific iteration ── */
-async function fetchCapacity(team: string, iterationId: string, auth: string): Promise<TeamMemberCapacity[]> {
-  const capacityUrl = teamApiUrl(team, `work/teamsettings/iterations/${iterationId}/capacities`)
-  console.log(`[ADO Capacity] Fetching capacity URL: ${capacityUrl}`)
-  const resp = await fetch(capacityUrl, {
-    headers: { Authorization: auth, 'Content-Type': 'application/json' },
-  })
-  const text = await resp.text()
-  console.log(`[ADO Capacity] Capacity response for ${team}: status=${resp.status}, body=${text.substring(0, 500)}`)
-  if (!resp.ok) {
-    console.error(`[ADO Capacity] Capacity fetch failed for ${team}/${iterationId} (${resp.status}):`, text)
-    return []
-  }
-  let data: { value?: unknown[]; count?: number }
-  try {
-    data = JSON.parse(text)
-  } catch {
-    console.error(`[ADO Capacity] Failed to parse JSON for ${team}:`, text.substring(0, 200))
-    return []
-  }
-  console.log(`[ADO Capacity] Parsed: count=${data.count}, value.length=${(data.value ?? []).length}`)
-  const members = ((data.value ?? []) as {
-    teamMember: { displayName: string }
-    activities: { name: string; capacityPerDay: number }[]
-    daysOff: { start: string; end: string }[]
-  }[]).map(m => ({
-    displayName: m.teamMember.displayName,
-    activities: m.activities ?? [],
-    daysOff: m.daysOff ?? [],
-  }))
-
-  return members
-}
-
-/* ── Fetch team members directly from the Team Members API ── */
-async function fetchTeamMembers(team: string, auth: string): Promise<{ displayName: string; uniqueName: string }[]> {
-  // This API requires preview version
-  const url = `https://dev.azure.com/${ADO_ORG}/_apis/projects/${encodeURIComponent(ADO_PROJECT)}/teams/${encodeURIComponent(team)}/members?api-version=7.1-preview.2`
-  const resp = await fetch(url, {
-    headers: { Authorization: auth, 'Content-Type': 'application/json' },
-  })
-  if (!resp.ok) {
-    const text = await resp.text()
-    console.error(`[ADO Capacity] Team members fetch failed for ${team} (${resp.status}):`, text)
-    return []
-  }
-  const data = await resp.json()
-  const members = ((data.value ?? []) as {
-    identity: { displayName: string; uniqueName: string }
-  }[]).map(m => ({
-    displayName: m.identity.displayName,
-    uniqueName: m.identity.uniqueName,
-  }))
-  return members
-}
-
 /* ── Main handler ── */
 export async function GET() {
   try {
     const auth = getAuthHeader()
 
-    // Fetch iterations and team members for all teams in parallel
-    const [iterationsResults, teamMembersResults] = await Promise.all([
-      Promise.all(TEAMS.map(team => fetchIterations(team, auth))),
-      Promise.all(TEAMS.map(team => fetchTeamMembers(team, auth))),
-    ])
-
-    // For each team: find current iteration, fetch capacity, fallback to team members
-    const teams: TeamCapacityData[] = await Promise.all(
-      TEAMS.map(async (team, idx) => {
-        const allIterations = iterationsResults[idx]
-        const teamMembers = teamMembersResults[idx]
-        const currentIteration = allIterations.find(it => it.timeFrame === 'current') ?? null
-
-        console.log(`[ADO Capacity] ${team}: found ${allIterations.length} iterations, currentIteration=${currentIteration?.name ?? 'NONE'} (id=${currentIteration?.id ?? 'N/A'}), teamMembers=${teamMembers.length}`)
-
-        let members: TeamMemberCapacity[] = []
-        if (currentIteration) {
-          members = await fetchCapacity(team, currentIteration.id, auth)
-          console.log(`[ADO Capacity] ${team}: fetchCapacity returned ${members.length} members`)
-        } else {
-          console.log(`[ADO Capacity] ${team}: NO current iteration found, skipping capacity fetch`)
-        }
-
-        // If capacity API returned no members but we have team members,
-        // build capacity entries from the team roster with default 6 hrs/day
-        if (members.length === 0 && teamMembers.length > 0) {
-          members = teamMembers.map(tm => ({
-            displayName: tm.displayName,
-            activities: [{ name: 'Development', capacityPerDay: 6 }],
-            daysOff: [],
-            isEstimated: true,
-          }))
-        }
-
-        return {
-          name: team,
-          currentIteration,
-          allIterations,
-          members,
-        }
-      })
+    // Fetch iterations for all teams in parallel
+    const iterationsResults = await Promise.all(
+      TEAMS.map(team => fetchIterations(team, auth))
     )
+
+    const teams: TeamCapacityData[] = TEAMS.map((team, idx) => {
+      const allIterations = iterationsResults[idx]
+      const currentIteration = allIterations.find(it => it.timeFrame === 'current') ?? null
+
+      return {
+        name: team,
+        currentIteration,
+        allIterations,
+      }
+    })
 
     const response: CapacityResponse = {
       teams,
