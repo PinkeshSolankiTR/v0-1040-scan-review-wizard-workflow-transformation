@@ -70,6 +70,7 @@ export const MEMBER_ROLES: Record<string, MemberActivity[]> = {
  */
 export const EXCLUDED_ORG_PATTERNS = [
   '(Operations & Technology)',
+  '(TR Product)',
 ] as const
 
 /** Check if a member should be excluded based on their display name */
