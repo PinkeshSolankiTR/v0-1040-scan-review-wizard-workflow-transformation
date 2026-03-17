@@ -986,108 +986,108 @@ export default function DeliveryRoadmapPage() {
     }
   }, [capacityData, data, scopedItems])
 
-  /* ── Release projection ── */
+  /* ── Release projection (task-velocity based) ──
+     Uses actual items completed per sprint for THIS epic, not member capacity.
+     Members work on multiple projects so capacity ≠ throughput for one project.
+     ─────────────────────────────────────────────────────────────────────────── */
   const releaseProjection = useMemo(() => {
-    if (!dashboardData || !capacityInsights) return null
+    if (!dashboardData || !capacityInsights || !scopedItems) return null
 
-    const remaining = dashboardData.heroStats.totalItems - dashboardData.heroStats.doneItems
+    const EXCLUDED_TYPES = new Set(['Epic', 'Feature', 'Issue'])
     const sprintsRemaining = capacityInsights.sprints.sprintsRemaining
-    const pastSprints = capacityInsights.sprints.past
+    const pastSprintsList = capacityInsights.sprints.past
+    const currentSprint = capacityInsights.sprints.current
 
-    // ── Velocity: use RECENT sprints only (last 6) for realistic trend ──
-    // Using all past sprints (31) produces an artificially low velocity because
-    // the project didn't start from sprint 1. Recent sprints reflect actual throughput.
-    const VELOCITY_WINDOW = 6
-    const totalDone = dashboardData.heroStats.doneItems
-    const recentSprintCount = Math.min(pastSprints.length, VELOCITY_WINDOW) || 1
+    // ── 1. Filter scoped items to sprint-level execution types only ──
+    const executionItems = scopedItems.filter(i => !EXCLUDED_TYPES.has(i.workItemType))
+    const remaining = executionItems.filter(i => !isDone(i.state)).length
+    const totalDone = executionItems.filter(i => isDone(i.state)).length
 
-    // Estimate done items in the recent window proportionally:
-    // If 31 done across 31 sprints, recent 6 sprints ≈ 31 * (6/31) items.
-    // But that still gives the same ratio. Instead, assume items are done more
-    // recently (acceleration pattern). Use total done / recent window as upper-bound velocity.
-    // This gives a more optimistic but realistic throughput estimate.
-    const avgVelocity = recentSprintCount > 0
-      ? Math.max(1, Math.round(totalDone / recentSprintCount))
+    // ── 2. Count items in current sprint (assigned to this project) ──
+    const currentSprintName = currentSprint?.name ?? null
+    const itemsInCurrentSprint = currentSprintName
+      ? executionItems.filter(i => i.iterationPath.includes(currentSprintName)).length
       : 0
 
-    // Current team from capacity insights (derived from work items + team-config)
+    // ── 3. Compute REAL velocity: items completed per past sprint for THIS epic ──
+    // Group done items by which sprint they belong to
+    const sprintDoneCounts = new Map<string, number>()
+    for (const sprint of pastSprintsList) {
+      const doneInSprint = executionItems.filter(
+        i => isDone(i.state) && i.iterationPath.includes(sprint.name)
+      ).length
+      if (doneInSprint > 0) {
+        sprintDoneCounts.set(sprint.name, doneInSprint)
+      }
+    }
+
+    // Use only sprints that had at least 1 item done (active sprints for this project)
+    const activeSprintVelocities = Array.from(sprintDoneCounts.values())
+    // Use last 6 active sprints for trend
+    const VELOCITY_WINDOW = 6
+    const recentVelocities = activeSprintVelocities.slice(-VELOCITY_WINDOW)
+    const avgVelocity = recentVelocities.length > 0
+      ? Math.round((recentVelocities.reduce((a, b) => a + b, 0) / recentVelocities.length) * 10) / 10
+      : 0
+
+    // ── 4. Project completion ──
+    const requiredVelocity = sprintsRemaining > 0 ? Math.ceil(remaining / sprintsRemaining) : remaining
+    const sprintsNeeded = avgVelocity > 0 ? Math.ceil(remaining / avgVelocity) : null
+
+    // Projected completion date
+    let projectedCompletionDate: Date | null = null
+    if (sprintsNeeded !== null && currentSprint?.finishDate) {
+      const d = new Date(currentSprint.finishDate)
+      d.setDate(d.getDate() + (sprintsNeeded - 1) * 14) // 2-week sprints
+      projectedCompletionDate = d
+    }
+
+    // ── 5. Status based on velocity vs required ──
+    let status: 'on-track' | 'at-risk' | 'delayed'
+    if (avgVelocity >= requiredVelocity) {
+      status = 'on-track'
+    } else if (avgVelocity >= requiredVelocity * 0.7) {
+      status = 'at-risk'
+    } else {
+      status = 'delayed'
+    }
+
+    // ── 6. Velocity gap analysis ──
+    const velocityGapPct = avgVelocity > 0 && requiredVelocity > avgVelocity
+      ? Math.round(((requiredVelocity - avgVelocity) / avgVelocity) * 100)
+      : null
+    const velocityGap = requiredVelocity - avgVelocity
+
+    // Current team info (for display, not for projection math)
     const currentDevs = capacityInsights.summary.devCount
     const currentQa = capacityInsights.summary.qaCount
-    const currentSupport = capacityInsights.summary.supportCount
     const currentTotal = capacityInsights.summary.uniqueMemberCount
-
-    // Required velocity
-    const requiredVelocity = sprintsRemaining > 0 ? Math.ceil(remaining / sprintsRemaining) : remaining
-
-    // Capacity-based estimation (hours)
-    const totalCapacityHrsPerSprint = capacityInsights.summary.totalCapacity
-
-    // Hours per item: use velocity if available, else baseline 8 hrs/item
-    // Cap at reasonable max of 40 hrs/item (1 work-week) to prevent outliers
-    const MAX_HRS_PER_ITEM = 40
-    const rawHrsPerItem = avgVelocity > 0 && totalCapacityHrsPerSprint > 0
-      ? totalCapacityHrsPerSprint / avgVelocity
-      : 8
-    const hrsPerItem = Math.min(rawHrsPerItem, MAX_HRS_PER_ITEM)
-    const totalHrsNeeded = remaining * hrsPerItem
-    const hrsAvailableUntilRelease = totalCapacityHrsPerSprint * sprintsRemaining
-    const hrsGap = Math.max(0, totalHrsNeeded - hrsAvailableUntilRelease)
-
-    // Average capacity per member per sprint
-    const avgCapacityPerMember = currentTotal > 0
-      ? totalCapacityHrsPerSprint / currentTotal
-      : capacityInsights.sprintWorkingDays * 6 // fallback
-    const avgCapacityPerMemberUntilRelease = avgCapacityPerMember * sprintsRemaining
-    const additionalMembersNeeded = avgCapacityPerMemberUntilRelease > 0
-      ? Math.ceil(hrsGap / avgCapacityPerMemberUntilRelease) : 0
-
-    // Dev:QA ratio from current team for breakdown
-    const contributingMembers = Math.max(currentDevs + currentQa, 1)
-    const devRatio = currentDevs / contributingMembers
-    const qaRatio = currentQa / contributingMembers
-    const additionalDevs = Math.max(0, Math.round(additionalMembersNeeded * devRatio))
-    const additionalQa = Math.max(0, Math.round(additionalMembersNeeded * qaRatio))
-    // Ensure rounding doesn't lose people
-    const adjustedAdditionalDevs = (additionalDevs + additionalQa) < additionalMembersNeeded
-      ? additionalDevs + (additionalMembersNeeded - additionalDevs - additionalQa) : additionalDevs
-
-    // Projected with additional resources
-    const newTotalMembers = currentTotal + additionalMembersNeeded
-    const projectedCapacityPerSprint = avgCapacityPerMember * newTotalMembers
-    const projectedSprintsWithResources = projectedCapacityPerSprint > 0 && hrsPerItem > 0
-      ? Math.ceil((remaining * hrsPerItem) / projectedCapacityPerSprint) : null
-
-    // Status
-    let status: 'on-track' | 'at-risk' | 'delayed'
-    if (hrsGap <= 0) status = 'on-track'
-    else if (hrsGap <= hrsAvailableUntilRelease * 0.3) status = 'at-risk'
-    else status = 'delayed'
-
-    const velocityGapPct = avgVelocity > 0 && requiredVelocity > avgVelocity
-      ? Math.round(((requiredVelocity - avgVelocity) / avgVelocity) * 100) : null
 
     return {
       remaining,
+      totalDone,
+      totalExecutionItems: executionItems.length,
+      itemsInCurrentSprint,
       avgVelocity,
       requiredVelocity,
       sprintsRemaining,
+      sprintsNeeded,
+      projectedCompletionDate,
       status,
       targetDate: capacityInsights.sprints.targetDate,
+      velocityGapPct,
+      velocityGap: Math.round(velocityGap * 10) / 10,
+      // Per-sprint breakdown for display
+      sprintVelocities: Array.from(sprintDoneCounts.entries())
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+      activePastSprints: recentVelocities.length,
+      // Team info (display only)
       currentDevs,
       currentQa,
       currentTotal,
-      additionalMembersNeeded,
-      additionalDevs: adjustedAdditionalDevs,
-      additionalQa,
-      projectedSprintsWithResources,
-      velocityGapPct,
-      totalCapacityHrsPerSprint,
-      hrsPerItem: Math.round(hrsPerItem * 10) / 10,
-      totalHrsNeeded: Math.round(totalHrsNeeded),
-      hrsAvailableUntilRelease: Math.round(hrsAvailableUntilRelease),
-      hrsGap: Math.round(hrsGap),
     }
-  }, [dashboardData, capacityInsights])
+  }, [dashboardData, capacityInsights, scopedItems])
 
   /* Static data */
   const staticWizardFeatures = STATIC_ROADMAP.features.filter(f => f.category === 'wizard')
@@ -1603,7 +1603,7 @@ export default function DeliveryRoadmapPage() {
                         )}
                       </CollapsibleSection>
 
-                      {/* ── Section 6: Release Projection ── */}
+                      {/* ── Section 6: Release Projection (Task-Velocity Based) ── */}
                       <CollapsibleSection icon={Target} title="Release Projection" subtitle={`Target: June 28, 2026`}>
                         {releaseProjection ? (
                           <>
@@ -1631,10 +1631,8 @@ export default function DeliveryRoadmapPage() {
                                 </span>
                                 <span className="text-[0.6875rem] text-muted-foreground">
                                   {releaseProjection.status === 'on-track'
-                                    ? `Current team capacity (${releaseProjection.totalCapacityHrsPerSprint} hrs/sprint) is sufficient to complete ${releaseProjection.remaining} remaining items within ${releaseProjection.sprintsRemaining} sprints.`
-                                    : releaseProjection.additionalMembersNeeded > 0
-                                    ? `Capacity gap of ${releaseProjection.hrsGap.toLocaleString()} hrs. To meet target, add ${releaseProjection.additionalMembersNeeded} resource${releaseProjection.additionalMembersNeeded > 1 ? 's' : ''} (${releaseProjection.additionalDevs} Dev + ${releaseProjection.additionalQa} QA).`
-                                    : `${releaseProjection.remaining} items remaining (est. ${releaseProjection.totalHrsNeeded.toLocaleString()} hrs). ${releaseProjection.hrsAvailableUntilRelease.toLocaleString()} hrs available until target.`}
+                                    ? `At ${releaseProjection.avgVelocity} items/sprint, ${releaseProjection.remaining} remaining items can be completed in ~${releaseProjection.sprintsNeeded ?? '?'} sprints (${releaseProjection.sprintsRemaining} available).`
+                                    : `Need ${releaseProjection.requiredVelocity} items/sprint to meet target, currently delivering ${releaseProjection.avgVelocity}. ${releaseProjection.velocityGapPct ? `Velocity must increase by ${releaseProjection.velocityGapPct}%.` : ''}`}
                                 </span>
                               </div>
                             </div>
@@ -1642,90 +1640,115 @@ export default function DeliveryRoadmapPage() {
                             {/* Key metrics */}
                             <div className="grid grid-cols-5 gap-3 mb-4">
                               {[
-                                { label: 'Items Remaining', value: String(releaseProjection.remaining), color: 'oklch(0.25 0 0)' },
-                                { label: 'Est. Hours Needed', value: releaseProjection.totalHrsNeeded.toLocaleString(), color: 'oklch(0.4 0.14 240)' },
-                                { label: 'Hours Available', value: releaseProjection.hrsAvailableUntilRelease.toLocaleString(), color: releaseProjection.status === 'on-track' ? 'oklch(0.4 0.16 145)' : 'oklch(0.45 0.12 60)' },
-                                { label: 'Sprints Remaining', value: String(releaseProjection.sprintsRemaining), color: 'oklch(0.4 0.16 145)' },
-                                { label: 'Capacity Gap', value: releaseProjection.hrsGap > 0 ? `${releaseProjection.hrsGap.toLocaleString()} hrs` : 'None', color: releaseProjection.hrsGap > 0 ? 'oklch(0.5 0.22 25)' : 'oklch(0.4 0.16 145)' },
+                                { label: 'Items Remaining', value: String(releaseProjection.remaining), sub: `of ${releaseProjection.totalExecutionItems} total`, color: 'oklch(0.25 0 0)' },
+                                { label: 'Avg Velocity', value: String(releaseProjection.avgVelocity), sub: `items/sprint (last ${releaseProjection.activePastSprints})`, color: 'oklch(0.4 0.14 240)' },
+                                { label: 'Required Velocity', value: String(releaseProjection.requiredVelocity), sub: 'items/sprint to hit target', color: releaseProjection.requiredVelocity <= releaseProjection.avgVelocity ? 'oklch(0.4 0.16 145)' : 'oklch(0.5 0.22 25)' },
+                                { label: 'Sprints Remaining', value: String(releaseProjection.sprintsRemaining), sub: `to June 28, 2026`, color: 'oklch(0.4 0.16 145)' },
+                                { label: 'Sprints Needed', value: releaseProjection.sprintsNeeded !== null ? String(releaseProjection.sprintsNeeded) : 'N/A', sub: releaseProjection.sprintsNeeded !== null && releaseProjection.sprintsNeeded > releaseProjection.sprintsRemaining ? `${releaseProjection.sprintsNeeded - releaseProjection.sprintsRemaining} over target` : 'at current pace', color: releaseProjection.sprintsNeeded !== null && releaseProjection.sprintsNeeded <= releaseProjection.sprintsRemaining ? 'oklch(0.4 0.16 145)' : 'oklch(0.5 0.22 25)' },
                               ].map(stat => (
                                 <div key={stat.label} className="rounded-lg border border-border px-3 py-3 text-center" style={{ backgroundColor: 'oklch(0.99 0 0)' }}>
                                   <p className="text-lg font-bold" style={{ color: stat.color }}>{stat.value}</p>
                                   <p className="text-[0.5625rem] text-muted-foreground mt-0.5">{stat.label}</p>
+                                  <p className="text-[0.5rem] text-muted-foreground">{stat.sub}</p>
                                 </div>
                               ))}
                             </div>
 
-                            {/* Resource Recommendation -- always visible */}
+                            {/* Velocity Analysis */}
                             <div className="rounded-lg border border-border overflow-hidden mb-4">
                               <div className="px-3 py-2 border-b border-border flex items-center gap-2" style={{ backgroundColor: 'oklch(0.97 0.005 260)' }}>
                                 <TrendingUp className="size-3.5 text-foreground" />
-                                <span className="text-[0.6875rem] font-semibold text-foreground">Resource Recommendation</span>
+                                <span className="text-[0.6875rem] font-semibold text-foreground">Velocity Analysis</span>
                               </div>
                               <div className="px-4 py-3" style={{ backgroundColor: 'oklch(0.99 0 0)' }}>
-                                {releaseProjection.status === 'on-track' && releaseProjection.additionalMembersNeeded === 0 ? (
+                                {releaseProjection.status === 'on-track' ? (
                                   <div className="flex items-center gap-3 py-2">
                                     <div className="size-2.5 rounded-full" style={{ backgroundColor: 'oklch(0.5 0.2 145)' }} />
                                     <div>
-                                      <p className="text-[0.6875rem] font-semibold" style={{ color: 'oklch(0.35 0.14 145)' }}>No additional resources needed</p>
+                                      <p className="text-[0.6875rem] font-semibold" style={{ color: 'oklch(0.35 0.14 145)' }}>Velocity is sufficient</p>
                                       <p className="text-[0.5625rem] text-muted-foreground">
-                                        Current team of {releaseProjection.currentTotal} members ({releaseProjection.currentDevs} Dev, {releaseProjection.currentQa} QA) providing {releaseProjection.totalCapacityHrsPerSprint} hrs/sprint is sufficient to deliver {releaseProjection.remaining} items by target date.
+                                        Current velocity of <strong>{releaseProjection.avgVelocity} items/sprint</strong> exceeds the required {releaseProjection.requiredVelocity} items/sprint.
+                                        {releaseProjection.itemsInCurrentSprint > 0 && <> {releaseProjection.itemsInCurrentSprint} items assigned in the current sprint.</>}
+                                        {' '}Projected completion in ~{releaseProjection.sprintsNeeded} sprints
+                                        {releaseProjection.projectedCompletionDate && <> ({releaseProjection.projectedCompletionDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })})</>}.
                                       </p>
                                     </div>
                                   </div>
                                 ) : (
                                   <>
                                     <div className="grid grid-cols-3 gap-4 mb-3">
-                                      {/* Current team */}
                                       <div>
-                                        <p className="text-[0.5625rem] font-semibold text-muted-foreground mb-1.5">Current Team</p>
+                                        <p className="text-[0.5625rem] font-semibold text-muted-foreground mb-1.5">Current Pace</p>
                                         <div className="flex items-center gap-2 flex-wrap">
                                           <span className="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[0.5625rem] font-semibold" style={{ backgroundColor: 'oklch(0.94 0.04 240)', color: 'oklch(0.4 0.14 240)' }}>
-                                            {releaseProjection.currentDevs} Dev
+                                            {releaseProjection.avgVelocity} items/sprint
                                           </span>
-                                          <span className="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[0.5625rem] font-semibold" style={{ backgroundColor: 'oklch(0.94 0.04 145)', color: 'oklch(0.4 0.16 145)' }}>
-                                            {releaseProjection.currentQa} QA
-                                          </span>
-                                          <span className="text-[0.5625rem] text-muted-foreground">= {releaseProjection.totalCapacityHrsPerSprint} hrs/sprint</span>
+                                          <span className="text-[0.5625rem] text-muted-foreground">({releaseProjection.currentTotal} active members)</span>
                                         </div>
                                       </div>
-                                      {/* Additional needed */}
                                       <div>
-                                        <p className="text-[0.5625rem] font-semibold mb-1.5" style={{ color: 'oklch(0.5 0.22 25)' }}>Additional Needed</p>
+                                        <p className="text-[0.5625rem] font-semibold mb-1.5" style={{ color: 'oklch(0.5 0.22 25)' }}>Velocity Gap</p>
                                         <div className="flex items-center gap-2 flex-wrap">
                                           <span className="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[0.5625rem] font-bold" style={{ backgroundColor: 'oklch(0.94 0.04 25)', color: 'oklch(0.45 0.18 25)' }}>
-                                            +{releaseProjection.additionalDevs} Dev
+                                            +{releaseProjection.velocityGap} items/sprint needed
                                           </span>
-                                          <span className="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[0.5625rem] font-bold" style={{ backgroundColor: 'oklch(0.94 0.04 25)', color: 'oklch(0.45 0.18 25)' }}>
-                                            +{releaseProjection.additionalQa} QA
-                                          </span>
-                                        </div>
-                                      </div>
-                                      {/* Projected after */}
-                                      <div>
-                                        <p className="text-[0.5625rem] font-semibold mb-1.5" style={{ color: 'oklch(0.35 0.14 145)' }}>With Additional Resources</p>
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                          <span className="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[0.5625rem] font-semibold" style={{ backgroundColor: 'oklch(0.94 0.04 145)', color: 'oklch(0.35 0.14 145)' }}>
-                                            {releaseProjection.currentDevs + releaseProjection.additionalDevs} Dev
-                                          </span>
-                                          <span className="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[0.5625rem] font-semibold" style={{ backgroundColor: 'oklch(0.94 0.04 145)', color: 'oklch(0.35 0.14 145)' }}>
-                                            {releaseProjection.currentQa + releaseProjection.additionalQa} QA
-                                          </span>
-                                          {releaseProjection.projectedSprintsWithResources && (
-                                            <span className="text-[0.5625rem] text-muted-foreground">= done in ~{releaseProjection.projectedSprintsWithResources} sprints</span>
+                                          {releaseProjection.velocityGapPct && (
+                                            <span className="text-[0.5rem] text-muted-foreground">({releaseProjection.velocityGapPct}% increase)</span>
                                           )}
+                                        </div>
+                                      </div>
+                                      <div>
+                                        <p className="text-[0.5625rem] font-semibold mb-1.5" style={{ color: 'oklch(0.35 0.14 145)' }}>Projected Completion</p>
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          {releaseProjection.projectedCompletionDate ? (
+                                            <span className="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[0.5625rem] font-semibold" style={{
+                                              backgroundColor: releaseProjection.projectedCompletionDate > releaseProjection.targetDate ? 'oklch(0.94 0.04 25)' : 'oklch(0.94 0.04 145)',
+                                              color: releaseProjection.projectedCompletionDate > releaseProjection.targetDate ? 'oklch(0.45 0.18 25)' : 'oklch(0.35 0.14 145)',
+                                            }}>
+                                              {releaseProjection.projectedCompletionDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                            </span>
+                                          ) : (
+                                            <span className="text-[0.5625rem] text-muted-foreground">No velocity data</span>
+                                          )}
+                                          <span className="text-[0.5625rem] text-muted-foreground">at current pace</span>
                                         </div>
                                       </div>
                                     </div>
                                     <p className="text-[0.5625rem] text-muted-foreground leading-relaxed" style={{ borderTop: '1px solid oklch(0.92 0.01 260)', paddingTop: '0.5rem' }}>
-                                      Estimated <strong>{releaseProjection.hrsPerItem} hrs/item</strong> based on {releaseProjection.avgVelocity > 0 ? 'current velocity' : 'baseline estimate (8 hrs/item)'}.
-                                      Current team provides <strong>{releaseProjection.totalCapacityHrsPerSprint} hrs/sprint</strong> across {releaseProjection.currentTotal} members.
-                                      {releaseProjection.hrsGap > 0 && <> Capacity gap of <strong>{releaseProjection.hrsGap.toLocaleString()} hrs</strong> needs to be covered by additional resources.</>}
-                                      {' '}Roles from <code className="text-[0.5rem] px-1 py-0.5 rounded" style={{ backgroundColor: 'oklch(0.95 0 0)' }}>lib/team-config.ts</code>.
+                                      Based on <strong>{releaseProjection.activePastSprints} recent sprints</strong> where items were completed for this epic.
+                                      {releaseProjection.itemsInCurrentSprint > 0 && <> Currently <strong>{releaseProjection.itemsInCurrentSprint} items</strong> assigned in the active sprint.</>}
+                                      {' '}To close the gap, consider increasing scope per sprint, reducing remaining scope, or adjusting the target date.
                                     </p>
                                   </>
                                 )}
                               </div>
                             </div>
+
+                            {/* Per-sprint velocity breakdown */}
+                            {releaseProjection.sprintVelocities.length > 0 && (
+                              <div className="rounded-lg border border-border overflow-hidden mb-4">
+                                <div className="px-3 py-2 border-b border-border" style={{ backgroundColor: 'oklch(0.97 0.005 260)' }}>
+                                  <span className="text-[0.6875rem] font-semibold text-foreground">Sprint Velocity History (this epic)</span>
+                                </div>
+                                <div className="overflow-x-auto px-3 py-3">
+                                  <div className="flex items-end gap-1.5" style={{ minWidth: 'max-content', height: '80px' }}>
+                                    {releaseProjection.sprintVelocities.map(sv => {
+                                      const maxCount = Math.max(...releaseProjection.sprintVelocities.map(s => s.count), 1)
+                                      const barHeight = Math.max(8, (sv.count / maxCount) * 64)
+                                      return (
+                                        <div key={sv.name} className="flex flex-col items-center gap-1" style={{ width: '48px' }}>
+                                          <span className="text-[0.5rem] font-bold text-foreground">{sv.count}</span>
+                                          <div className="rounded-t" style={{ width: '24px', height: `${barHeight}px`, backgroundColor: 'oklch(0.6 0.14 240)' }} />
+                                          <span className="text-[0.4375rem] text-muted-foreground leading-tight text-center" style={{ maxWidth: '48px', wordBreak: 'break-all' }}>
+                                            {sv.name.replace(/^\d{4}_/, '')}
+                                          </span>
+                                        </div>
+                                      )
+                                    })}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
 
                             {/* Sprint timeline */}
                             <div className="rounded-lg border border-border overflow-hidden">
