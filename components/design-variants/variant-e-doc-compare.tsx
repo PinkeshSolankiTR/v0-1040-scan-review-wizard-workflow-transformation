@@ -1037,16 +1037,31 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                       <p style={{
                         fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.35 0.01 260)',
                         textTransform: 'uppercase', letterSpacing: '0.04em',
-                        marginBlockEnd: '0.25rem',
+                        marginBlockEnd: '0.5rem',
                       }}>
                         Not Superseded
                       </p>
-                      <p style={{
-                        fontSize: '0.625rem', color: 'oklch(0.5 0.01 260)',
-                        marginBlockEnd: '0.625rem', lineHeight: '1.4',
+                      <div style={{
+                        display: 'flex', alignItems: 'flex-start', gap: '0.375rem',
+                        padding: '0.5rem 0.625rem',
+                        borderRadius: '0.25rem',
+                        backgroundColor: 'oklch(0.96 0.04 80)',
+                        border: '0.0625rem solid oklch(0.88 0.08 80)',
+                        marginBlockEnd: '0.625rem',
                       }}>
-                        All {effectiveRecords.length} documents in this group will be marked as not superseded and will be available in SPBinder as independent records once the review is complete.
-                      </p>
+                        <AlertTriangle style={{
+                          inlineSize: '0.75rem', blockSize: '0.75rem',
+                          color: 'oklch(0.6 0.16 60)',
+                          flexShrink: 0,
+                          marginBlockStart: '0.0625rem',
+                        }} />
+                        <p style={{
+                          fontSize: '0.625rem', color: 'oklch(0.4 0.04 60)',
+                          lineHeight: '1.5', margin: 0,
+                        }}>
+                          {"You're confirming these documents do not replace each other. Both will remain as-is in the binder."}
+                        </p>
+                      </div>
 
                       <fieldset style={{ border: 'none', padding: 0, margin: 0 }}>
                         <legend className="sr-only">Select reason for not superseded</legend>
