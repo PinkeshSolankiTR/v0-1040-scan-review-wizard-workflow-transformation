@@ -969,7 +969,6 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
             >
               <X style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem' }} />
               Not Superseded
-              {!isGroupRejected && !allGroupAccepted && <ChevronDown style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />}
             </button>
             
             {/* Reject Panel Popover */}
