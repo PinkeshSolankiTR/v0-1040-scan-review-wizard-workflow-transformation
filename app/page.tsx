@@ -185,12 +185,7 @@ export default function HomePage() {
               1040SCAN
             </span>
           </div>
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/binder/demo-a">
-              View Prototype Demo
-              <ArrowRight className="size-3.5" />
-            </Link>
-          </Button>
+
         </div>
       </header>
 
