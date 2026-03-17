@@ -657,13 +657,14 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <FileText style={{ inlineSize: '1rem', blockSize: '1rem', color: 'oklch(0.45 0.01 260)' }} />
           <h2 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'oklch(0.2 0.01 260)' }}>
-            Superseded Document Review
+            Verify Superseded
           </h2>
           <span style={{
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            inlineSize: '1.375rem', blockSize: '1.375rem', borderRadius: '50%',
-            backgroundColor: 'var(--primary)', color: 'var(--primary-foreground)',
-            fontSize: '0.6875rem', fontWeight: 700,
+            padding: '0.125rem 0.5rem', borderRadius: '624.9375rem',
+            backgroundColor: 'oklch(0.93 0.005 260)', color: 'oklch(0.4 0.01 260)',
+            fontSize: '0.6875rem', fontWeight: 600,
+            fontFamily: 'var(--font-mono)',
           }}>
             {data.length}
           </span>
