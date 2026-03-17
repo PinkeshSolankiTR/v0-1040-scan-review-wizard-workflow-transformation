@@ -475,6 +475,36 @@ function StaticFeatureCard({ feature }: { feature: StaticFeature }) {
 }
 
 /* ──────────────────────────────────────────────
+   PO Dashboard: Collapsible section wrapper
+   ────────────────────────────────────────────── */
+function CollapsibleSection({ icon: Icon, title, subtitle, badge, defaultOpen = true, children }: {
+  icon: React.ComponentType<{ className?: string }>
+  title: string
+  subtitle?: string
+  badge?: React.ReactNode
+  defaultOpen?: boolean
+  children: React.ReactNode
+}) {
+  const [open, setOpen] = useState(defaultOpen)
+  return (
+    <div className="mb-6">
+      <button
+        type="button"
+        onClick={() => setOpen(prev => !prev)}
+        className="flex items-center gap-2 mb-3 w-full text-left group"
+      >
+        {open ? <ChevronDown className="size-3.5 text-muted-foreground" /> : <ChevronRight className="size-3.5 text-muted-foreground" />}
+        <Icon className="size-4 text-foreground" />
+        <h3 className="text-sm font-bold text-foreground">{title}</h3>
+        {subtitle && <span className="text-[0.5625rem] text-muted-foreground">{subtitle}</span>}
+        {badge}
+      </button>
+      {open && children}
+    </div>
+  )
+}
+
+/* ──────────────────────────────────────────────
    PO Dashboard: Feature progress row (expandable)
    ────────────────────────────────────────────── */
 type FeatureProgressItem = {
@@ -1092,28 +1122,25 @@ export default function DeliveryRoadmapPage() {
               {!isLoading && isLive && dashboardData && (
                 <>
                   {/* ── Section 1: Hero Stat Cards ── */}
-                  <div className="grid grid-cols-5 gap-3 mb-8">
-                    {[
-                      { label: 'Total Items', value: dashboardData.heroStats.totalItems, color: 'oklch(0.25 0 0)' },
-                      { label: 'Done', value: dashboardData.heroStats.doneItems, color: 'oklch(0.4 0.16 145)' },
-                      { label: 'Active', value: dashboardData.heroStats.activeItems, color: 'oklch(0.4 0.14 240)' },
-                      { label: 'Unassigned', value: dashboardData.heroStats.unassignedCount, color: dashboardData.heroStats.unassignedCount > 0 ? 'oklch(0.5 0.16 60)' : 'oklch(0.45 0.01 260)' },
-                      { label: 'New/Proposed', value: dashboardData.heroStats.newProposedCount, color: 'oklch(0.45 0.01 260)' },
-                    ].map(stat => (
-                      <div key={stat.label} className="rounded-lg border border-border px-4 py-4 text-center" style={{ backgroundColor: 'oklch(0.99 0 0)' }}>
-                        <p className="text-2xl font-bold" style={{ color: stat.color }}>{stat.value}</p>
-                        <p className="text-[0.625rem] text-muted-foreground mt-0.5">{stat.label}</p>
-                      </div>
-                    ))}
-                  </div>
+                  <CollapsibleSection icon={Hash} title="Summary" subtitle="High-level project metrics">
+                    <div className="grid grid-cols-5 gap-3">
+                      {[
+                        { label: 'Total Items', value: dashboardData.heroStats.totalItems, color: 'oklch(0.25 0 0)' },
+                        { label: 'Done', value: dashboardData.heroStats.doneItems, color: 'oklch(0.4 0.16 145)' },
+                        { label: 'Active', value: dashboardData.heroStats.activeItems, color: 'oklch(0.4 0.14 240)' },
+                        { label: 'Unassigned', value: dashboardData.heroStats.unassignedCount, color: dashboardData.heroStats.unassignedCount > 0 ? 'oklch(0.5 0.16 60)' : 'oklch(0.45 0.01 260)' },
+                        { label: 'New/Proposed', value: dashboardData.heroStats.newProposedCount, color: 'oklch(0.45 0.01 260)' },
+                      ].map(stat => (
+                        <div key={stat.label} className="rounded-lg border border-border px-4 py-4 text-center" style={{ backgroundColor: 'oklch(0.99 0 0)' }}>
+                          <p className="text-2xl font-bold" style={{ color: stat.color }}>{stat.value}</p>
+                          <p className="text-[0.625rem] text-muted-foreground mt-0.5">{stat.label}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </CollapsibleSection>
 
                   {/* ── Section 2: Feature Progress ── */}
-                  <div className="mb-8">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Layers className="size-4 text-foreground" />
-                      <h3 className="text-sm font-bold text-foreground">Feature Progress</h3>
-                      <span className="text-[0.5625rem] text-muted-foreground">Click a row to see child items (Spikes, Stories, Tasks)</span>
-                    </div>
+                  <CollapsibleSection icon={Layers} title="Feature Progress" subtitle="Click a row to see child items (Spikes, Stories, Tasks)">
                     <div className="rounded-lg border border-border overflow-hidden">
                       <div className="overflow-x-auto">
                         <table className="w-full text-[0.6875rem]">
@@ -1154,28 +1181,23 @@ export default function DeliveryRoadmapPage() {
                         </span>
                       </div>
                     </div>
-                  </div>
+                  </CollapsibleSection>
 
-                  {/* ── Section 4: Risk Radar ── */}
-                  <div className="mb-8">
-                    <div className="flex items-center gap-2 mb-3">
-                      <ShieldAlert className="size-4 text-foreground" />
-                      <h3 className="text-sm font-bold text-foreground">Risk Radar</h3>
-                    </div>
+                  {/* ── Section 3: Risk Radar ── */}
+                  <CollapsibleSection icon={ShieldAlert} title="Risk Radar" badge={
+                    (dashboardData.risk.unassigned.length + dashboardData.risk.removed.length) > 0
+                      ? <span className="text-[0.5625rem] font-semibold px-1.5 py-0.5 rounded-sm" style={{ backgroundColor: 'oklch(0.94 0.04 25)', color: 'oklch(0.45 0.18 25)' }}>{dashboardData.risk.unassigned.length + dashboardData.risk.stale.length + dashboardData.risk.removed.length} items</span>
+                      : undefined
+                  }>
                     <div className="grid grid-cols-3 gap-3">
                       <RiskSection label="Unassigned" icon={User} items={dashboardData.risk.unassigned} color="oklch(0.5 0.16 60)" />
                       <RiskSection label="Stale (New/Proposed)" icon={Clock} items={dashboardData.risk.stale} color="oklch(0.45 0.01 260)" />
                       <RiskSection label="Removed/Cut" icon={AlertTriangle} items={dashboardData.risk.removed} color="oklch(0.5 0.18 25)" />
                     </div>
-                  </div>
+                  </CollapsibleSection>
 
-                  {/* ── Section 5: Assignee Distribution ── */}
-                  <div className="mb-8">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Users className="size-4 text-foreground" />
-                      <h3 className="text-sm font-bold text-foreground">Assignee Distribution</h3>
-                      <span className="text-[0.5625rem] text-muted-foreground">Work allocation across team members (spikes & tasks)</span>
-                    </div>
+                  {/* ── Section 4: Assignee Distribution ── */}
+                  <CollapsibleSection icon={Users} title="Assignee Distribution" subtitle="Work allocation across team members (spikes & tasks)">
                     <div className="rounded-lg border border-border overflow-hidden">
                       <table className="w-full text-[0.6875rem]">
                         <thead>
@@ -1230,7 +1252,7 @@ export default function DeliveryRoadmapPage() {
                         </tbody>
                       </table>
                     </div>
-                  </div>
+                  </CollapsibleSection>
 
                   <p className="text-center text-xs text-muted-foreground/50 mt-8">
                     Dashboard derived from live ADO data (Epic 4651627). All metrics auto-calculated from work item states.
