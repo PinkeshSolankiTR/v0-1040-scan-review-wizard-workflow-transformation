@@ -1531,32 +1531,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                       borderInlineStart: isActiveGroup ? '0.1875rem solid oklch(0.5 0.18 240)' : '0.1875rem solid transparent',
                     }}
                   >
-                    <input
-                      type="checkbox" checked={groupAccepted}
-                      aria-label={`${group.formType} group accepted`}
-                      style={{ inlineSize: '0.875rem', blockSize: '0.875rem', accentColor: 'oklch(0.45 0.18 145)', flexShrink: 0, marginBlockStart: '0.0625rem', cursor: 'pointer' }}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        if (isThisGroupRejected || allGroupAccepted) return
-                        if (groupAccepted) {
-                          for (const r of group.records) {
-                            undo(`sup-pg${r.engagementPageId}`, 'superseded', r.confidenceLevel)
-                          }
-                          pruneUndoStack(group.formType)
-                        } else {
-                          for (const r of group.records) {
-                            const key = `sup-pg${r.engagementPageId}`
-                            if (decisions[key] !== 'accepted') {
-                              accept(key, 'superseded', r.confidenceLevel, 'manual')
-                            }
-                          }
-                          logAuditEntry('sidebar_checkbox', [group.formType])
-                          pushUndoEntry('sidebar_checkbox', [group.formType], `Accept ${group.formType}`)
-                        }
-                      }}
-                      onChange={() => {}}
-                      disabled={isThisGroupRejected || allGroupAccepted}
-                    />
+
                     <div style={{ flex: '1 1 0', minInlineSize: 0 }}>
                       {(() => {
                         const identifier = extractIdentifier(group.records)
@@ -1689,21 +1664,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                               borderInlineStart: isHighlighted ? '0.125rem solid oklch(0.5 0.15 240)' : '0.125rem solid transparent',
                             }}
                           >
-                            <input
-                              type="checkbox" checked={isAccepted}
-                              aria-label={`Page ${r.engagementPageId} accepted`}
-                              style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem', accentColor: 'oklch(0.45 0.18 145)', flexShrink: 0, cursor: 'pointer' }}
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                const key = `sup-pg${r.engagementPageId}`
-                                if (isAccepted) {
-                                  undo(key, 'superseded', r.confidenceLevel)
-                                } else {
-                                  accept(key, 'superseded', r.confidenceLevel, 'manual')
-                                }
-                              }}
-                              onChange={() => {}}
-                            />
+
                             <FileText style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem', color: 'oklch(0.5 0.01 260)', flexShrink: 0 }} />
                             <span style={{ fontSize: '0.75rem', fontWeight: isHighlighted ? 600 : 500, color: 'oklch(0.25 0.01 260)' }}>
                               Pg {r.documentRef?.pageNumber ?? r.engagementPageId}

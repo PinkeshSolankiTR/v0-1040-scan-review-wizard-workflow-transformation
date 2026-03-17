@@ -1587,32 +1587,7 @@ const avgConfidence = Math.round(group.averageConfidence * 100)
                       borderInlineStart: isActiveGroup ? '0.1875rem solid oklch(0.5 0.18 240)' : '0.1875rem solid transparent',
                     }}
                   >
-                    <input
-                      type="checkbox" checked={groupAllAccepted}
-                      aria-label={`${group.formType} group matched`}
-                      style={{ inlineSize: '0.875rem', blockSize: '0.875rem', accentColor: 'oklch(0.45 0.18 145)', flexShrink: 0, marginBlockStart: '0.0625rem', cursor: 'pointer' }}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        if (isThisGroupRejected || allGroupAccepted) return
-                        if (groupAllAccepted) {
-                          for (const r of group.records) {
-                            undo(getItemKey(r), 'duplicate', r.confidenceLevel)
-                          }
-                          pruneUndoStack(group.formType)
-                        } else {
-                          for (const r of group.records) {
-                            const key = getItemKey(r)
-                            if (decisions[key] !== 'accepted') {
-                              accept(key, 'duplicate', r.confidenceLevel, 'manual')
-                            }
-                          }
-                          logAuditEntry('sidebar_checkbox', [group.formType])
-                          pushUndoEntry('sidebar_checkbox', [group.formType], `Accept ${group.formType}`)
-                        }
-                      }}
-                      onChange={() => {}}
-                      disabled={isThisGroupRejected || allGroupAccepted}
-                    />
+
                     <div style={{ flex: '1 1 0', minInlineSize: 0 }}>
                       {(() => {
                         const identifier = extractIdentifier(group.records)
