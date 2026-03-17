@@ -856,6 +856,7 @@ export default function DeliveryRoadmapPage() {
     let qaCount = 0
     let supportCount = 0
 
+
     // All iterations across teams (deduplicated by name for timeline)
     const allIterationsMap = new Map<string, { name: string; startDate: string | null; finishDate: string | null; timeFrame: string }>()
 
@@ -978,43 +979,69 @@ export default function DeliveryRoadmapPage() {
     // Velocity: items done / past sprints
     const totalDone = dashboardData.heroStats.doneItems
     const pastSprintCount = pastSprints.length || 1
-    const avgVelocity = Math.round(totalDone / pastSprintCount)
+    const avgVelocity = pastSprintCount > 0 ? Math.round(totalDone / pastSprintCount) : 0
 
-    // Current team size
+    // Current team size -- count unique members with Dev/QA activities
     const currentDevs = capacityInsights.summary.devCount
     const currentQa = capacityInsights.summary.qaCount
-    const currentTotal = currentDevs + currentQa + capacityInsights.summary.supportCount
+    const currentSupport = capacityInsights.summary.supportCount
+    const currentTotal = currentDevs + currentQa + currentSupport
 
     // Required velocity to finish within remaining sprints
-    const requiredVelocity = sprintsRemaining > 0 ? Math.ceil(remaining / sprintsRemaining) : Infinity
+    const requiredVelocity = sprintsRemaining > 0 ? Math.ceil(remaining / sprintsRemaining) : remaining
 
-    // Velocity per team member (rough: total velocity / total contributing members)
+    // --- Capacity-based estimation (hours) ---
+    // Use capacity hours as a more reliable metric than velocity when velocity is 0 or very low
+    const totalCapacityHrsPerSprint = capacityInsights.summary.totalCapacity
+    const devCapacityHrsPerSprint = capacityInsights.summary.totalDevCapacity
+    const qaCapacityHrsPerSprint = capacityInsights.summary.totalQaCapacity
+
+    // Estimate hours per item: if we have velocity, use capacity/velocity; otherwise assume 8 hrs/item as baseline
+    const hrsPerItem = avgVelocity > 0 ? totalCapacityHrsPerSprint / avgVelocity : 8
+    const totalHrsNeeded = remaining * hrsPerItem
+    const hrsAvailableUntilRelease = totalCapacityHrsPerSprint * sprintsRemaining
+    const hrsGap = Math.max(0, totalHrsNeeded - hrsAvailableUntilRelease)
+
+    // Additional members needed based on capacity gap
+    // Average capacity per member per sprint
+    const avgCapacityPerMember = currentTotal > 0 ? totalCapacityHrsPerSprint / currentTotal : 40 // fallback 40 hrs/sprint
+    const avgCapacityPerMemberUntilRelease = avgCapacityPerMember * sprintsRemaining
+    const additionalMembersNeeded = avgCapacityPerMemberUntilRelease > 0 ? Math.ceil(hrsGap / avgCapacityPerMemberUntilRelease) : 0
+
+    // Maintain current dev:qa ratio for breakdown
     const contributingMembers = Math.max(currentDevs + currentQa, 1)
-    const velocityPerMember = avgVelocity / contributingMembers
+    const devRatio = currentDevs / contributingMembers
+    const qaRatio = currentQa / contributingMembers
+    const additionalDevs = Math.max(0, Math.round(additionalMembersNeeded * devRatio))
+    const additionalQa = Math.max(0, Math.round(additionalMembersNeeded * qaRatio))
+    // If rounding ate everyone, ensure at least the total is met
+    const adjustedAdditionalDevs = (additionalDevs + additionalQa) < additionalMembersNeeded
+      ? additionalDevs + (additionalMembersNeeded - additionalDevs - additionalQa) : additionalDevs
 
-    // Resource gap calculation
-    const requiredMembers = velocityPerMember > 0 ? Math.ceil(requiredVelocity / velocityPerMember) : Infinity
-    const additionalMembersNeeded = Math.max(0, requiredMembers - contributingMembers)
+    // Velocity per member (for display)
+    const velocityPerMember = contributingMembers > 0 && avgVelocity > 0
+      ? avgVelocity / contributingMembers : null
 
-    // Assume dev:qa ratio from current team to recommend breakdown
-    const devRatio = currentDevs / Math.max(contributingMembers, 1)
-    const qaRatio = currentQa / Math.max(contributingMembers, 1)
-    const additionalDevs = Math.ceil(additionalMembersNeeded * devRatio)
-    const additionalQa = Math.ceil(additionalMembersNeeded * qaRatio)
+    // Projected velocity/capacity with additional resources
+    const newTotalMembers = currentTotal + additionalMembersNeeded
+    const projectedCapacityPerSprint = avgCapacityPerMember * newTotalMembers
+    const projectedSprintsWithResources = projectedCapacityPerSprint > 0 && hrsPerItem > 0
+      ? Math.ceil((remaining * hrsPerItem) / projectedCapacityPerSprint) : null
 
+    // Status
     let status: 'on-track' | 'at-risk' | 'delayed'
-    if (requiredVelocity <= avgVelocity) status = 'on-track'
-    else if (requiredVelocity <= avgVelocity * 1.3) status = 'at-risk'
+    if (hrsGap <= 0) status = 'on-track'
+    else if (hrsGap <= hrsAvailableUntilRelease * 0.3) status = 'at-risk'
     else status = 'delayed'
 
-    // With additional resources, new projected velocity
-    const projectedVelocityWithResources = velocityPerMember * (contributingMembers + additionalMembersNeeded)
-    const projectedSprintsWithResources = projectedVelocityWithResources > 0 ? Math.ceil(remaining / projectedVelocityWithResources) : null
+    // Velocity gap percentage
+    const velocityGapPct = avgVelocity > 0 && requiredVelocity > avgVelocity
+      ? Math.round(((requiredVelocity - avgVelocity) / avgVelocity) * 100) : null
 
     return {
       remaining,
       avgVelocity,
-      requiredVelocity: requiredVelocity === Infinity ? null : requiredVelocity,
+      requiredVelocity,
       sprintsRemaining,
       status,
       targetDate: capacityInsights.sprints.targetDate,
@@ -1022,12 +1049,18 @@ export default function DeliveryRoadmapPage() {
       currentDevs,
       currentQa,
       currentTotal,
-      velocityPerMember: Math.round(velocityPerMember * 10) / 10,
+      velocityPerMember: velocityPerMember !== null ? Math.round(velocityPerMember * 10) / 10 : null,
       additionalMembersNeeded,
-      additionalDevs,
+      additionalDevs: adjustedAdditionalDevs,
       additionalQa,
       projectedSprintsWithResources,
-      velocityGapPct: avgVelocity > 0 ? Math.round(((requiredVelocity - avgVelocity) / avgVelocity) * 100) : null,
+      velocityGapPct,
+      // Capacity-based metrics
+      totalCapacityHrsPerSprint,
+      hrsPerItem: Math.round(hrsPerItem * 10) / 10,
+      totalHrsNeeded: Math.round(totalHrsNeeded),
+      hrsAvailableUntilRelease: Math.round(hrsAvailableUntilRelease),
+      hrsGap: Math.round(hrsGap),
     }
   }, [dashboardData, capacityInsights])
 
@@ -1564,10 +1597,10 @@ export default function DeliveryRoadmapPage() {
                                 </span>
                                 <span className="text-[0.6875rem] text-muted-foreground">
                                   {releaseProjection.status === 'on-track'
-                                    ? `Current velocity (${releaseProjection.avgVelocity} items/sprint) is sufficient to complete ${releaseProjection.remaining} remaining items in ${releaseProjection.sprintsRemaining} sprints.`
+                                    ? `Current team capacity (${releaseProjection.totalCapacityHrsPerSprint} hrs/sprint) is sufficient to complete ${releaseProjection.remaining} remaining items within ${releaseProjection.sprintsRemaining} sprints.`
                                     : releaseProjection.additionalMembersNeeded > 0
-                                    ? `To meet target, add ${releaseProjection.additionalMembersNeeded} resource${releaseProjection.additionalMembersNeeded > 1 ? 's' : ''} (${releaseProjection.additionalDevs} Dev + ${releaseProjection.additionalQa} QA) to reach required velocity of ${releaseProjection.requiredVelocity ?? '--'} items/sprint.`
-                                    : `${releaseProjection.remaining} items remaining with ${releaseProjection.sprintsRemaining} sprints left. Increase team velocity by ${releaseProjection.velocityGapPct ?? '--'}%.`}
+                                    ? `Capacity gap of ${releaseProjection.hrsGap.toLocaleString()} hrs. To meet target, add ${releaseProjection.additionalMembersNeeded} resource${releaseProjection.additionalMembersNeeded > 1 ? 's' : ''} (${releaseProjection.additionalDevs} Dev + ${releaseProjection.additionalQa} QA).`
+                                    : `${releaseProjection.remaining} items remaining (est. ${releaseProjection.totalHrsNeeded.toLocaleString()} hrs). ${releaseProjection.hrsAvailableUntilRelease.toLocaleString()} hrs available until target.`}
                                 </span>
                               </div>
                             </div>
@@ -1575,11 +1608,11 @@ export default function DeliveryRoadmapPage() {
                             {/* Key metrics */}
                             <div className="grid grid-cols-5 gap-3 mb-4">
                               {[
-                                { label: 'Items Remaining', value: releaseProjection.remaining, color: 'oklch(0.25 0 0)' },
-                                { label: 'Current Velocity', value: `${releaseProjection.avgVelocity}/sprint`, color: 'oklch(0.4 0.14 240)' },
-                                { label: 'Required Velocity', value: releaseProjection.requiredVelocity !== null ? `${releaseProjection.requiredVelocity}/sprint` : '--', color: releaseProjection.status !== 'on-track' ? 'oklch(0.5 0.22 25)' : 'oklch(0.4 0.16 145)' },
-                                { label: 'Sprints Remaining', value: releaseProjection.sprintsRemaining, color: 'oklch(0.4 0.16 145)' },
-                                { label: 'Velocity Gap', value: releaseProjection.status === 'on-track' ? 'None' : `+${releaseProjection.velocityGapPct ?? '--'}%`, color: releaseProjection.status === 'on-track' ? 'oklch(0.4 0.16 145)' : 'oklch(0.5 0.22 25)' },
+                                { label: 'Items Remaining', value: String(releaseProjection.remaining), color: 'oklch(0.25 0 0)' },
+                                { label: 'Est. Hours Needed', value: releaseProjection.totalHrsNeeded.toLocaleString(), color: 'oklch(0.4 0.14 240)' },
+                                { label: 'Hours Available', value: releaseProjection.hrsAvailableUntilRelease.toLocaleString(), color: releaseProjection.status === 'on-track' ? 'oklch(0.4 0.16 145)' : 'oklch(0.45 0.12 60)' },
+                                { label: 'Sprints Remaining', value: String(releaseProjection.sprintsRemaining), color: 'oklch(0.4 0.16 145)' },
+                                { label: 'Capacity Gap', value: releaseProjection.hrsGap > 0 ? `${releaseProjection.hrsGap.toLocaleString()} hrs` : 'None', color: releaseProjection.hrsGap > 0 ? 'oklch(0.5 0.22 25)' : 'oklch(0.4 0.16 145)' },
                               ].map(stat => (
                                 <div key={stat.label} className="rounded-lg border border-border px-3 py-3 text-center" style={{ backgroundColor: 'oklch(0.99 0 0)' }}>
                                   <p className="text-lg font-bold" style={{ color: stat.color }}>{stat.value}</p>
@@ -1607,7 +1640,7 @@ export default function DeliveryRoadmapPage() {
                                         <span className="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[0.5625rem] font-semibold" style={{ backgroundColor: 'oklch(0.94 0.04 145)', color: 'oklch(0.4 0.16 145)' }}>
                                           {releaseProjection.currentQa} QA
                                         </span>
-                                        <span className="text-[0.5625rem] text-muted-foreground">= {releaseProjection.avgVelocity} items/sprint</span>
+                                        <span className="text-[0.5625rem] text-muted-foreground">= {releaseProjection.totalCapacityHrsPerSprint} hrs/sprint</span>
                                       </div>
                                     </div>
                                     {/* Additional needed */}
@@ -1639,9 +1672,10 @@ export default function DeliveryRoadmapPage() {
                                     </div>
                                   </div>
                                   <p className="text-[0.5625rem] text-muted-foreground leading-relaxed" style={{ borderTop: '1px solid oklch(0.92 0.01 260)', paddingTop: '0.5rem' }}>
-                                    Based on current velocity of <strong>{releaseProjection.velocityPerMember} items/member/sprint</strong>.
-                                    Required velocity is <strong>{releaseProjection.requiredVelocity ?? '--'} items/sprint</strong> ({releaseProjection.velocityGapPct}% higher than current).
-                                    Recommendation assumes new resources ramp up immediately with the same throughput.
+                                    Estimated <strong>{releaseProjection.hrsPerItem} hrs/item</strong> based on {releaseProjection.avgVelocity > 0 ? 'current velocity' : 'baseline estimate'}.
+                                    Current team provides <strong>{releaseProjection.totalCapacityHrsPerSprint} hrs/sprint</strong> across {releaseProjection.currentTotal} members.
+                                    Capacity gap of <strong>{releaseProjection.hrsGap.toLocaleString()} hrs</strong> needs to be covered by additional resources.
+                                    Assumes new resources ramp up immediately with equivalent throughput.
                                   </p>
                                 </div>
                               </div>
