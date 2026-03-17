@@ -975,25 +975,59 @@ export default function DeliveryRoadmapPage() {
     const sprintsRemaining = capacityInsights.sprints.sprintsRemaining
     const pastSprints = capacityInsights.sprints.past
 
-    // Calculate velocity from past sprints using iteration path matching
-    // For now, use items done / past sprints count as rough velocity
+    // Velocity: items done / past sprints
     const totalDone = dashboardData.heroStats.doneItems
     const pastSprintCount = pastSprints.length || 1
     const avgVelocity = Math.round(totalDone / pastSprintCount)
-    const projectedSprintsNeeded = avgVelocity > 0 ? Math.ceil(remaining / avgVelocity) : Infinity
+
+    // Current team size
+    const currentDevs = capacityInsights.summary.devCount
+    const currentQa = capacityInsights.summary.qaCount
+    const currentTotal = currentDevs + currentQa + capacityInsights.summary.supportCount
+
+    // Required velocity to finish within remaining sprints
+    const requiredVelocity = sprintsRemaining > 0 ? Math.ceil(remaining / sprintsRemaining) : Infinity
+
+    // Velocity per team member (rough: total velocity / total contributing members)
+    const contributingMembers = Math.max(currentDevs + currentQa, 1)
+    const velocityPerMember = avgVelocity / contributingMembers
+
+    // Resource gap calculation
+    const requiredMembers = velocityPerMember > 0 ? Math.ceil(requiredVelocity / velocityPerMember) : Infinity
+    const additionalMembersNeeded = Math.max(0, requiredMembers - contributingMembers)
+
+    // Assume dev:qa ratio from current team to recommend breakdown
+    const devRatio = currentDevs / Math.max(contributingMembers, 1)
+    const qaRatio = currentQa / Math.max(contributingMembers, 1)
+    const additionalDevs = Math.ceil(additionalMembersNeeded * devRatio)
+    const additionalQa = Math.ceil(additionalMembersNeeded * qaRatio)
 
     let status: 'on-track' | 'at-risk' | 'delayed'
-    if (projectedSprintsNeeded <= sprintsRemaining) status = 'on-track'
-    else if (projectedSprintsNeeded <= sprintsRemaining + 2) status = 'at-risk'
+    if (requiredVelocity <= avgVelocity) status = 'on-track'
+    else if (requiredVelocity <= avgVelocity * 1.3) status = 'at-risk'
     else status = 'delayed'
+
+    // With additional resources, new projected velocity
+    const projectedVelocityWithResources = velocityPerMember * (contributingMembers + additionalMembersNeeded)
+    const projectedSprintsWithResources = projectedVelocityWithResources > 0 ? Math.ceil(remaining / projectedVelocityWithResources) : null
 
     return {
       remaining,
       avgVelocity,
-      projectedSprintsNeeded: projectedSprintsNeeded === Infinity ? null : projectedSprintsNeeded,
+      requiredVelocity: requiredVelocity === Infinity ? null : requiredVelocity,
       sprintsRemaining,
       status,
       targetDate: capacityInsights.sprints.targetDate,
+      // Resource recommendation
+      currentDevs,
+      currentQa,
+      currentTotal,
+      velocityPerMember: Math.round(velocityPerMember * 10) / 10,
+      additionalMembersNeeded,
+      additionalDevs,
+      additionalQa,
+      projectedSprintsWithResources,
+      velocityGapPct: avgVelocity > 0 ? Math.round(((requiredVelocity - avgVelocity) / avgVelocity) * 100) : null,
     }
   }, [dashboardData, capacityInsights])
 
@@ -1520,34 +1554,98 @@ export default function DeliveryRoadmapPage() {
                                   : releaseProjection.status === 'at-risk' ? 'oklch(0.6 0.2 60)'
                                   : 'oklch(0.5 0.22 25)',
                               }} />
-                              <span className="text-sm font-bold" style={{
-                                color: releaseProjection.status === 'on-track' ? 'oklch(0.35 0.14 145)'
-                                  : releaseProjection.status === 'at-risk' ? 'oklch(0.4 0.14 60)'
-                                  : 'oklch(0.4 0.18 25)',
-                              }}>
-                                {releaseProjection.status === 'on-track' ? 'On Track' : releaseProjection.status === 'at-risk' ? 'At Risk' : 'Delayed'}
-                              </span>
-                              <span className="text-[0.6875rem] text-muted-foreground">
-                                {releaseProjection.projectedSprintsNeeded !== null
-                                  ? `${releaseProjection.projectedSprintsNeeded} sprints needed, ${releaseProjection.sprintsRemaining} sprints remaining`
-                                  : `${releaseProjection.remaining} items remaining, no velocity data yet`}
-                              </span>
+                              <div className="flex flex-col">
+                                <span className="text-sm font-bold" style={{
+                                  color: releaseProjection.status === 'on-track' ? 'oklch(0.35 0.14 145)'
+                                    : releaseProjection.status === 'at-risk' ? 'oklch(0.4 0.14 60)'
+                                    : 'oklch(0.4 0.18 25)',
+                                }}>
+                                  {releaseProjection.status === 'on-track' ? 'On Track' : releaseProjection.status === 'at-risk' ? 'At Risk' : 'Delayed'}
+                                </span>
+                                <span className="text-[0.6875rem] text-muted-foreground">
+                                  {releaseProjection.status === 'on-track'
+                                    ? `Current velocity (${releaseProjection.avgVelocity} items/sprint) is sufficient to complete ${releaseProjection.remaining} remaining items in ${releaseProjection.sprintsRemaining} sprints.`
+                                    : releaseProjection.additionalMembersNeeded > 0
+                                    ? `To meet target, add ${releaseProjection.additionalMembersNeeded} resource${releaseProjection.additionalMembersNeeded > 1 ? 's' : ''} (${releaseProjection.additionalDevs} Dev + ${releaseProjection.additionalQa} QA) to reach required velocity of ${releaseProjection.requiredVelocity ?? '--'} items/sprint.`
+                                    : `${releaseProjection.remaining} items remaining with ${releaseProjection.sprintsRemaining} sprints left. Increase team velocity by ${releaseProjection.velocityGapPct ?? '--'}%.`}
+                                </span>
+                              </div>
                             </div>
 
                             {/* Key metrics */}
-                            <div className="grid grid-cols-4 gap-3 mb-4">
+                            <div className="grid grid-cols-5 gap-3 mb-4">
                               {[
                                 { label: 'Items Remaining', value: releaseProjection.remaining, color: 'oklch(0.25 0 0)' },
-                                { label: 'Avg Velocity / Sprint', value: releaseProjection.avgVelocity, color: 'oklch(0.4 0.14 240)' },
-                                { label: 'Sprints Needed', value: releaseProjection.projectedSprintsNeeded ?? '--', color: releaseProjection.status === 'delayed' ? 'oklch(0.5 0.22 25)' : 'oklch(0.25 0 0)' },
+                                { label: 'Current Velocity', value: `${releaseProjection.avgVelocity}/sprint`, color: 'oklch(0.4 0.14 240)' },
+                                { label: 'Required Velocity', value: releaseProjection.requiredVelocity !== null ? `${releaseProjection.requiredVelocity}/sprint` : '--', color: releaseProjection.status !== 'on-track' ? 'oklch(0.5 0.22 25)' : 'oklch(0.4 0.16 145)' },
                                 { label: 'Sprints Remaining', value: releaseProjection.sprintsRemaining, color: 'oklch(0.4 0.16 145)' },
+                                { label: 'Velocity Gap', value: releaseProjection.status === 'on-track' ? 'None' : `+${releaseProjection.velocityGapPct ?? '--'}%`, color: releaseProjection.status === 'on-track' ? 'oklch(0.4 0.16 145)' : 'oklch(0.5 0.22 25)' },
                               ].map(stat => (
                                 <div key={stat.label} className="rounded-lg border border-border px-3 py-3 text-center" style={{ backgroundColor: 'oklch(0.99 0 0)' }}>
-                                  <p className="text-xl font-bold" style={{ color: stat.color }}>{stat.value}</p>
+                                  <p className="text-lg font-bold" style={{ color: stat.color }}>{stat.value}</p>
                                   <p className="text-[0.5625rem] text-muted-foreground mt-0.5">{stat.label}</p>
                                 </div>
                               ))}
                             </div>
+
+                            {/* Resource Recommendation -- only show when not on track */}
+                            {releaseProjection.status !== 'on-track' && releaseProjection.additionalMembersNeeded > 0 && (
+                              <div className="rounded-lg border border-border overflow-hidden mb-4">
+                                <div className="px-3 py-2 border-b border-border flex items-center gap-2" style={{ backgroundColor: 'oklch(0.97 0.005 260)' }}>
+                                  <TrendingUp className="size-3.5 text-foreground" />
+                                  <span className="text-[0.6875rem] font-semibold text-foreground">Resource Recommendation</span>
+                                </div>
+                                <div className="px-4 py-3" style={{ backgroundColor: 'oklch(0.99 0 0)' }}>
+                                  <div className="grid grid-cols-3 gap-4 mb-3">
+                                    {/* Current team */}
+                                    <div>
+                                      <p className="text-[0.5625rem] font-semibold text-muted-foreground mb-1.5">Current Team</p>
+                                      <div className="flex items-center gap-2">
+                                        <span className="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[0.5625rem] font-semibold" style={{ backgroundColor: 'oklch(0.94 0.04 240)', color: 'oklch(0.4 0.14 240)' }}>
+                                          {releaseProjection.currentDevs} Dev
+                                        </span>
+                                        <span className="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[0.5625rem] font-semibold" style={{ backgroundColor: 'oklch(0.94 0.04 145)', color: 'oklch(0.4 0.16 145)' }}>
+                                          {releaseProjection.currentQa} QA
+                                        </span>
+                                        <span className="text-[0.5625rem] text-muted-foreground">= {releaseProjection.avgVelocity} items/sprint</span>
+                                      </div>
+                                    </div>
+                                    {/* Additional needed */}
+                                    <div>
+                                      <p className="text-[0.5625rem] font-semibold mb-1.5" style={{ color: 'oklch(0.5 0.22 25)' }}>Additional Needed</p>
+                                      <div className="flex items-center gap-2">
+                                        <span className="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[0.5625rem] font-bold" style={{ backgroundColor: 'oklch(0.94 0.04 25)', color: 'oklch(0.45 0.18 25)' }}>
+                                          +{releaseProjection.additionalDevs} Dev
+                                        </span>
+                                        <span className="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[0.5625rem] font-bold" style={{ backgroundColor: 'oklch(0.94 0.04 25)', color: 'oklch(0.45 0.18 25)' }}>
+                                          +{releaseProjection.additionalQa} QA
+                                        </span>
+                                      </div>
+                                    </div>
+                                    {/* Projected after */}
+                                    <div>
+                                      <p className="text-[0.5625rem] font-semibold mb-1.5" style={{ color: 'oklch(0.35 0.14 145)' }}>With Additional Resources</p>
+                                      <div className="flex items-center gap-2">
+                                        <span className="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[0.5625rem] font-semibold" style={{ backgroundColor: 'oklch(0.94 0.04 145)', color: 'oklch(0.35 0.14 145)' }}>
+                                          {releaseProjection.currentDevs + releaseProjection.additionalDevs} Dev
+                                        </span>
+                                        <span className="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[0.5625rem] font-semibold" style={{ backgroundColor: 'oklch(0.94 0.04 145)', color: 'oklch(0.35 0.14 145)' }}>
+                                          {releaseProjection.currentQa + releaseProjection.additionalQa} QA
+                                        </span>
+                                        {releaseProjection.projectedSprintsWithResources && (
+                                          <span className="text-[0.5625rem] text-muted-foreground">= done in ~{releaseProjection.projectedSprintsWithResources} sprints</span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <p className="text-[0.5625rem] text-muted-foreground leading-relaxed" style={{ borderTop: '1px solid oklch(0.92 0.01 260)', paddingTop: '0.5rem' }}>
+                                    Based on current velocity of <strong>{releaseProjection.velocityPerMember} items/member/sprint</strong>.
+                                    Required velocity is <strong>{releaseProjection.requiredVelocity ?? '--'} items/sprint</strong> ({releaseProjection.velocityGapPct}% higher than current).
+                                    Recommendation assumes new resources ramp up immediately with the same throughput.
+                                  </p>
+                                </div>
+                              </div>
+                            )}
 
                             {/* Sprint timeline */}
                             <div className="rounded-lg border border-border overflow-hidden">
