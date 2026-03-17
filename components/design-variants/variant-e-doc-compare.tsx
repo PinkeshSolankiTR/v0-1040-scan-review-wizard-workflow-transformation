@@ -14,7 +14,7 @@ import { useDecisions } from '@/contexts/decision-context'
 import { useLearnedRules } from '@/contexts/learned-rules-context'
 import {
   ChevronDown,
-  ChevronLeft,
+
   ChevronRight,
   FileText,
   Sparkles,
@@ -119,10 +119,12 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
   
   /* Override panel state - two-step flow */
   const [showOverridePanel, setShowOverridePanel] = useState(false)
-  const [overrideStep, setOverrideStep] = useState<'select' | 'reason'>('select')
-  const [selectedDocument, setSelectedDocument] = useState<string | null>(null) // which doc to mark as Original
   const [selectedReason, setSelectedReason] = useState<string | null>(null)
   const [customReason, setCustomReason] = useState('')
+  const [notSupersededReason, setNotSupersededReason] = useState<Set<string>>(new Set())
+  const [notSupersededCustom, setNotSupersededCustom] = useState('')
+  // Per-document role overrides: pageId -> role
+  const [docRoles, setDocRoles] = useState<Map<string, 'original' | 'superseded' | 'not-superseded'>>(new Map())
   
   /* Rejection state -- per-document tracking.
      Key = engagementPageId, Value = { reason, detail, formType }
@@ -450,66 +452,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
   }
 
   /* ── Override handler: flip Superseded <-> Original for active group ── */
-  const handleOverrideGroup = (reason: string | null) => {
-  if (!activeGroup || !selectedDocument) return
-  
-  // Find the index of the selected document in supersededRecords
-  const targetIdx = activeGroup.supersededRecords.findIndex(
-    s => String(s.engagementPageId) === selectedDocument
-  )
-  // If user selected the AI original (not in superseded list), selectedDocument won't match.
-  // In that case, user is "restoring" to AI default, so undo.
-  const isSelectingAIOriginal = activeGroup.originalRecord &&
-    String(activeGroup.originalRecord.engagementPageId) === selectedDocument
-  
-  // Get the reason text
-  const reasonText = reason 
-    ? OVERRIDE_REASONS.find(r => r.id === reason)?.label ?? reason 
-    : customReason || 'User override (no reason provided)'
-  
-  // Set the flip state -- store which superseded index was overridden
-  setFlippedGroups(prev => {
-  const next = new Map(prev)
-  if (isSelectingAIOriginal) {
-    // User selected the AI original back -- no override needed
-    next.delete(activeGroup.formType)
-  } else if (targetIdx >= 0) {
-    next.set(activeGroup.formType, targetIdx)
-  }
-  return next
-  })
-  
-  // Log override for each record in the group
-  const overriddenRecord = targetIdx >= 0 ? activeGroup.supersededRecords[targetIdx] : activeGroup.originalRecord
-  for (const r of activeGroup.records) {
-  const key = `sup-pg${r.engagementPageId}`
-  // Determine the new decision for this specific record
-  let newDecision: string
-  if (r.engagementPageId === overriddenRecord?.engagementPageId) {
-    newDecision = 'Original' // this superseded becomes original
-  } else if (r.decisionType === 'Original') {
-    newDecision = 'Superseded' // original becomes superseded
-  } else {
-    newDecision = 'Superseded' // other superseded stay superseded
-  }
-  const detail: OverrideDetail = {
-  originalAIDecision: `Page ${r.engagementPageId} = ${r.decisionType}`,
-  userOverrideDecision: `Page ${r.engagementPageId} = ${newDecision}`,
-  overrideReason: reasonText,
-  formType: r.documentRef?.formType ?? 'Unknown',
-  fieldContext: r.comparedValues ?? [],
-  }
-  override(key, 'superseded', r.confidenceLevel, detail)
-    }
-    
-    // Reset state -- reset superseded index since the list has changed
-    setSelectedSupersededIdx(0)
-    setShowOverridePanel(false)
-    setOverrideStep('select')
-    setSelectedDocument(null)
-    setSelectedReason(null)
-    setCustomReason('')
-  }
+  // handleOverrideGroup is now inline in the Apply button onClick
   
   const handleUndoOverride = () => {
     if (!activeGroup) return
@@ -520,10 +463,11 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
     })
     setSelectedSupersededIdx(0)
     setShowOverridePanel(false)
-    setOverrideStep('select')
-    setSelectedDocument(null)
     setSelectedReason(null)
     setCustomReason('')
+    setDocRoles(new Map())
+    setNotSupersededReason(new Set())
+    setNotSupersededCustom('')
   }
 
   /* ── Reject handler: mark entire group as not superseded ── */
@@ -670,23 +614,28 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
           </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          {/* Override Classification Dropdown */}
+          {/* Reclassify Dropdown */}
           <div style={{ position: 'relative' }}>
             <button
               type="button"
               onClick={() => {
                 if (!showOverridePanel) {
-                  // Reset to step 1 when opening
-                  setOverrideStep('select')
-                  // Pre-select the currently overridden doc if override is active (use validated index)
-                  if (isActiveFlipped && activeFlippedIdx !== undefined && activeGroup) {
-                    const overriddenRecord = activeGroup.supersededRecords[activeFlippedIdx]
-                    setSelectedDocument(overriddenRecord ? String(overriddenRecord.engagementPageId) : null)
-                  } else {
-                    setSelectedDocument(null)
+                  // Initialize docRoles from current state (AI defaults or overridden)
+                  if (activeGroup) {
+                    const initialRoles = new Map<string, 'original' | 'superseded' | 'not-superseded'>()
+                    for (const r of activeGroup.records) {
+                      const pageId = String(r.engagementPageId)
+                      const isCurrentOriginal = isActiveFlipped
+                        ? activeFlippedIdx !== undefined && r.engagementPageId === activeGroup.supersededRecords[activeFlippedIdx]?.engagementPageId
+                        : r.decisionType === 'Original'
+                      initialRoles.set(pageId, isCurrentOriginal ? 'original' : 'superseded')
+                    }
+                    setDocRoles(initialRoles)
                   }
                   setSelectedReason(null)
                   setCustomReason('')
+                  setNotSupersededReason(new Set())
+                  setNotSupersededCustom('')
                 }
                 setShowOverridePanel(p => !p)
               }}
@@ -707,280 +656,318 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
               aria-expanded={showOverridePanel}
             >
               <ArrowLeftRight style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem' }} />
-  {activeGroup && isActiveFlipped
-  ? `Override Active (Pg ${activeGroup.supersededRecords[activeFlippedIdx!]?.documentRef?.pageNumber ?? ''} is now Original)`
-  : 'Override Classification'}
+              Reclassify
               <ChevronDown style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
             </button>
             
-            {/* Override Panel Popover - Two Step Flow */}
-            {showOverridePanel && !allGroupAccepted && (
+            {/* Reclassify Panel Popover - Single Panel */}
+            {showOverridePanel && !allGroupAccepted && (() => {
+              // Derive change state from docRoles vs AI defaults
+              const hasRoleSwap = activeGroup?.records.some(r => {
+                const pageId = String(r.engagementPageId)
+                const currentRole = docRoles.get(pageId)
+                const aiRole = r.decisionType === 'Original' ? 'original' : 'superseded'
+                return currentRole && currentRole !== aiRole && currentRole !== 'not-superseded'
+              }) ?? false
+              const hasNotSuperseded = Array.from(docRoles.values()).some(v => v === 'not-superseded')
+              const hasAnyChange = hasRoleSwap || hasNotSuperseded
+              const originalCount = Array.from(docRoles.values()).filter(v => v === 'original').length
+              const supersededCount = Array.from(docRoles.values()).filter(v => v === 'superseded').length
+              const validationError = originalCount === 0
+                ? 'At least one document must be Original.'
+                : supersededCount === 0 && !hasNotSuperseded
+                  ? 'At least one document must be Superseded.'
+                  : null
+              const swapReasonFilled = !hasRoleSwap || (selectedReason !== null || customReason.trim() !== '')
+              const notSupReasonFilled = !hasNotSuperseded || (notSupersededReason.size > 0 || notSupersededCustom.trim() !== '')
+              const canApply = hasAnyChange && !validationError && swapReasonFilled && notSupReasonFilled
+
+              return (
               <>
-                {/* Backdrop to close on outside click */}
                 <div
-                  onClick={() => { setShowOverridePanel(false); setOverrideStep('select'); }}
+                  onClick={() => { setShowOverridePanel(false) }}
                   style={{ position: 'fixed', inset: 0, zIndex: 49 }}
                   aria-hidden="true"
                 />
                 <div style={{
                   position: 'absolute', insetBlockStart: '100%', insetInlineEnd: 0,
                   marginBlockStart: '0.25rem', zIndex: 50,
-                  inlineSize: 'max-content', minInlineSize: '20rem',
+                  inlineSize: 'max-content', minInlineSize: '22rem',
+                  maxBlockSize: '28rem', overflowY: 'auto',
                   padding: '0.75rem', borderRadius: '0.375rem',
                   border: '0.0625rem solid oklch(0.88 0.01 260)',
                   backgroundColor: 'oklch(1 0 0)',
                   boxShadow: '0 0.25rem 0.75rem oklch(0 0 0 / 0.12)',
                 }}>
-                  
-                  {/* STEP 1: Select Document */}
-                  {overrideStep === 'select' && (
-                    <>
-                      <p style={{
-                        fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.35 0.01 260)',
-                        textTransform: 'uppercase', letterSpacing: '0.04em',
-                        marginBlockEnd: '0.5rem',
-                      }}>
-                        Select the Original Document
-                      </p>
-                      <p style={{
-                        fontSize: '0.625rem', color: 'oklch(0.5 0.01 260)',
-                        marginBlockEnd: '0.75rem', lineHeight: '1.4',
-                      }}>
-                        Only 1 document can be Original. All others will be marked as Superseded.
-                      </p>
+                  <p style={{
+                    fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.35 0.01 260)',
+                    textTransform: 'uppercase', letterSpacing: '0.04em',
+                    marginBlockEnd: '0.5rem',
+                  }}>
+                    Reclassify Documents
+                  </p>
 
-                      {/* Document options from active group (exclude rejected docs) */}
-                      <fieldset style={{ border: 'none', padding: 0, margin: 0 }}>
-                        <legend className="sr-only">Select original document</legend>
-                        {activeGroup?.records
-                          .filter(record => !rejectedPageIds.has(String(record.engagementPageId)))
-                          .map((record) => {
-                          const isAIPick = record.decisionType === 'Original'
-                          const isCurrentOriginal = isActiveFlipped
-                            ? activeFlippedIdx !== undefined && record.engagementPageId === activeGroup.supersededRecords[activeFlippedIdx]?.engagementPageId
-                            : record.decisionType === 'Original'
-                          const docLabel = `${record.documentRef?.formType ?? 'Document'} (Page ${record.engagementPageId})`
-                          return (
-                            <label
-                              key={record.engagementPageId}
-                              style={{
-                                display: 'flex', alignItems: 'center', gap: '0.5rem',
-                                padding: '0.5rem',
-                                borderRadius: '0.25rem',
-                                cursor: 'pointer',
-                                backgroundColor: selectedDocument === String(record.engagementPageId) 
-                                  ? 'oklch(0.95 0.04 145)' 
-                                  : 'transparent',
-                              }}
-                            >
-                              <input
-                                type="radio"
-                                name="select-document"
-                                checked={selectedDocument === String(record.engagementPageId)}
-                                onChange={() => setSelectedDocument(String(record.engagementPageId))}
-                                style={{ accentColor: 'oklch(0.45 0.18 145)', flexShrink: 0 }}
-                              />
-                              <FileText style={{ inlineSize: '0.875rem', blockSize: '0.875rem', color: 'oklch(0.5 0.01 260)' }} />
-                              <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.25 0.01 260)', flex: 1 }}>
-                                {docLabel}
-                              </span>
-                              {isCurrentOriginal && (
-                                <span style={{
-                                  fontSize: '0.5625rem', fontWeight: 700,
-                                  padding: '0.125rem 0.375rem',
-                                  borderRadius: '0.1875rem',
-                                  backgroundColor: 'oklch(0.94 0.04 145)',
-                                  color: 'oklch(0.35 0.14 145)',
-                                }}>
-                                  Current Original
-                                </span>
-                              )}
-                              {isAIPick && !isCurrentOriginal && (
-                                <span style={{
-                                  fontSize: '0.5625rem', fontWeight: 700,
-                                  padding: '0.125rem 0.375rem',
-                                  borderRadius: '0.1875rem',
-                                  backgroundColor: 'oklch(0.95 0.04 240)',
-                                  color: 'oklch(0.45 0.18 240)',
-                                }}>
-                                  AI Pick
-                                </span>
-                              )}
-                            </label>
-                          )
-                        })}
-                      </fieldset>
-
-                      {/* Action buttons */}
-                      <div style={{ display: 'flex', gap: '0.5rem', marginBlockStart: '0.75rem' }}>
-                        {isActiveFlipped && (
-                          <button
-                            type="button"
-                            onClick={handleUndoOverride}
+                  {/* Per-document role dropdowns */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginBlockEnd: '0.75rem' }}>
+                    {activeGroup?.records
+                      .filter(record => !rejectedPageIds.has(String(record.engagementPageId)))
+                      .map((record) => {
+                        const pageId = String(record.engagementPageId)
+                        const aiRole = record.decisionType === 'Original' ? 'original' : 'superseded'
+                        const currentRole = docRoles.get(pageId) ?? aiRole
+                        const isChanged = currentRole !== aiRole
+                        return (
+                          <div
+                            key={pageId}
                             style={{
-                              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem',
+                              display: 'flex', alignItems: 'center', gap: '0.5rem',
                               padding: '0.375rem 0.5rem',
-                              border: '0.0625rem solid oklch(0.88 0.01 260)',
-                              borderRadius: '0.25rem', backgroundColor: 'oklch(1 0 0)',
-                              fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.45 0.01 260)',
-                              cursor: 'pointer',
+                              borderRadius: '0.25rem',
+                              backgroundColor: isChanged
+                                ? currentRole === 'not-superseded' ? 'oklch(0.97 0.005 260)' : 'oklch(0.98 0.04 60)'
+                                : 'transparent',
                             }}
                           >
-                            <Undo2 style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
-                            Undo Override
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => setOverrideStep('reason')}
-                          disabled={!selectedDocument}
-                          style={{
-                            flex: 1,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem',
-                            padding: '0.375rem 0.5rem',
-                            border: 'none',
-                            borderRadius: '0.25rem',
-                            backgroundColor: !selectedDocument ? 'oklch(0.9 0.01 260)' : 'oklch(0.45 0.18 145)',
-                            fontSize: '0.6875rem', fontWeight: 600,
-                            color: !selectedDocument ? 'oklch(0.6 0.01 260)' : 'oklch(1 0 0)',
-                            cursor: !selectedDocument ? 'not-allowed' : 'pointer',
-                          }}
-                        >
-                          {isActiveFlipped ? 'Change Override' : 'Continue'}
-                          <ChevronRight style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
-                        </button>
-                      </div>
-                    </>
+                            <FileText style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.5 0.01 260)', flexShrink: 0 }} />
+                            <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.25 0.01 260)', flex: 1, whiteSpace: 'nowrap' }}>
+                              Pg {record.documentRef?.pageNumber ?? record.engagementPageId}
+                            </span>
+                            <select
+                              value={currentRole}
+                              onChange={(e) => {
+                                const newRole = e.target.value as 'original' | 'superseded' | 'not-superseded'
+                                setDocRoles(prev => {
+                                  const next = new Map(prev)
+                                  next.set(pageId, newRole)
+                                  return next
+                                })
+                              }}
+                              style={{
+                                fontSize: '0.625rem', fontWeight: 600,
+                                padding: '0.1875rem 0.375rem',
+                                border: '0.0625rem solid oklch(0.85 0.01 260)',
+                                borderRadius: '0.1875rem',
+                                backgroundColor: 'oklch(1 0 0)',
+                                color: currentRole === 'original' ? 'oklch(0.35 0.14 145)'
+                                  : currentRole === 'superseded' ? 'oklch(0.45 0.18 240)'
+                                  : 'oklch(0.45 0.01 260)',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              <option value="original">Original</option>
+                              <option value="superseded">Superseded</option>
+                              <option value="not-superseded">Not Superseded</option>
+                            </select>
+                            <span style={{
+                              fontSize: '0.5625rem', fontWeight: 500, color: 'oklch(0.55 0.01 260)',
+                              whiteSpace: 'nowrap',
+                            }}>
+                              AI: {aiRole === 'original' ? 'Original' : 'Superseded'}
+                            </span>
+                          </div>
+                        )
+                      })}
+                  </div>
+
+                  {/* Validation error */}
+                  {validationError && (
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: '0.25rem',
+                      padding: '0.375rem 0.5rem', marginBlockEnd: '0.5rem',
+                      borderRadius: '0.25rem',
+                      backgroundColor: 'oklch(0.96 0.04 25)', border: '0.0625rem solid oklch(0.88 0.08 25)',
+                    }}>
+                      <AlertTriangle style={{ inlineSize: '0.625rem', blockSize: '0.625rem', color: 'oklch(0.55 0.16 25)', flexShrink: 0 }} />
+                      <span style={{ fontSize: '0.625rem', color: 'oklch(0.4 0.08 25)' }}>{validationError}</span>
+                    </div>
                   )}
 
-                  {/* STEP 2: Provide Reason */}
-                  {overrideStep === 'reason' && (
-                    <>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBlockEnd: '0.5rem' }}>
-                        <button
-                          type="button"
-                          onClick={() => setOverrideStep('select')}
-                          style={{
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            padding: '0.25rem',
-                            border: 'none', borderRadius: '0.25rem',
-                            backgroundColor: 'transparent',
-                            cursor: 'pointer',
-                          }}
-                          aria-label="Go back"
-                        >
-                          <ChevronLeft style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'oklch(0.5 0.01 260)' }} />
-                        </button>
-                        <p style={{
-                          fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.35 0.01 260)',
-                          textTransform: 'uppercase', letterSpacing: '0.04em',
-                        }}>
-                          Why are you overriding?
-                        </p>
-                      </div>
+                  {/* Reason for reclassification (role swap) */}
+                  {hasRoleSwap && (
+                    <div style={{ marginBlockEnd: '0.625rem' }}>
                       <p style={{
-                        fontSize: '0.625rem', color: 'oklch(0.5 0.01 260)',
-                        marginBlockEnd: '0.75rem', lineHeight: '1.4',
+                        fontSize: '0.625rem', fontWeight: 700, color: 'oklch(0.35 0.01 260)',
+                        textTransform: 'uppercase', letterSpacing: '0.04em',
+                        marginBlockEnd: '0.375rem',
                       }}>
-                        Help us improve AI accuracy by sharing why this override was needed.
+                        Reason for reclassification
                       </p>
-
-                      {/* Predefined reasons */}
                       <fieldset style={{ border: 'none', padding: 0, margin: 0 }}>
-                        <legend className="sr-only">Select override reason</legend>
+                        <legend className="sr-only">Select reclassification reason</legend>
                         {OVERRIDE_REASONS.map(reason => (
                           <label
                             key={reason.id}
                             style={{
-                              display: 'flex', alignItems: 'flex-start', gap: '0.5rem',
-                              padding: '0.5rem',
-                              borderRadius: '0.25rem',
-                              cursor: 'pointer',
+                              display: 'flex', alignItems: 'center', gap: '0.375rem',
+                              padding: '0.375rem 0.5rem', borderRadius: '0.25rem', cursor: 'pointer',
                               backgroundColor: selectedReason === reason.id ? 'oklch(0.95 0.04 145)' : 'transparent',
                             }}
                           >
                             <input
-                              type="radio"
-                              name="override-reason"
+                              type="radio" name="reclassify-reason"
                               checked={selectedReason === reason.id}
-                              onChange={() => { setSelectedReason(reason.id); setCustomReason(''); }}
-                              style={{ accentColor: 'oklch(0.45 0.18 145)', flexShrink: 0, marginTop: '0.125rem' }}
+                              onChange={() => { setSelectedReason(reason.id); setCustomReason('') }}
+                              style={{ accentColor: 'oklch(0.45 0.18 145)', flexShrink: 0 }}
                             />
-                            <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.25 0.01 260)' }}>
+                            <span style={{ fontSize: '0.625rem', fontWeight: 600, color: 'oklch(0.25 0.01 260)' }}>
                               {reason.label}
                             </span>
                           </label>
                         ))}
-                        
-                        {/* Custom reason option */}
-                        <label
-                          style={{
-                            display: 'flex', alignItems: 'flex-start', gap: '0.5rem',
-                            padding: '0.5rem',
-                            borderRadius: '0.25rem',
-                            cursor: 'pointer',
-                            backgroundColor: selectedReason === 'custom' ? 'oklch(0.95 0.04 145)' : 'transparent',
-                          }}
-                        >
-                          <input
-                            type="radio"
-                            name="override-reason"
-                            checked={selectedReason === 'custom'}
+                        <label style={{
+                          display: 'flex', alignItems: 'center', gap: '0.375rem',
+                          padding: '0.375rem 0.5rem', borderRadius: '0.25rem', cursor: 'pointer',
+                          backgroundColor: selectedReason === 'custom' ? 'oklch(0.95 0.04 145)' : 'transparent',
+                        }}>
+                          <input type="radio" name="reclassify-reason" checked={selectedReason === 'custom'}
                             onChange={() => setSelectedReason('custom')}
-                            style={{ accentColor: 'oklch(0.45 0.18 145)', flexShrink: 0, marginTop: '0.125rem' }}
-                          />
-                          <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.25 0.01 260)' }}>
-                            Other (specify below)
-                          </span>
+                            style={{ accentColor: 'oklch(0.45 0.18 145)', flexShrink: 0 }} />
+                          <span style={{ fontSize: '0.625rem', fontWeight: 600, color: 'oklch(0.25 0.01 260)' }}>Other</span>
                         </label>
-                        
-                        {/* Custom text input */}
                         {selectedReason === 'custom' && (
-                          <textarea
-                            value={customReason}
-                            onChange={(e) => setCustomReason(e.target.value)}
-                            placeholder="Enter your reason for overriding..."
+                          <textarea value={customReason} onChange={(e) => setCustomReason(e.target.value)}
+                            placeholder="Enter your reason..."
                             style={{
-                              marginBlockStart: '0.5rem',
-                              inlineSize: '100%',
-                              minBlockSize: '3.5rem',
-                              padding: '0.5rem',
-                              border: '0.0625rem solid oklch(0.88 0.01 260)',
-                              borderRadius: '0.25rem',
-                              fontSize: '0.6875rem',
-                              resize: 'vertical',
-                            }}
-                          />
+                              marginBlockStart: '0.375rem', inlineSize: '100%', minBlockSize: '2.5rem',
+                              padding: '0.375rem', border: '0.0625rem solid oklch(0.88 0.01 260)',
+                              borderRadius: '0.25rem', fontSize: '0.625rem', resize: 'vertical',
+                            }} />
                         )}
                       </fieldset>
-
-                      {/* Action buttons */}
-                      <div style={{ display: 'flex', gap: '0.5rem', marginBlockStart: '0.75rem' }}>
-                        <button
-                          type="button"
-                          onClick={() => handleOverrideGroup(selectedReason)}
-                          disabled={!selectedReason && !customReason}
-                          style={{
-                            flex: 1,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem',
-                            padding: '0.375rem 0.5rem',
-                            border: 'none',
-                            borderRadius: '0.25rem',
-                            backgroundColor: (!selectedReason && !customReason) ? 'oklch(0.9 0.01 260)' : 'oklch(0.45 0.18 145)',
-                            fontSize: '0.6875rem', fontWeight: 600,
-                            color: (!selectedReason && !customReason) ? 'oklch(0.6 0.01 260)' : 'oklch(1 0 0)',
-                            cursor: (!selectedReason && !customReason) ? 'not-allowed' : 'pointer',
-                          }}
-                        >
-                          <Check style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
-                          Apply Override
-                        </button>
-                      </div>
-                    </>
+                    </div>
                   )}
+
+                  {/* Reason for exclusion (not superseded) */}
+                  {hasNotSuperseded && (
+                    <div style={{ marginBlockEnd: '0.625rem' }}>
+                      <div style={{
+                        display: 'flex', alignItems: 'flex-start', gap: '0.375rem',
+                        padding: '0.375rem 0.5rem', borderRadius: '0.25rem', marginBlockEnd: '0.5rem',
+                        backgroundColor: 'oklch(0.96 0.04 80)', border: '0.0625rem solid oklch(0.88 0.08 80)',
+                      }}>
+                        <AlertTriangle style={{ inlineSize: '0.625rem', blockSize: '0.625rem', color: 'oklch(0.6 0.16 60)', flexShrink: 0, marginBlockStart: '0.0625rem' }} />
+                        <p style={{ fontSize: '0.5625rem', color: 'oklch(0.4 0.04 60)', lineHeight: '1.5', margin: 0 }}>
+                          {"You're confirming these documents do not replace each other. Both will remain as-is in the binder."}
+                        </p>
+                      </div>
+                      <p style={{
+                        fontSize: '0.625rem', fontWeight: 700, color: 'oklch(0.35 0.01 260)',
+                        textTransform: 'uppercase', letterSpacing: '0.04em',
+                        marginBlockEnd: '0.375rem',
+                      }}>
+                        Reason for exclusion
+                      </p>
+                      <fieldset style={{ border: 'none', padding: 0, margin: 0 }}>
+                        <legend className="sr-only">Select exclusion reason</legend>
+                        {REJECTION_REASONS.map(reason => (
+                          <label
+                            key={reason.id}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: '0.375rem',
+                              padding: '0.375rem 0.5rem', borderRadius: '0.25rem', cursor: 'pointer',
+                              backgroundColor: notSupersededReason.has(reason.id) ? 'oklch(0.95 0.04 145)' : 'transparent',
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={notSupersededReason.has(reason.id)}
+                              onChange={() => {
+                                setNotSupersededReason(prev => {
+                                  const next = new Set(prev)
+                                  if (next.has(reason.id)) next.delete(reason.id)
+                                  else next.add(reason.id)
+                                  return next
+                                })
+                              }}
+                              style={{ accentColor: 'oklch(0.45 0.18 145)', flexShrink: 0 }}
+                            />
+                            <span style={{ fontSize: '0.625rem', fontWeight: 600, color: 'oklch(0.25 0.01 260)' }}>
+                              {reason.label}
+                            </span>
+                          </label>
+                        ))}
+                      </fieldset>
+                    </div>
+                  )}
+
+                  {/* Action buttons */}
+                  <div style={{ display: 'flex', gap: '0.5rem', marginBlockStart: '0.5rem' }}>
+                    {isActiveFlipped && (
+                      <button type="button" onClick={handleUndoOverride}
+                        style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem',
+                          padding: '0.375rem 0.5rem', border: '0.0625rem solid oklch(0.88 0.01 260)',
+                          borderRadius: '0.25rem', backgroundColor: 'oklch(1 0 0)',
+                          fontSize: '0.6875rem', fontWeight: 600, color: 'oklch(0.45 0.01 260)', cursor: 'pointer',
+                        }}>
+                        <Undo2 style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
+                        Reset
+                      </button>
+                    )}
+                    <button type="button"
+                      disabled={!canApply}
+                      onClick={() => {
+                        if (!activeGroup) return
+                        // Find the new original from docRoles
+                        const newOriginalPageId = Array.from(docRoles.entries()).find(([, role]) => role === 'original')?.[0]
+                        if (newOriginalPageId) {
+                          // Check if the role was swapped (new original is different from AI original)
+                          const aiOriginalId = String(activeGroup.originalRecord.engagementPageId)
+                          if (newOriginalPageId !== aiOriginalId) {
+                            // Find the index in supersededRecords for the new original
+                            const targetIdx = activeGroup.supersededRecords.findIndex(
+                              s => String(s.engagementPageId) === newOriginalPageId
+                            )
+                            const reasonText = selectedReason
+                              ? OVERRIDE_REASONS.find(r => r.id === selectedReason)?.label ?? selectedReason
+                              : customReason || 'Reclassified by reviewer'
+                            setFlippedGroups(prev => {
+                              const next = new Map(prev)
+                              if (targetIdx >= 0) next.set(activeGroup.formType, targetIdx)
+                              return next
+                            })
+                            for (const r of activeGroup.records) {
+                              const key = `sup-pg${r.engagementPageId}`
+                              const docRole = docRoles.get(String(r.engagementPageId))
+                              let newDecision: string
+                              if (docRole === 'original') newDecision = 'Original'
+                              else if (docRole === 'not-superseded') newDecision = 'Not Superseded'
+                              else newDecision = 'Superseded'
+                              const detail: OverrideDetail = {
+                                originalAIDecision: `Page ${r.engagementPageId} = ${r.decisionType}`,
+                                userOverrideDecision: `Page ${r.engagementPageId} = ${newDecision}`,
+                                overrideReason: reasonText,
+                                formType: r.documentRef?.formType ?? 'Unknown',
+                                fieldContext: r.comparedValues ?? [],
+                              }
+                              override(key, 'superseded', r.confidenceLevel, detail)
+                            }
+                          }
+                        }
+                        setSelectedSupersededIdx(0)
+                        setShowOverridePanel(false)
+                        setSelectedReason(null)
+                        setCustomReason('')
+                        setNotSupersededReason(new Set())
+                        setNotSupersededCustom('')
+                      }}
+                      style={{
+                        flex: 1,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem',
+                        padding: '0.375rem 0.5rem', border: 'none', borderRadius: '0.25rem',
+                        backgroundColor: !canApply ? 'oklch(0.9 0.01 260)' : 'oklch(0.45 0.18 145)',
+                        fontSize: '0.6875rem', fontWeight: 600,
+                        color: !canApply ? 'oklch(0.6 0.01 260)' : 'oklch(1 0 0)',
+                        cursor: !canApply ? 'not-allowed' : 'pointer',
+                      }}>
+                      <Check style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
+                      Apply
+                    </button>
+                  </div>
                 </div>
               </>
-            )}
+              )
+            })()}
           </div>
 
           {/* Reject Classification Dropdown */}
@@ -1827,7 +1814,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                       backgroundColor: 'oklch(0.92 0.06 60)', color: 'oklch(0.45 0.16 60)',
                     }}>
                       <ArrowLeftRight style={{ inlineSize: '0.5625rem', blockSize: '0.5625rem' }} />
-                      Manual Override
+                      Reclassified
                     </span>
                   ) : (
                     <span
