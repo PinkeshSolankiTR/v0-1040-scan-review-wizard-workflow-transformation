@@ -1861,27 +1861,6 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                   </div>
                 </div>
 
-                {/* ── Collapsible AI reasoning toggle ── */}
-                <button
-                  type="button"
-                  onClick={() => togglePanel('aiAnalysis')}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '0.375rem',
-                    inlineSize: '100%', padding: '0.375rem 0.75rem',
-                    border: 'none', cursor: 'pointer', textAlign: 'start',
-                    fontSize: '0.6875rem', fontWeight: 600,
-                    color: 'oklch(0.4 0.01 260)',
-                    backgroundColor: 'oklch(0.98 0.003 260)',
-                  }}
-                >
-                  {expandedPanels.has('aiAnalysis')
-                    ? <ChevronDown style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
-                    : <ChevronRight style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
-                  }
-                  AI Reasoning
-                </button>
-
-                {expandedPanels.has('aiAnalysis') && (
                   <div style={{
                     padding: '0.625rem 0.75rem',
                     backgroundColor: panelGroupRejected 
@@ -2201,14 +2180,13 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                       )
                     })()}
                   </div>
-                )}
               </div>
             )
           })()}
 
           {/* ═══════════════════════════════════════════════════════════
               REJECTION SUMMARY CARD (shown when group is rejected)
-              ════════════════════════════════════════════════════���══════ */}
+              ══════════════════════════════════════════════════��═���══════ */}
           {/* No separate rejection card -- rejection info is shown in the Not Superseded panel above */}
 
           {/* ═══════════════════════════════════════════════════════════
