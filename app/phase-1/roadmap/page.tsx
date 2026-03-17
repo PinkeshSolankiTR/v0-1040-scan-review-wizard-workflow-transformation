@@ -7,6 +7,7 @@ import {
   Sparkles, ArrowLeft, ChevronDown, ChevronRight, Layers, Hash,
   Crosshair, Wrench, ExternalLink, RefreshCw, Loader2, AlertTriangle,
   CloudOff, User, Tag, FolderGit2, MapPin, Search, Filter,
+  ShieldAlert, Users, Clock,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -474,9 +475,53 @@ function StaticFeatureCard({ feature }: { feature: StaticFeature }) {
 }
 
 /* ──────────────────────────────────────────────
+   PO Dashboard: Risk section card
+   ────────────────────────────────────────────── */
+function RiskSection({ label, icon: Icon, items, color }: { label: string; icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>; items: AdoWorkItemFlat[]; color: string }) {
+  const [expanded, setExpanded] = useState(false)
+  const displayItems = expanded ? items : items.slice(0, 5)
+  return (
+    <div className="rounded-lg border border-border overflow-hidden" style={{ backgroundColor: 'oklch(0.99 0 0)' }}>
+      <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border" style={{ backgroundColor: 'oklch(0.97 0.005 260)' }}>
+        <Icon className="size-3.5" style={{ color }} />
+        <span className="text-[0.6875rem] font-semibold text-foreground">{label}</span>
+        <span className="ml-auto text-[0.6875rem] font-bold" style={{ color: items.length > 0 ? color : 'oklch(0.45 0.01 260)' }}>
+          {items.length}
+        </span>
+      </div>
+      {items.length === 0 ? (
+        <div className="px-3 py-4 text-center">
+          <p className="text-[0.625rem] text-muted-foreground/50 italic">None found</p>
+        </div>
+      ) : (
+        <div className="divide-y divide-border">
+          {displayItems.map(item => (
+            <a key={item.id} href={item.url} target="_blank" rel="noopener noreferrer" className="flex items-start gap-2 px-3 py-1.5 hover:bg-muted/30 transition-colors">
+              <span className="text-[0.5625rem] font-mono text-muted-foreground shrink-0 mt-0.5">{item.id}</span>
+              <span className="text-[0.625rem] text-foreground leading-snug flex-1 min-w-0 truncate">{item.title}</span>
+              <span className="inline-flex items-center rounded-sm px-1 py-0 text-[0.5rem] font-semibold shrink-0" style={stateStyle(item.state)}>{item.state}</span>
+            </a>
+          ))}
+          {items.length > 5 && !expanded && (
+            <button type="button" onClick={() => setExpanded(true)} className="w-full px-3 py-1.5 text-[0.625rem] font-medium text-muted-foreground hover:text-foreground text-center transition-colors">
+              Show {items.length - 5} more...
+            </button>
+          )}
+          {expanded && items.length > 5 && (
+            <button type="button" onClick={() => setExpanded(false)} className="w-full px-3 py-1.5 text-[0.625rem] font-medium text-muted-foreground hover:text-foreground text-center transition-colors">
+              Show less
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ──────────────────────────────────────────────
    MAIN PAGE
    ────────────────────────────────────────────── */
-type RoadmapTab = 'ado' | 'static'
+type RoadmapTab = 'ado' | 'static' | 'dashboard'
 type StateFilter = 'all' | 'active' | 'done' | 'new'
 
 export default function DeliveryRoadmapPage() {
@@ -492,9 +537,9 @@ export default function DeliveryRoadmapPage() {
   const isLive = !error && !!data?.items
 
   /* Build lookup map + identify root items (epics / top-level) */
-  const { allItems, rootItems, stats } = useMemo(() => {
+  const { allItems, rootItems, stats, scopedItems } = useMemo(() => {
     const allMap = new Map<number, AdoWorkItemFlat>()
-    if (!data?.items) return { allItems: allMap, rootItems: [] as AdoWorkItemFlat[], stats: { total: 0, done: 0, active: 0, epics: 0, types: new Map<string, number>() } }
+    if (!data?.items) return { allItems: allMap, rootItems: [] as AdoWorkItemFlat[], scopedItems: [] as AdoWorkItemFlat[], stats: { total: 0, done: 0, active: 0, epics: 0, types: new Map<string, number>() } }
 
     for (const item of data.items) allMap.set(item.id, item)
 
@@ -525,6 +570,7 @@ export default function DeliveryRoadmapPage() {
     return {
       allItems: allMap,
       rootItems: roots,
+      scopedItems,
       stats: { total, done, active, epics: roots.length, types },
     }
   }, [data])
@@ -564,12 +610,134 @@ export default function DeliveryRoadmapPage() {
     return items
   }, [rootItems, stateFilter, searchQuery, allItems])
 
+  /* ── PO Dashboard data ── */
+  const dashboardData = useMemo(() => {
+    if (scopedItems.length === 0) return null
+
+    // Separate features from epic
+    const features = scopedItems.filter(i => i.workItemType === 'Feature')
+    const spikes = scopedItems.filter(i => ['Spike', 'Task', 'User Story', 'Product Backlog Item'].includes(i.workItemType))
+
+    // Classify features as wizard or cross-cutting by title keywords
+    const WIZARD_KEYWORDS = ['superseded', 'duplicate', 'pre-verification', 'verification', 'cfa', 'nfr', 'finalization', 'tax exempt', 'cbd']
+    const CROSS_CUTTING_KEYWORDS = ['llm', 'explainability', 'confidence', 'accuracy', 'scalability', 'performance']
+
+    const classifyFeature = (title: string): 'wizard' | 'cross-cutting' | 'other' => {
+      const t = title.toLowerCase()
+      if (WIZARD_KEYWORDS.some(k => t.includes(k))) return 'wizard'
+      if (CROSS_CUTTING_KEYWORDS.some(k => t.includes(k))) return 'cross-cutting'
+      return 'other'
+    }
+
+    const extractWizardName = (title: string): string => {
+      const t = title.toLowerCase()
+      for (const kw of WIZARD_KEYWORDS) {
+        if (t.includes(kw)) return kw.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+      }
+      return title.split(' ').slice(0, 2).join(' ')
+    }
+
+    // Pipeline stages with keyword matchers
+    const PIPELINE_STAGES = [
+      { id: 'code-analysis', label: 'Code Analysis', keywords: ['code analysis'] },
+      { id: 'gap-analysis', label: 'Gap Analysis', keywords: ['gap analysis'] },
+      { id: 'tech-arch', label: 'Tech Architecture', keywords: ['technical architecture', 'architecture analysis'] },
+      { id: 'ai-prompt', label: 'AI Prompt/Spec', keywords: ['ai prompt', 'decision specification'] },
+      { id: 'data-analysis', label: 'Data Analysis', keywords: ['top 100 binders', 'data analysis', 'binder analysis'] },
+      { id: 'ai-ml-eval', label: 'AI/ML Evaluation', keywords: ['ai/ml evaluation', 'ml evaluation'] },
+      { id: 'sop-encoding', label: 'SOP Encoding', keywords: ['sop', 'encode', 'consolidate'] },
+    ] as const
+
+    // Build wizard maturity matrix
+    const wizardFeatures = features.filter(f => classifyFeature(f.title) === 'wizard')
+    const crossCuttingFeatures = features.filter(f => classifyFeature(f.title) === 'cross-cutting')
+
+    // For each wizard, find its children spikes and map to pipeline stages
+    const wizardMatrix = wizardFeatures.map(wf => {
+      const wizardName = extractWizardName(wf.title)
+      const childIds = new Set<number>()
+      const collectChildren = (id: number) => {
+        const item = allItems.get(id)
+        if (!item) return
+        for (const cid of item.childIds) { childIds.add(cid); collectChildren(cid) }
+      }
+      collectChildren(wf.id)
+      const childItems = Array.from(childIds).map(id => allItems.get(id)).filter(Boolean) as AdoWorkItemFlat[]
+
+      const stages = PIPELINE_STAGES.map(stage => {
+        const matching = childItems.filter(ci => stage.keywords.some(kw => ci.title.toLowerCase().includes(kw)))
+        if (matching.length === 0) return { ...stage, status: 'none' as const, count: 0, done: 0 }
+        const doneCount = matching.filter(m => isDone(m.state)).length
+        const activeCount = matching.filter(m => isActive(m.state)).length
+        const status = doneCount === matching.length ? 'done' as const : activeCount > 0 ? 'active' as const : 'new' as const
+        return { ...stage, status, count: matching.length, done: doneCount }
+      })
+
+      const totalChildren = childItems.length
+      const doneChildren = childItems.filter(c => isDone(c.state)).length
+
+      return { id: wf.id, name: wizardName, title: wf.title, stages, state: wf.state, total: totalChildren, done: doneChildren, url: wf.url }
+    })
+
+    // Cross-cutting health
+    const crossCuttingHealth = crossCuttingFeatures.map(cf => {
+      const childIds = new Set<number>()
+      const collectChildren = (id: number) => {
+        const item = allItems.get(id)
+        if (!item) return
+        for (const cid of item.childIds) { childIds.add(cid); collectChildren(cid) }
+      }
+      collectChildren(cf.id)
+      const childItems = Array.from(childIds).map(id => allItems.get(id)).filter(Boolean) as AdoWorkItemFlat[]
+      const total = childItems.length
+      const done = childItems.filter(c => isDone(c.state)).length
+      const active = childItems.filter(c => isActive(c.state)).length
+      return { id: cf.id, title: cf.title, total, done, active, state: cf.state, url: cf.url }
+    })
+
+    // Risk radar
+    const unassigned = spikes.filter(s => !s.assignedTo)
+    const stale = spikes.filter(s => ['new', 'proposed'].includes(s.state.toLowerCase()))
+    const removed = scopedItems.filter(s => ['removed', 'cut'].includes(s.state.toLowerCase()))
+
+    // Assignee distribution
+    const assigneeMap = new Map<string, { active: number; done: number; total: number }>()
+    for (const s of spikes) {
+      const name = s.assignedTo || 'Unassigned'
+      const entry = assigneeMap.get(name) ?? { active: 0, done: 0, total: 0 }
+      entry.total++
+      if (isDone(s.state)) entry.done++
+      if (isActive(s.state)) entry.active++
+      assigneeMap.set(name, entry)
+    }
+    const assignees = Array.from(assigneeMap.entries())
+      .map(([name, counts]) => ({ name, ...counts }))
+      .sort((a, b) => b.active - a.active)
+
+    // Hero stats
+    const totalItems = scopedItems.length
+    const doneItems = scopedItems.filter(i => isDone(i.state)).length
+    const activeItems = scopedItems.filter(i => isActive(i.state)).length
+    const unassignedCount = unassigned.length
+    const newProposedCount = stale.length
+
+    return {
+      heroStats: { totalItems, doneItems, activeItems, unassignedCount, newProposedCount },
+      wizardMatrix,
+      crossCuttingHealth,
+      risk: { unassigned, stale, removed },
+      assignees,
+      PIPELINE_STAGES,
+    }
+  }, [scopedItems, allItems])
+
   /* Static data */
   const staticWizardFeatures = STATIC_ROADMAP.features.filter(f => f.category === 'wizard')
   const staticCrossCuttingFeatures = STATIC_ROADMAP.features.filter(f => f.category === 'cross-cutting')
 
   const tabs: { id: RoadmapTab; label: string; sublabel: string }[] = [
     { id: 'ado', label: 'Azure DevOps (Live)', sublabel: 'Real-time from ADO query' },
+    { id: 'dashboard', label: 'PO Dashboard', sublabel: 'Key insights & risk radar' },
     { id: 'static', label: 'Static Roadmap', sublabel: 'Original CSV-based data' },
   ]
 
@@ -826,6 +994,266 @@ export default function DeliveryRoadmapPage() {
                     Retry ADO Connection
                   </Button>
                 </div>
+              )}
+            </div>
+          )}
+
+          {/* ── TAB: PO Dashboard ── */}
+          {activeTab === 'dashboard' && (
+            <div>
+              {/* Reuse same loading / error states */}
+              {isLoading && (
+                <div className="flex flex-col items-center justify-center py-20 gap-3">
+                  <Loader2 className="size-8 animate-spin text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">Loading dashboard data from Azure DevOps...</p>
+                </div>
+              )}
+
+              {error && !isLoading && (
+                <div className="flex flex-col items-center justify-center py-16 gap-4 text-center">
+                  <CloudOff className="size-10 text-muted-foreground/40" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">No live data available</p>
+                    <p className="text-xs text-muted-foreground mt-1">Dashboard requires a live ADO connection. Check the Azure DevOps (Live) tab.</p>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => mutate()}>
+                    <RefreshCw className="size-3.5" />
+                    Retry Connection
+                  </Button>
+                </div>
+              )}
+
+              {!isLoading && isLive && dashboardData && (
+                <>
+                  {/* ── Section 1: Hero Stat Cards ── */}
+                  <div className="grid grid-cols-5 gap-3 mb-8">
+                    {[
+                      { label: 'Total Items', value: dashboardData.heroStats.totalItems, color: 'oklch(0.25 0 0)' },
+                      { label: 'Done', value: dashboardData.heroStats.doneItems, color: 'oklch(0.4 0.16 145)' },
+                      { label: 'Active', value: dashboardData.heroStats.activeItems, color: 'oklch(0.4 0.14 240)' },
+                      { label: 'Unassigned', value: dashboardData.heroStats.unassignedCount, color: dashboardData.heroStats.unassignedCount > 0 ? 'oklch(0.5 0.16 60)' : 'oklch(0.45 0.01 260)' },
+                      { label: 'New/Proposed', value: dashboardData.heroStats.newProposedCount, color: 'oklch(0.45 0.01 260)' },
+                    ].map(stat => (
+                      <div key={stat.label} className="rounded-lg border border-border px-4 py-4 text-center" style={{ backgroundColor: 'oklch(0.99 0 0)' }}>
+                        <p className="text-2xl font-bold" style={{ color: stat.color }}>{stat.value}</p>
+                        <p className="text-[0.625rem] text-muted-foreground mt-0.5">{stat.label}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* ── Section 2: Wizard Maturity Matrix ── */}
+                  <div className="mb-8">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Crosshair className="size-4 text-foreground" />
+                      <h3 className="text-sm font-bold text-foreground">Wizard Maturity Matrix</h3>
+                      <span className="text-[0.5625rem] text-muted-foreground">Pipeline stage completion per wizard</span>
+                    </div>
+                    <div className="rounded-lg border border-border overflow-hidden">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-[0.6875rem]">
+                          <thead>
+                            <tr style={{ backgroundColor: 'oklch(0.97 0.005 260)' }}>
+                              <th className="text-left px-3 py-2.5 font-semibold text-foreground border-b border-border" style={{ minWidth: '9rem' }}>Wizard</th>
+                              {dashboardData.PIPELINE_STAGES.map(stage => (
+                                <th key={stage.id} className="text-center px-2 py-2.5 font-semibold text-muted-foreground border-b border-border" style={{ minWidth: '5.5rem' }}>
+                                  {stage.label}
+                                </th>
+                              ))}
+                              <th className="text-center px-3 py-2.5 font-semibold text-muted-foreground border-b border-border" style={{ minWidth: '4.5rem' }}>Overall</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {dashboardData.wizardMatrix.map((wizard, idx) => {
+                              const overallPct = wizard.total > 0 ? Math.round((wizard.done / wizard.total) * 100) : 0
+                              return (
+                                <tr key={wizard.id} style={{ backgroundColor: idx % 2 === 0 ? 'oklch(1 0 0)' : 'oklch(0.99 0.003 260)' }}>
+                                  <td className="px-3 py-2.5 border-b border-border">
+                                    <div className="flex items-center gap-2">
+                                      <a href={wizard.url} target="_blank" rel="noopener noreferrer" className="font-semibold text-foreground hover:underline">
+                                        {wizard.name}
+                                      </a>
+                                      <span className="inline-flex items-center rounded-sm px-1 py-0 text-[0.5rem] font-semibold" style={stateStyle(wizard.state)}>
+                                        {wizard.state}
+                                      </span>
+                                    </div>
+                                  </td>
+                                  {wizard.stages.map(stage => (
+                                    <td key={stage.id} className="text-center px-2 py-2.5 border-b border-border">
+                                      {stage.status === 'none' ? (
+                                        <span className="text-muted-foreground/30">--</span>
+                                      ) : (
+                                        <div className="flex items-center justify-center gap-1">
+                                          <span
+                                            className="inline-block size-2 rounded-full"
+                                            style={{
+                                              backgroundColor: stage.status === 'done' ? 'oklch(0.55 0.2 145)'
+                                                : stage.status === 'active' ? 'oklch(0.55 0.18 240)'
+                                                : 'transparent',
+                                              border: stage.status === 'new' ? '1.5px solid oklch(0.7 0.01 260)' : 'none',
+                                            }}
+                                          />
+                                          <span className="text-muted-foreground">{stage.done}/{stage.count}</span>
+                                        </div>
+                                      )}
+                                    </td>
+                                  ))}
+                                  <td className="text-center px-3 py-2.5 border-b border-border">
+                                    <div className="flex items-center gap-1.5 justify-center">
+                                      <div className="h-1.5 rounded-full overflow-hidden" style={{ width: '2.5rem', backgroundColor: 'oklch(0.92 0.01 260)' }}>
+                                        <div className="h-full rounded-full" style={{ width: `${overallPct}%`, backgroundColor: overallPct === 100 ? 'oklch(0.5 0.18 145)' : 'oklch(0.55 0.18 240)' }} />
+                                      </div>
+                                      <span className="font-mono text-muted-foreground">{overallPct}%</span>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                      {/* Legend */}
+                      <div className="flex items-center gap-4 px-3 py-2 border-t border-border" style={{ backgroundColor: 'oklch(0.97 0.005 260)' }}>
+                        <span className="text-[0.5625rem] text-muted-foreground font-semibold">Legend:</span>
+                        {[
+                          { label: 'Done', color: 'oklch(0.55 0.2 145)', filled: true },
+                          { label: 'Active', color: 'oklch(0.55 0.18 240)', filled: true },
+                          { label: 'New', color: 'oklch(0.7 0.01 260)', filled: false },
+                          { label: 'N/A', color: 'none', filled: false, dash: true },
+                        ].map(l => (
+                          <span key={l.label} className="flex items-center gap-1 text-[0.5625rem] text-muted-foreground">
+                            {l.dash ? (
+                              <span className="text-muted-foreground/30">--</span>
+                            ) : (
+                              <span className="inline-block size-2 rounded-full" style={{ backgroundColor: l.filled ? l.color : 'transparent', border: !l.filled ? `1.5px solid ${l.color}` : 'none' }} />
+                            )}
+                            {l.label}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ── Section 3: Cross-Cutting Health ── */}
+                  <div className="mb-8">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Wrench className="size-4 text-foreground" />
+                      <h3 className="text-sm font-bold text-foreground">Cross-Cutting Health</h3>
+                      <span className="text-[0.5625rem] text-muted-foreground">Infrastructure features all wizards depend on</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      {dashboardData.crossCuttingHealth.map(cc => {
+                        const pct = cc.total > 0 ? Math.round((cc.done / cc.total) * 100) : 0
+                        const barColor = pct > 50 ? 'oklch(0.5 0.18 145)' : cc.active > 0 ? 'oklch(0.55 0.18 240)' : 'oklch(0.7 0.01 260)'
+                        return (
+                          <div key={cc.id} className="rounded-lg border border-border px-4 py-3" style={{ backgroundColor: 'oklch(0.99 0 0)' }}>
+                            <div className="flex items-center justify-between mb-2">
+                              <a href={cc.url} target="_blank" rel="noopener noreferrer" className="text-[0.75rem] font-semibold text-foreground hover:underline leading-snug flex-1 min-w-0">
+                                {cc.title.length > 50 ? cc.title.slice(0, 50) + '...' : cc.title}
+                              </a>
+                              <span className="inline-flex items-center rounded-sm px-1.5 py-0 text-[0.5rem] font-semibold shrink-0 ml-2" style={stateStyle(cc.state)}>
+                                {cc.state}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'oklch(0.92 0.01 260)' }}>
+                                <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: barColor }} />
+                              </div>
+                              <span className="text-[0.625rem] font-mono text-muted-foreground shrink-0">{cc.done}/{cc.total} ({pct}%)</span>
+                            </div>
+                            <div className="flex items-center gap-3 mt-1.5 text-[0.5625rem] text-muted-foreground">
+                              <span>{cc.done} done</span>
+                              <span>{cc.active} active</span>
+                              <span>{cc.total - cc.done - cc.active} remaining</span>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                    {dashboardData.crossCuttingHealth.length === 0 && (
+                      <p className="text-xs text-muted-foreground italic px-1">No cross-cutting features detected in ADO data.</p>
+                    )}
+                  </div>
+
+                  {/* ── Section 4: Risk Radar ── */}
+                  <div className="mb-8">
+                    <div className="flex items-center gap-2 mb-3">
+                      <ShieldAlert className="size-4 text-foreground" />
+                      <h3 className="text-sm font-bold text-foreground">Risk Radar</h3>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <RiskSection label="Unassigned" icon={User} items={dashboardData.risk.unassigned} color="oklch(0.5 0.16 60)" />
+                      <RiskSection label="Stale (New/Proposed)" icon={Clock} items={dashboardData.risk.stale} color="oklch(0.45 0.01 260)" />
+                      <RiskSection label="Removed/Cut" icon={AlertTriangle} items={dashboardData.risk.removed} color="oklch(0.5 0.18 25)" />
+                    </div>
+                  </div>
+
+                  {/* ── Section 5: Assignee Distribution ── */}
+                  <div className="mb-8">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Users className="size-4 text-foreground" />
+                      <h3 className="text-sm font-bold text-foreground">Assignee Distribution</h3>
+                      <span className="text-[0.5625rem] text-muted-foreground">Work allocation across team members (spikes & tasks)</span>
+                    </div>
+                    <div className="rounded-lg border border-border overflow-hidden">
+                      <table className="w-full text-[0.6875rem]">
+                        <thead>
+                          <tr style={{ backgroundColor: 'oklch(0.97 0.005 260)' }}>
+                            <th className="text-left px-3 py-2 font-semibold text-foreground border-b border-border">Assignee</th>
+                            <th className="text-center px-3 py-2 font-semibold text-muted-foreground border-b border-border" style={{ width: '5rem' }}>Active</th>
+                            <th className="text-center px-3 py-2 font-semibold text-muted-foreground border-b border-border" style={{ width: '5rem' }}>Done</th>
+                            <th className="text-center px-3 py-2 font-semibold text-muted-foreground border-b border-border" style={{ width: '5rem' }}>Total</th>
+                            <th className="text-left px-3 py-2 font-semibold text-muted-foreground border-b border-border" style={{ width: '10rem' }}>Workload</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {dashboardData.assignees.map((person, idx) => {
+                            const isOverloaded = person.active > 5
+                            const isIdle = person.active === 0 && person.name !== 'Unassigned'
+                            const barWidth = dashboardData.assignees.length > 0 ? Math.round((person.total / Math.max(...dashboardData.assignees.map(a => a.total))) * 100) : 0
+                            return (
+                              <tr key={person.name} style={{ backgroundColor: idx % 2 === 0 ? 'oklch(1 0 0)' : 'oklch(0.99 0.003 260)' }}>
+                                <td className="px-3 py-2 border-b border-border">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-medium text-foreground">{person.name}</span>
+                                    {isOverloaded && (
+                                      <span className="text-[0.5rem] font-semibold px-1 rounded-sm" style={{ backgroundColor: 'oklch(0.94 0.04 25)', color: 'oklch(0.45 0.18 25)' }}>HIGH</span>
+                                    )}
+                                    {isIdle && person.done > 0 && (
+                                      <span className="text-[0.5rem] font-semibold px-1 rounded-sm" style={{ backgroundColor: 'oklch(0.94 0.04 145)', color: 'oklch(0.35 0.14 145)' }}>AVAILABLE</span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="text-center px-3 py-2 border-b border-border font-bold" style={{ color: isOverloaded ? 'oklch(0.5 0.18 25)' : 'oklch(0.4 0.14 240)' }}>
+                                  {person.active}
+                                </td>
+                                <td className="text-center px-3 py-2 border-b border-border" style={{ color: 'oklch(0.4 0.16 145)' }}>
+                                  {person.done}
+                                </td>
+                                <td className="text-center px-3 py-2 border-b border-border text-foreground">
+                                  {person.total}
+                                </td>
+                                <td className="px-3 py-2 border-b border-border">
+                                  <div className="flex items-center gap-1">
+                                    <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'oklch(0.92 0.01 260)' }}>
+                                      <div className="h-full rounded-full flex">
+                                        <div style={{ width: `${person.total > 0 ? Math.round((person.done / person.total) * barWidth) : 0}%`, backgroundColor: 'oklch(0.55 0.2 145)' }} />
+                                        <div style={{ width: `${person.total > 0 ? Math.round((person.active / person.total) * barWidth) : 0}%`, backgroundColor: 'oklch(0.55 0.18 240)' }} />
+                                      </div>
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <p className="text-center text-xs text-muted-foreground/50 mt-8">
+                    Dashboard derived from live ADO data (Epic 4651627). All metrics auto-calculated from work item states.
+                  </p>
+                </>
               )}
             </div>
           )}
