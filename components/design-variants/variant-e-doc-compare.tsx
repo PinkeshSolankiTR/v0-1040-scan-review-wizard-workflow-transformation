@@ -1010,7 +1010,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem', marginBlockStart: '0.25rem' }}>
                             {allRecords.map(r => {
                               const isRej = rejectedPageIds.has(String(r.engagementPageId))
-                              return <span key={r.engagementPageId} style={{ fontSize: '0.625rem', fontWeight: 600, padding: '0.125rem 0.375rem', borderRadius: '0.1875rem', backgroundColor: isRej ? 'oklch(0.94 0.01 260)' : r.decisionType === 'Original' ? 'oklch(0.94 0.04 145)' : 'oklch(0.94 0.04 25)', color: isRej ? 'oklch(0.6 0.01 260)' : r.decisionType === 'Original' ? 'oklch(0.35 0.14 145)' : 'oklch(0.45 0.18 25)', textDecoration: isRej ? 'line-through' : 'none', opacity: isRej ? 0.6 : 1 }}>Pg {r.documentRef?.pageNumber ?? r.engagementPageId}: {isRej ? 'Not Superseded' : r.decisionType}</span>
+                              return <span key={r.engagementPageId} style={{ fontSize: '0.625rem', fontWeight: 600, padding: '0.125rem 0.375rem', borderRadius: '0.1875rem', backgroundColor: isRej ? 'oklch(0.94 0.01 260)' : r.decisionType === 'Original' ? 'oklch(0.94 0.04 145)' : 'oklch(0.94 0.04 25)', color: isRej ? 'oklch(0.6 0.01 260)' : r.decisionType === 'Original' ? 'oklch(0.35 0.14 145)' : 'oklch(0.45 0.18 25)', opacity: isRej ? 0.7 : 1 }}>Pg {r.documentRef?.pageNumber ?? r.engagementPageId}: {isRej ? 'Not Superseded' : r.decisionType}</span>
                             })}
                           </div>
                         </div>
@@ -1030,7 +1030,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                               else newLabel = 'Superseded'
                               const isExcluded = newLabel === 'Not Superseded'
                               const changed = !isExcluded && ((r.decisionType === 'Original' && newLabel === 'Superseded') || (r.decisionType === 'Superseded' && newLabel === 'Original'))
-                              return <span key={r.engagementPageId} style={{ fontSize: '0.625rem', fontWeight: 600, padding: '0.125rem 0.375rem', borderRadius: '0.1875rem', backgroundColor: isExcluded ? 'oklch(0.94 0.01 260)' : newLabel === 'Original' ? 'oklch(0.94 0.04 145)' : 'oklch(0.94 0.04 25)', color: isExcluded ? 'oklch(0.6 0.01 260)' : newLabel === 'Original' ? 'oklch(0.35 0.14 145)' : 'oklch(0.45 0.18 25)', outline: changed ? '0.125rem solid oklch(0.65 0.14 60)' : isExcluded ? '0.125rem solid oklch(0.75 0.01 260)' : 'none', textDecoration: isExcluded ? 'line-through' : 'none', opacity: isExcluded ? 0.6 : 1 }}>Pg {r.documentRef?.pageNumber ?? r.engagementPageId}: {newLabel}{changed && ' *'}</span>
+                              return <span key={r.engagementPageId} style={{ fontSize: '0.625rem', fontWeight: 600, padding: '0.125rem 0.375rem', borderRadius: '0.1875rem', backgroundColor: isExcluded ? 'oklch(0.94 0.01 260)' : newLabel === 'Original' ? 'oklch(0.94 0.04 145)' : 'oklch(0.94 0.04 25)', color: isExcluded ? 'oklch(0.55 0.01 260)' : newLabel === 'Original' ? 'oklch(0.35 0.14 145)' : 'oklch(0.45 0.18 25)', outline: changed ? '0.125rem solid oklch(0.65 0.14 60)' : isExcluded ? '0.125rem solid oklch(0.75 0.01 260)' : 'none', opacity: isExcluded ? 0.8 : 1 }}>Pg {r.documentRef?.pageNumber ?? r.engagementPageId}: {newLabel}{changed && ' *'}</span>
                             })}
                           </div>
                         </div>
