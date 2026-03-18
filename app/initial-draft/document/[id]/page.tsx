@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import Link from 'next/link'
 import { useState, useMemo } from 'react'
 import { use } from 'react'
@@ -295,11 +296,13 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
               className="bg-card shadow-lg rounded border border-border"
               style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top center' }}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              <Image
                 src="/images/w2-form-sample.jpg"
                 alt={`${doc.formLabel} document`}
-                style={{ width: 'auto', height: 'auto', maxWidth: '100%' }}
+                width={800}
+                height={1035}
+                className="w-full h-auto"
+                priority
               />
             </div>
           </div>

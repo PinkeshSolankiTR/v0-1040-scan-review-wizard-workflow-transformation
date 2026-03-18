@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import Link from 'next/link'
 import { useState, useMemo, useCallback } from 'react'
 import {
@@ -287,14 +288,16 @@ export default function ReviewWizardPage() {
                     </Link>
                   </Button>
                 </div>
-                <div className="overflow-hidden p-4 flex items-center justify-center" style={{ backgroundColor: 'oklch(0.96 0 0)', maxHeight: '320px' }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src="/images/w2-form-sample.jpg"
-                    alt={`${currentDoc.formLabel} document preview`}
-                    className="max-w-full object-contain"
-                    style={{ width: 'auto', height: 'auto' }}
-                  />
+                <div className="overflow-hidden p-4 flex items-center justify-center" style={{ backgroundColor: 'oklch(0.96 0 0)', height: '320px' }}>
+                  <div className="relative w-full h-full">
+                    <Image
+                      src="/images/w2-form-sample.jpg"
+                      alt={`${currentDoc.formLabel} document preview`}
+                      fill
+                      className="object-contain"
+                      sizes="(max-width: 768px) 100vw, 50vw"
+                    />
+                  </div>
                 </div>
               </div>
 
