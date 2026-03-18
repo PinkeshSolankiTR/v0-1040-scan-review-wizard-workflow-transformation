@@ -236,7 +236,7 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
                   alt="W-2 Wage and Tax Statement form"
                   width={800}
                   height={600}
-                  className="block"
+                  className="block h-auto w-auto"
                   priority
                 />
               </div>
