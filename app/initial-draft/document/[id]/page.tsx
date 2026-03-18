@@ -231,13 +231,11 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
                 className="bg-card shadow-lg rounded border border-border"
                 style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top center' }}
               >
-                <Image
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
                   src="/images/w2-form-sample.jpg"
                   alt="W-2 Wage and Tax Statement form"
-                  width={800}
-                  height={600}
-                  className="block h-auto w-auto"
-                  priority
+                  className="block max-w-full"
                 />
               </div>
             ) : (
