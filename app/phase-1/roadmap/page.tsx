@@ -893,7 +893,7 @@ export default function DeliveryRoadmapPage() {
       if (!item.assignedTo || !item.areaPath) continue
       if (EXCLUDED_WORK_ITEM_TYPES.has(item.workItemType)) continue
       if (isMemberExcluded(item.assignedTo)) continue
-      if (currentSprintName && (!item.iterationPath || !item.iterationPath.includes(currentSprintName))) continue
+      if (currentSprintName && !item.iterationPath?.includes(currentSprintName)) continue
 
       const team = extractTeamFromPath(item.areaPath)
       if (!team) continue
@@ -1006,15 +1006,16 @@ export default function DeliveryRoadmapPage() {
     // ── 2. Count items in current sprint (assigned to this project) ──
     const currentSprintName = currentSprint?.name ?? null
     const itemsInCurrentSprint = currentSprintName
-      ? executionItems.filter(i => i.iterationPath.includes(currentSprintName)).length
+      ? executionItems.filter(i => i.iterationPath?.includes(currentSprintName)).length
       : 0
 
     // ── 3. Compute REAL velocity: items completed per past sprint for THIS epic ──
     // Group done items by which sprint they belong to
     const sprintDoneCounts = new Map<string, number>()
     for (const sprint of pastSprintsList) {
+      if (!sprint.name) continue
       const doneInSprint = executionItems.filter(
-        i => isDone(i.state) && i.iterationPath.includes(sprint.name)
+        i => isDone(i.state) && i.iterationPath?.includes(sprint.name)
       ).length
       if (doneInSprint > 0) {
         sprintDoneCounts.set(sprint.name, doneInSprint)
