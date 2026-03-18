@@ -235,7 +235,7 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
                 <img
                   src="/images/w2-form-sample.jpg"
                   alt="W-2 Wage and Tax Statement form"
-                  className="block max-w-full"
+                  style={{ width: 'auto', height: 'auto', maxWidth: '100%' }}
                 />
               </div>
             ) : (
