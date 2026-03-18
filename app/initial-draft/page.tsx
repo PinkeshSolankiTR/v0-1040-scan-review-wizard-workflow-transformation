@@ -456,7 +456,7 @@ function DocRow({
 
   // Pair band color
   const pairBandColor = isPaired
-    ? doc.status === 'superseded' || doc.pair?.role === 'retained'
+    ? doc.status === 'superseded' || doc.pair?.role === 'original'
       ? 'oklch(0.65 0.15 290)' // purple for superseded pairs
       : 'oklch(0.55 0.15 250)' // blue for duplicate pairs
     : 'transparent'
@@ -704,7 +704,7 @@ function ExpandedDetail({
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-medium text-foreground truncate">{pairedDoc.formLabel}</p>
                       <p className="text-[0.625rem] text-muted-foreground">
-                        Page {pairedDoc.pageNumber} -- {doc.pair?.role === 'superseded' ? 'Retained (Original)' : doc.pair?.role === 'duplicate' ? 'Original' : doc.pair?.role}
+                        Page {pairedDoc.pageNumber} -- {doc.pair?.role === 'superseded' ? 'Original' : doc.pair?.role === 'duplicate' ? 'Original' : doc.pair?.role}
                       </p>
                     </div>
                     <span

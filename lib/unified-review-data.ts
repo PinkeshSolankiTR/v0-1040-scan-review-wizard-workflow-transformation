@@ -35,7 +35,7 @@ export interface RuleEvidence {
 
 export interface PairInfo {
   pairedDocId: string
-  role: 'original' | 'superseded' | 'retained' | 'duplicate' | 'parent' | 'child'
+  role: 'original' | 'superseded' | 'duplicate' | 'parent' | 'child'
   pairedLabel: string
   pairedPage: number
 }
@@ -116,7 +116,7 @@ export const DOCUMENTS: UnifiedDocument[] = [
     reviewState: 'accepted',
     pair: {
       pairedDocId: 'page-5',
-      role: 'retained',
+      role: 'original',
       pairedLabel: 'W-2 (WHYNOT STOP INC)',
       pairedPage: 5,
     },
@@ -162,7 +162,7 @@ export const DOCUMENTS: UnifiedDocument[] = [
     reviewState: 'accepted',
     pair: {
       pairedDocId: 'page-21',
-      role: 'retained',
+      role: 'original',
       pairedLabel: '1099-DIV (ExxonMobil)',
       pairedPage: 21,
     },
@@ -208,7 +208,7 @@ export const DOCUMENTS: UnifiedDocument[] = [
     reviewState: 'accepted',
     pair: {
       pairedDocId: 'page-8',
-      role: 'retained',
+      role: 'original',
       pairedLabel: '1099-INT (Chase Bank)',
       pairedPage: 8,
     },

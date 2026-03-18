@@ -262,14 +262,16 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
 
           {/* Document image */}
           <div className="flex-1 overflow-auto flex items-start justify-center p-6" style={{ backgroundColor: 'oklch(0.96 0 0)' }}>
-            <div className="bg-card shadow-lg rounded border border-border">
+            <div
+              className="bg-card shadow-lg rounded border border-border origin-top-center transition-transform"
+              style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top center' }}
+            >
               <Image
                 src="/images/w2-form-sample.jpg"
                 alt={`${doc.formLabel} document`}
                 width={800}
                 height={1035}
                 className="w-auto h-auto"
-                style={{ width: `${8 * zoom}px` }}
                 priority
               />
             </div>
