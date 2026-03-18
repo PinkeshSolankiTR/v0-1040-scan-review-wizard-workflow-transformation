@@ -287,12 +287,13 @@ export default function ReviewWizardPage() {
                     </Link>
                   </Button>
                 </div>
-                <div className="p-4 flex items-center justify-center" style={{ backgroundColor: 'oklch(0.96 0 0)', minHeight: '320px' }}>
+                <div className="overflow-hidden p-4 flex items-center justify-center" style={{ backgroundColor: 'oklch(0.96 0 0)', maxHeight: '320px' }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src="/images/w2-form-sample.jpg"
                     alt={`${currentDoc.formLabel} document preview`}
-                    style={{ width: 'auto', height: 'auto', maxWidth: '100%', maxHeight: '300px' }}
+                    className="max-w-full object-contain"
+                    style={{ width: 'auto', height: 'auto' }}
                   />
                 </div>
               </div>
