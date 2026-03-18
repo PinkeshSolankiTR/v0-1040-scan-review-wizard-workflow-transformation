@@ -1,6 +1,5 @@
 'use client'
 
-import Image from 'next/image'
 import Link from 'next/link'
 import { useState, useMemo } from 'react'
 import { use } from 'react'
@@ -261,21 +260,14 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
           </div>
 
           {/* Document image */}
-          <div className="flex-1 overflow-auto p-6" style={{ backgroundColor: 'oklch(0.96 0 0)' }}>
-            <div
-              className="bg-card shadow-lg rounded border border-border mx-auto relative"
-              style={{
-                width: `${8 * zoom}px`,
-                height: `${10.35 * zoom}px`,
-              }}
-            >
-              <Image
+          <div className="flex-1 overflow-auto p-6 flex items-start justify-center" style={{ backgroundColor: 'oklch(0.96 0 0)' }}>
+            <div className="bg-card shadow-lg rounded border border-border">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
                 src="/images/w2-form-sample.jpg"
                 alt={`${doc.formLabel} document`}
-                fill
-                className="object-contain rounded"
-                sizes="800px"
-                priority
+                style={{ width: `${8 * zoom}px`, height: 'auto' }}
+                className="rounded"
               />
             </div>
           </div>

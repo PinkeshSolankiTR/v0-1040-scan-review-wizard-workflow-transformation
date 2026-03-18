@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useMemo, useCallback } from 'react'
-import Image from 'next/image'
 import Link from 'next/link'
 import {
   ArrowLeft,
@@ -812,13 +811,12 @@ function ExpandedDetail({
         </div>
 
         {/* Right panel: Document preview */}
-        <div className="flex-1 overflow-hidden p-4" style={{ backgroundColor: 'oklch(0.96 0 0)', height: '440px', position: 'relative' }}>
-          <Image
+        <div className="flex-1 overflow-hidden p-4 flex items-center justify-center" style={{ backgroundColor: 'oklch(0.96 0 0)', height: '440px' }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
             src="/images/w2-form-sample.jpg"
             alt={`${doc.formLabel} document preview`}
-            fill
-            className="object-contain"
-            sizes="(max-width: 768px) 100vw, 50vw"
+            style={{ width: 'auto', height: 'auto', maxHeight: '400px', maxWidth: '100%', objectFit: 'contain' }}
           />
         </div>
       </div>
