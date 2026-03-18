@@ -211,8 +211,19 @@ export default function HomePage() {
             ))}
           </div>
 
+          {/* Initial Draft / Idea */}
+          <div className="mt-10 flex justify-center">
+            <Button variant="outline" asChild className="gap-2">
+              <Link href="/initial-draft">
+                <Sparkles className="size-4" />
+                Initial Draft / Idea
+                <ArrowRight className="size-4" />
+              </Link>
+            </Button>
+          </div>
+
           {/* Footer note */}
-          <p className="mt-10 text-center text-xs text-muted-foreground/60">
+          <p className="mt-6 text-center text-xs text-muted-foreground/60">
             Product Strategy Presentation — Prototype data is mocked for
             demonstration purposes.
           </p>
