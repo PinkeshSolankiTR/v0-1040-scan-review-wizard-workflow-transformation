@@ -17,6 +17,9 @@ import {
   AlertTriangle,
   Flag,
   RotateCcw,
+  ShieldAlert,
+  Info,
+  ArrowRightLeft,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -47,24 +50,20 @@ import {
   type ExtractedField,
 } from '@/lib/initial-draft-data'
 
-type Tab = 'fields' | 'classification'
+type Tab = 'fields' | 'classification' | 'notifications'
 
 export default function DocumentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const doc = DOCUMENTS.find(d => d.id === id) ?? DOCUMENTS[0]
 
-  // Tab state -- show Classification tab only if evidence exists
-  const hasEvidence = doc.evidence !== null
-  const [activeTab, setActiveTab] = useState<Tab>(hasEvidence ? 'classification' : 'fields')
+  const hasClassification = doc.classification !== null
+  const hasNotifications = doc.linkedDocs.length > 0
+  const defaultTab: Tab = hasNotifications ? 'notifications' : hasClassification ? 'classification' : 'fields'
+  const [activeTab, setActiveTab] = useState<Tab>(defaultTab)
 
-  // Fields state
   const [fieldSearch, setFieldSearch] = useState('')
   const [fieldTypeFilter, setFieldTypeFilter] = useState('All fields')
-
-  // Viewer state
   const [zoom, setZoom] = useState(100)
-
-  // Review state
   const [reviewState, setReviewState] = useState(doc.reviewState)
   const [showOverride, setShowOverride] = useState(false)
   const [overrideReason, setOverrideReason] = useState('')
@@ -130,15 +129,13 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
               >
                 {statusCfg.label}
               </span>
-              {doc.evidence && (
+              {hasNotifications && (
                 <span
-                  className="inline-flex items-center rounded px-1.5 py-0.5 text-[0.625rem] font-medium"
-                  style={{
-                    backgroundColor: doc.evidence.confidence >= 0.9 ? 'oklch(0.97 0.02 145)' : doc.evidence.confidence >= 0.7 ? 'oklch(0.97 0.02 60)' : 'oklch(0.97 0.02 25)',
-                    color: doc.evidence.confidence >= 0.9 ? 'oklch(0.40 0.16 145)' : doc.evidence.confidence >= 0.7 ? 'oklch(0.50 0.16 50)' : 'oklch(0.50 0.20 25)',
-                  }}
+                  className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium"
+                  style={{ backgroundColor: 'oklch(0.97 0.02 290)', color: 'oklch(0.40 0.18 290)' }}
                 >
-                  {Math.round(doc.evidence.confidence * 100)}%
+                  <ShieldAlert className="size-3" />
+                  {doc.linkedDocs.length} linked
                 </span>
               )}
             </div>
@@ -186,7 +183,7 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
 
       {/* Main content: split view */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Left panel with TABS (Easy to Learn -- one thing at a time) */}
+        {/* Left panel with TABS */}
         <div className="w-[480px] shrink-0 border-r border-border flex flex-col bg-card">
           {/* Tab row */}
           <div className="flex border-b border-border shrink-0">
@@ -201,7 +198,26 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
             >
               Extracted Fields ({W2_EXTRACTED_FIELDS.length})
             </button>
-            {hasEvidence && (
+            {hasNotifications && (
+              <button
+                className="flex-1 px-4 py-3 text-sm font-medium text-center transition-colors relative"
+                style={{
+                  color: activeTab === 'notifications' ? 'oklch(0.25 0.01 260)' : 'oklch(0.5 0.01 260)',
+                  borderBottom: activeTab === 'notifications' ? '2px solid oklch(0.25 0.01 260)' : '2px solid transparent',
+                  backgroundColor: activeTab === 'notifications' ? 'oklch(0.98 0 0)' : 'transparent',
+                }}
+                onClick={() => setActiveTab('notifications')}
+              >
+                Notifications
+                <span
+                  className="ml-1.5 inline-flex items-center justify-center rounded-full px-1.5 text-[0.625rem] font-bold min-w-[18px]"
+                  style={{ backgroundColor: 'oklch(0.50 0.18 25)', color: 'oklch(0.98 0 0)' }}
+                >
+                  {doc.linkedDocs.length}
+                </span>
+              </button>
+            )}
+            {hasClassification && (
               <button
                 className="flex-1 px-4 py-3 text-sm font-medium text-center transition-colors"
                 style={{
@@ -226,13 +242,15 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
                 typeFilter={fieldTypeFilter}
                 onTypeFilterChange={setFieldTypeFilter}
               />
+            ) : activeTab === 'notifications' ? (
+              <NotificationsPanel doc={doc} />
             ) : (
               <ClassificationPanel doc={doc} />
             )}
           </div>
         </div>
 
-        {/* Right panel: Document viewer -- matches Figma F2 */}
+        {/* Right panel: Document viewer */}
         <div className="flex-1 flex flex-col bg-background">
           {/* Toolbar */}
           <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-card">
@@ -261,13 +279,13 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
 
           {/* Document image */}
           <div className="flex-1 overflow-auto p-6 flex items-start justify-center" style={{ backgroundColor: 'oklch(0.96 0 0)' }}>
-            <div className="bg-card shadow-lg rounded border border-border">
+            <div className="bg-card shadow-lg rounded border border-border" style={{ width: `${8 * zoom}px` }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/images/w2-form-sample.jpg"
                 alt={`${doc.formLabel} document`}
-                style={{ width: `${8 * zoom}px`, height: 'auto' }}
                 className="rounded"
+                style={{ width: '100%', height: 'auto' }}
               />
             </div>
           </div>
@@ -324,7 +342,6 @@ function FieldsPanel({
 }) {
   return (
     <div className="p-5">
-      {/* Search + filter -- matches Figma F2 */}
       <div className="flex items-center gap-3 mb-4">
         <div className="relative flex-1">
           <Input
@@ -344,8 +361,6 @@ function FieldsPanel({
           </SelectContent>
         </Select>
       </div>
-
-      {/* Field cards -- matches Figma F2 */}
       <div className="flex flex-col gap-3">
         {fields.map(field => (
           <FieldCard key={field.id} field={field} />
@@ -355,107 +370,188 @@ function FieldsPanel({
   )
 }
 
-// ── Classification Panel ──
+// ── Notifications Panel (Superseded / Duplicate docs) ──
 
-function ClassificationPanel({ doc }: { doc: UnifiedDocument }) {
-  const evidence = doc.evidence
-  if (!evidence) return null
-
-  const statusCfg = STATUS_CONFIG[doc.status]
-
-  // Group by category
-  const grouped = useMemo(() => {
-    const groups: Record<string, typeof evidence.comparedValues> = {}
-    for (const cv of evidence.comparedValues) {
-      const cat = cv.category || 'General'
-      if (!groups[cat]) groups[cat] = []
-      groups[cat].push(cv)
-    }
-    return groups
-  }, [evidence.comparedValues])
+function NotificationsPanel({ doc }: { doc: UnifiedDocument }) {
+  const [expandedId, setExpandedId] = useState<string | null>(doc.linkedDocs[0]?.id ?? null)
 
   return (
     <div className="p-5">
-      {/* Decision + Rule */}
-      <div className="rounded-lg border border-border p-4 mb-4" style={{ backgroundColor: 'oklch(0.99 0 0)' }}>
+      <p className="text-xs text-muted-foreground mb-3">
+        This document has {doc.linkedDocs.length} linked document{doc.linkedDocs.length > 1 ? 's' : ''} that
+        have been classified as superseded or duplicate.
+      </p>
+      <div className="flex flex-col gap-3">
+        {doc.linkedDocs.map(ld => {
+          const notifCfg = STATUS_CONFIG[ld.type]
+          const isExpanded = expandedId === ld.id
+          const typeLabel = ld.type === 'superseded' ? 'Superseded' : 'Duplicate'
+          return (
+            <div key={ld.id} className="rounded-lg border overflow-hidden" style={{ borderColor: notifCfg.border }}>
+              {/* Header */}
+              <button
+                className="w-full flex items-center gap-2 px-3 py-2.5 text-left transition-colors"
+                style={{ backgroundColor: notifCfg.bg }}
+                onClick={() => setExpandedId(isExpanded ? null : ld.id)}
+              >
+                <ShieldAlert className="size-4 shrink-0" style={{ color: notifCfg.color }} />
+                <span className="text-sm font-semibold flex-1" style={{ color: notifCfg.color }}>
+                  {typeLabel}: {ld.formLabel}
+                </span>
+                <ConfBadge score={ld.evidence.confidence} />
+                <ChevronDown
+                  className={`size-4 transition-transform ${isExpanded ? 'rotate-0' : '-rotate-90'}`}
+                  style={{ color: notifCfg.color }}
+                />
+              </button>
+
+              {/* Detail */}
+              {isExpanded && (
+                <div className="p-3 bg-card">
+                  <p className="text-xs text-muted-foreground mb-2 leading-relaxed">
+                    {ld.evidence.reason}
+                  </p>
+                  <div className="rounded border border-border p-2.5 mb-2" style={{ backgroundColor: 'oklch(0.99 0 0)' }}>
+                    <p className="text-xs text-muted-foreground">
+                      Page {ld.pageNumber} -- {ld.fileName}
+                    </p>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <span className="text-xs text-muted-foreground">Rule:</span>
+                      <span className="text-xs font-mono text-foreground">{ld.evidence.rule}</span>
+                    </div>
+                  </div>
+
+                  {/* Field comparison */}
+                  {ld.evidence.comparedValues.length > 0 && (
+                    <div className="mb-3">
+                      <p className="text-xs font-semibold text-foreground mb-1.5">Field Comparison</p>
+                      <div className="flex flex-col gap-0.5">
+                        {ld.evidence.comparedValues.map((cv, i) => (
+                          <div
+                            key={i}
+                            className="flex items-center gap-2 rounded px-2 py-1.5 text-xs"
+                            style={{ backgroundColor: cv.match ? 'oklch(0.98 0.01 145)' : 'oklch(0.98 0.02 25)' }}
+                          >
+                            <span style={{ color: cv.match ? 'oklch(0.45 0.16 145)' : 'oklch(0.50 0.20 25)' }}>
+                              {cv.match ? <CheckCircle className="size-3" /> : <AlertTriangle className="size-3" />}
+                            </span>
+                            <span className="font-medium text-foreground w-28 shrink-0 truncate">{cv.field}</span>
+                            <span className="text-muted-foreground flex-1 truncate">{cv.valueA}</span>
+                            {!cv.match && (
+                              <>
+                                <span className="text-muted-foreground/50 shrink-0">vs</span>
+                                <span className="text-muted-foreground flex-1 truncate">{cv.valueB}</span>
+                              </>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      className="gap-1 flex-1 h-7 text-xs"
+                      style={{ backgroundColor: 'oklch(0.45 0.16 145)', color: 'oklch(0.98 0 0)' }}
+                    >
+                      <CheckCircle className="size-3" />
+                      Accept as {typeLabel}
+                    </Button>
+                    <Button variant="outline" size="sm" className="gap-1 flex-1 h-7 text-xs">
+                      <ArrowRightLeft className="size-3" />
+                      Swap
+                    </Button>
+                    <Button variant="outline" size="sm" className="gap-1 flex-1 h-7 text-xs"
+                      style={{ color: 'oklch(0.50 0.18 25)', borderColor: 'oklch(0.85 0.06 25)' }}
+                    >
+                      <X className="size-3" />
+                      Not {typeLabel}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ── Classification Panel (CFA / NFR) ──
+
+function ClassificationPanel({ doc }: { doc: UnifiedDocument }) {
+  const classification = doc.classification
+  if (!classification) return null
+
+  const cfgType = STATUS_CONFIG[classification.type]
+  const ev = classification.evidence
+
+  return (
+    <div className="p-5">
+      <div
+        className="rounded-lg border p-4 mb-4"
+        style={{ backgroundColor: cfgType.bg, borderColor: cfgType.border }}
+      >
         <div className="flex items-center gap-2 mb-1.5">
-          <span className="text-xs font-medium text-muted-foreground">Decision:</span>
-          <span
-            className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold"
-            style={{ backgroundColor: statusCfg.bg, color: statusCfg.color, border: `1px solid ${statusCfg.border}` }}
-          >
-            {statusCfg.label}
+          <Info className="size-4" style={{ color: cfgType.color }} />
+          <span className="text-sm font-semibold" style={{ color: cfgType.color }}>
+            {cfgType.label}
           </span>
+          <ConfBadge score={ev.confidence} />
         </div>
-        <div className="flex items-center gap-2 mb-2">
-          <span className="text-xs font-medium text-muted-foreground">Rule:</span>
-          <span className="text-xs font-mono text-foreground">{evidence.rule}</span>
-        </div>
-        <p className="text-sm text-muted-foreground leading-relaxed">{evidence.reason}</p>
+        <p className="text-sm text-muted-foreground leading-relaxed">{ev.reason}</p>
       </div>
 
-      {/* Context-specific info */}
-      {evidence.originalPageId && (
-        <div className="rounded-lg border border-border px-4 py-3 mb-4 flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">Original Page:</span>
-          <Link
-            href={`/initial-draft/document/page-${evidence.originalPageId}`}
-            className="text-xs font-medium text-foreground hover:underline"
-          >
-            Page {evidence.originalPageId}
-          </Link>
+      <div className="rounded-lg border border-border p-4 mb-4" style={{ backgroundColor: 'oklch(0.99 0 0)' }}>
+        <div className="flex items-center gap-2 mb-1.5">
+          <span className="text-xs font-medium text-muted-foreground">Rule:</span>
+          <span className="text-xs font-mono text-foreground">{ev.rule}</span>
         </div>
-      )}
-      {evidence.parentFormLabel && (
-        <div className="rounded-lg border border-border px-4 py-3 mb-4">
-          <span className="text-xs text-muted-foreground">Parent: </span>
-          <span className="text-xs font-medium text-foreground">{evidence.parentFormLabel}</span>
-          {evidence.isAddForm && (
-            <span className="text-xs ml-1" style={{ color: 'oklch(0.50 0.16 50)' }}>(AddForm required)</span>
-          )}
-        </div>
-      )}
-      {evidence.sourceMapping && (
-        <div className="rounded-lg border border-border px-4 py-3 mb-4">
+        {ev.parentFormLabel && (
           <p className="text-xs text-muted-foreground">
-            Source: <span className="font-medium text-foreground">{evidence.sourceMapping}</span>
+            Parent: <span className="font-medium text-foreground">{ev.parentFormLabel}</span>
+            {ev.isAddForm && <span className="ml-1" style={{ color: 'oklch(0.50 0.16 50)' }}>(AddForm required)</span>}
           </p>
-          <p className="text-xs text-muted-foreground">
-            Return: <span className="font-medium text-foreground">{evidence.returnMapping}</span>
-          </p>
-        </div>
-      )}
+        )}
+        {ev.sourceMapping && (
+          <>
+            <p className="text-xs text-muted-foreground mt-1">
+              Source: <span className="font-medium text-foreground">{ev.sourceMapping}</span>
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Return: <span className="font-medium text-foreground">{ev.returnMapping}</span>
+            </p>
+          </>
+        )}
+      </div>
 
-      {/* Field comparison */}
-      {evidence.comparedValues.length > 0 && (
+      {ev.comparedValues.length > 0 && (
         <div>
           <p className="text-sm font-semibold text-foreground mb-3">Field Comparison</p>
-          {Object.entries(grouped).map(([category, values]) => (
-            <div key={category} className="mb-3">
-              <p className="text-[0.6875rem] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">{category}</p>
-              <div className="flex flex-col gap-1">
-                {values.map((cv, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center gap-2 rounded px-2.5 py-2 text-xs"
-                    style={{ backgroundColor: cv.match ? 'oklch(0.98 0.01 145)' : 'oklch(0.98 0.02 25)' }}
-                  >
-                    <span style={{ color: cv.match ? 'oklch(0.45 0.16 145)' : 'oklch(0.50 0.20 25)' }}>
-                      {cv.match ? <CheckCircle className="size-3.5" /> : <AlertTriangle className="size-3.5" />}
-                    </span>
-                    <span className="font-medium text-foreground w-32 shrink-0 truncate">{cv.field}</span>
-                    <span className="text-muted-foreground flex-1 truncate">{cv.valueA}</span>
-                    {!cv.match && (
-                      <>
-                        <span className="text-muted-foreground/50 shrink-0">vs</span>
-                        <span className="text-muted-foreground flex-1 truncate">{cv.valueB}</span>
-                      </>
-                    )}
-                  </div>
-                ))}
+          <div className="flex flex-col gap-1">
+            {ev.comparedValues.map((cv, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-2 rounded px-2.5 py-2 text-xs"
+                style={{ backgroundColor: cv.match ? 'oklch(0.98 0.01 145)' : 'oklch(0.98 0.02 25)' }}
+              >
+                <span style={{ color: cv.match ? 'oklch(0.45 0.16 145)' : 'oklch(0.50 0.20 25)' }}>
+                  {cv.match ? <CheckCircle className="size-3.5" /> : <AlertTriangle className="size-3.5" />}
+                </span>
+                <span className="font-medium text-foreground w-32 shrink-0 truncate">{cv.field}</span>
+                <span className="text-muted-foreground flex-1 truncate">{cv.valueA}</span>
+                {!cv.match && (
+                  <>
+                    <span className="text-muted-foreground/50 shrink-0">vs</span>
+                    <span className="text-muted-foreground flex-1 truncate">{cv.valueB}</span>
+                  </>
+                )}
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -494,12 +590,36 @@ function FieldCard({ field }: { field: ExtractedField }) {
         )}
       </div>
       <p className="text-xs text-foreground mb-1.5">{field.id}. {field.label}</p>
-      <div className="relative">
-        <Input value={field.value} readOnly className="pr-7 h-8 text-xs bg-background" />
-        <button className="absolute right-2 top-1/2 -translate-y-1/2">
-          <X className="size-3 text-muted-foreground hover:text-foreground" />
+      <div className="flex items-center gap-2">
+        <div className="flex-1 rounded border border-border bg-background px-2.5 py-1.5 text-sm text-foreground">
+          {field.value || <span className="text-muted-foreground">--</span>}
+        </div>
+        <button className="text-muted-foreground hover:text-foreground">
+          <X className="size-3.5" />
         </button>
       </div>
     </div>
+  )
+}
+
+// ── Confidence Badge ──
+
+function ConfBadge({ score }: { score: number }) {
+  const pct = Math.round(score * 100)
+  const bg = score >= 0.9 ? 'oklch(0.97 0.02 145)' : score >= 0.7 ? 'oklch(0.97 0.02 60)' : 'oklch(0.97 0.02 25)'
+  const color = score >= 0.9 ? 'oklch(0.40 0.16 145)' : score >= 0.7 ? 'oklch(0.50 0.16 50)' : 'oklch(0.50 0.20 25)'
+  return (
+    <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[0.625rem] font-medium" style={{ backgroundColor: bg, color }}>
+      {pct}%
+    </span>
+  )
+}
+
+// ── Chevron Down helper ──
+function ChevronDown({ className, style }: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} style={style}>
+      <path d="m6 9 6 6 6-6"/>
+    </svg>
   )
 }

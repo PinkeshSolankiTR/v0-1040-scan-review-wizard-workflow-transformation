@@ -14,12 +14,12 @@ import {
   CheckCircle,
   AlertTriangle,
   User,
-  Eye,
   X,
-  Link2,
-  ArrowRightLeft,
   Flag,
-  RotateCcw,
+  ArrowRightLeft,
+  ShieldAlert,
+  Info,
+  Link2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -32,12 +32,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet'
-import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -48,13 +42,13 @@ import {
 import {
   DOCUMENTS,
   getSummary,
-  getGroupedDocs,
   STATUS_CONFIG,
   REVIEW_STATE_CONFIG,
   FORM_TYPES,
   STATUS_FILTERS,
-  REVIEW_FILTERS,
   type UnifiedDocument,
+  type LinkedDocument,
+  type ClassificationInfo,
 } from '@/lib/unified-review-data'
 import {
   ENGAGEMENT_SUMMARY,
@@ -67,10 +61,9 @@ export default function InitialDraftPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
   const [formTypeFilter, setFormTypeFilter] = useState('All')
-  const [reviewFilter, setReviewFilter] = useState('All')
   const [documents, setDocuments] = useState(DOCUMENTS)
   const [expandedDocId, setExpandedDocId] = useState<string | null>(null)
-  const [showWizard, setShowWizard] = useState(false)
+  const [expandedNotifId, setExpandedNotifId] = useState<string | null>(null)
 
   const summary = useMemo(() => getSummary(documents), [documents])
 
@@ -79,51 +72,94 @@ export default function InitialDraftPage() {
       const matchesSearch = !searchQuery ||
         doc.fileName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         doc.formLabel.toLowerCase().includes(searchQuery.toLowerCase())
-      const matchesStatus = statusFilter === 'All' ||
-        STATUS_CONFIG[doc.status].label === statusFilter
       const matchesForm = formTypeFilter === 'All' || doc.formType === formTypeFilter
-      const matchesReview = reviewFilter === 'All' ||
-        doc.reviewState === reviewFilter.toLowerCase()
-      return matchesSearch && matchesStatus && matchesForm && matchesReview
+
+      let matchesStatus = true
+      if (statusFilter === 'Has Superseded') {
+        matchesStatus = doc.linkedDocs.some(ld => ld.type === 'superseded')
+      } else if (statusFilter === 'Has Duplicate') {
+        matchesStatus = doc.linkedDocs.some(ld => ld.type === 'duplicate')
+      } else if (statusFilter !== 'All') {
+        matchesStatus = STATUS_CONFIG[doc.status]?.label === statusFilter
+      }
+
+      return matchesSearch && matchesStatus && matchesForm
     })
-  }, [documents, searchQuery, statusFilter, formTypeFilter, reviewFilter])
-
-  const groupedDocs = useMemo(() => getGroupedDocs(filteredDocs), [filteredDocs])
-
-  const pendingDocs = useMemo(() => {
-    return documents.filter(d => d.reviewState === 'pending' && d.status !== 'verified')
-  }, [documents])
+  }, [documents, searchQuery, statusFilter, formTypeFilter])
 
   const completionPct = useMemo(() => {
-    const actionable = documents.filter(d => d.status !== 'verified')
-    if (actionable.length === 0) return 100
-    const done = actionable.filter(d => d.reviewState !== 'pending')
-    return Math.round((done.length / actionable.length) * 100)
+    const actionable = documents.filter(d => d.reviewState === 'pending')
+    if (documents.length === 0) return 100
+    const done = documents.length - actionable.length
+    return Math.round((done / documents.length) * 100)
   }, [documents])
 
-  const handleUpdateDoc = useCallback((docId: string, newState: 'accepted' | 'overridden' | 'flagged') => {
+  const handleAcceptLinked = useCallback((docId: string, linkedId: string) => {
+    // Accept the linked doc classification (keep current original, mark linked as handled)
+    setDocuments(prev => prev.map(doc => {
+      if (doc.id === docId) {
+        return {
+          ...doc,
+          linkedDocs: doc.linkedDocs.map(ld =>
+            ld.id === linkedId ? { ...ld, evidence: { ...ld.evidence, confidence: 1 } } : ld
+          ),
+        }
+      }
+      return doc
+    }))
+    setExpandedNotifId(null)
+  }, [])
+
+  const handleSwapOriginal = useCallback((docId: string, linkedId: string) => {
+    // Swap: the linked doc becomes the original, current doc becomes superseded/duplicate
+    // For prototype, just show the action happened
+    setExpandedNotifId(null)
+  }, [])
+
+  const handleRejectClassification = useCallback((docId: string, linkedId: string) => {
+    // Not superseded/duplicate: remove the linked doc
+    setDocuments(prev => prev.map(doc => {
+      if (doc.id === docId) {
+        return {
+          ...doc,
+          linkedDocs: doc.linkedDocs.filter(ld => ld.id !== linkedId),
+        }
+      }
+      return doc
+    }))
+    setExpandedNotifId(null)
+  }, [])
+
+  const handleAcceptClassification = useCallback((docId: string) => {
     setDocuments(prev => prev.map(doc =>
-      doc.id === docId ? { ...doc, reviewState: newState } : doc
+      doc.id === docId ? { ...doc, reviewState: 'accepted' as const } : doc
     ))
   }, [])
 
-  const handleAcceptHighConfidence = useCallback(() => {
+  const handleFlagDoc = useCallback((docId: string) => {
+    setDocuments(prev => prev.map(doc =>
+      doc.id === docId ? { ...doc, reviewState: 'flagged' as const } : doc
+    ))
+  }, [])
+
+  const highConfCount = useMemo(() => {
+    let count = 0
+    for (const d of documents) {
+      for (const ld of d.linkedDocs) {
+        if (ld.evidence.confidence >= 0.9) count++
+      }
+      if (d.classification && d.classification.evidence.confidence >= 0.9 && d.reviewState === 'pending') count++
+    }
+    return count
+  }, [documents])
+
+  const handleAcceptAllHighConf = useCallback(() => {
     setDocuments(prev => prev.map(doc => {
-      if (doc.reviewState === 'pending' && doc.evidence && doc.evidence.confidence >= 0.9) {
+      if (doc.classification && doc.classification.evidence.confidence >= 0.9 && doc.reviewState === 'pending') {
         return { ...doc, reviewState: 'accepted' as const }
       }
       return doc
     }))
-  }, [])
-
-  const highConfCount = useMemo(() => {
-    return documents.filter(d =>
-      d.reviewState === 'pending' && d.evidence && d.evidence.confidence >= 0.9
-    ).length
-  }, [documents])
-
-  const toggleExpand = useCallback((docId: string) => {
-    setExpandedDocId(prev => prev === docId ? null : docId)
   }, [])
 
   return (
@@ -159,16 +195,6 @@ export default function InitialDraftPage() {
               <CheckCircle className="size-3.5" />
               Submit
             </Button>
-            {pendingDocs.length > 0 && (
-              <button
-                onClick={() => setShowWizard(true)}
-                className="inline-flex items-center gap-1.5 text-sm font-medium transition-colors hover:underline"
-                style={{ color: 'oklch(0.40 0.15 250)' }}
-              >
-                Open Review Wizard
-                <ChevronRight className="size-3.5" />
-              </button>
-            )}
           </div>
         </div>
       </header>
@@ -184,14 +210,14 @@ export default function InitialDraftPage() {
           </Link>
 
           {/* Summary row */}
-          <div className="grid grid-cols-5 gap-4 mb-6">
+          <div className="grid grid-cols-2 gap-4 mb-6">
             {/* Engagement */}
-            <div className="col-span-2 rounded-lg border border-border bg-card p-4">
+            <div className="rounded-lg border border-border bg-card p-4">
               <div className="flex items-center gap-2 mb-2.5">
                 <User className="size-4 text-muted-foreground" />
                 <span className="text-sm font-semibold text-foreground">Engagement Summary</span>
               </div>
-              <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
+              <div className="grid grid-cols-4 gap-x-4 gap-y-1.5">
                 {[
                   { label: 'Tax Year', value: ENGAGEMENT_SUMMARY.taxYear },
                   { label: 'Client #', value: ENGAGEMENT_SUMMARY.clientNumber },
@@ -207,33 +233,32 @@ export default function InitialDraftPage() {
             </div>
 
             {/* Documents Summary */}
-            <div className="col-span-3 rounded-lg border border-border bg-card p-4">
+            <div className="rounded-lg border border-border bg-card p-4">
               <div className="flex items-center gap-2 mb-2.5">
                 <FileText className="size-4 text-muted-foreground" />
                 <span className="text-sm font-semibold text-foreground">Documents Summary</span>
               </div>
-              <div className="grid grid-cols-5 gap-2">
+              <div className="grid grid-cols-4 gap-2">
                 {[
-                  { label: 'Total', count: summary.total, filterStatus: null },
-                  { label: 'Verified', count: summary.verified, filterStatus: 'Verified' },
-                  { label: 'Classified', count: summary.superseded + summary.duplicate + summary.cfa + summary.nfr, filterStatus: null },
-                  { label: 'Needs Review', count: summary.needsReview, filterStatus: 'Needs review' },
-                  { label: 'Pending', count: summary.pending, filterStatus: null },
+                  { label: 'Total', count: summary.total, filter: null },
+                  { label: 'Verified', count: summary.verified, filter: 'Verified' },
+                  { label: 'Classified', count: summary.classified, filter: null },
+                  { label: 'Needs Review', count: summary.needsReview, filter: 'Needs review' },
                 ].map(item => {
-                  const isActive = item.filterStatus && statusFilter === item.filterStatus
+                  const isActive = item.filter && statusFilter === item.filter
                   return (
                     <button
                       key={item.label}
                       onClick={() => {
-                        if (item.filterStatus) {
-                          setStatusFilter(isActive ? 'All' : item.filterStatus)
+                        if (item.filter) {
+                          setStatusFilter(isActive ? 'All' : item.filter)
                         }
                       }}
                       className="rounded-lg border px-3 py-2 text-left transition-all hover:shadow-sm"
                       style={{
                         borderColor: isActive ? 'oklch(0.55 0.15 250)' : 'var(--border)',
                         backgroundColor: isActive ? 'oklch(0.97 0.02 250)' : 'transparent',
-                        cursor: item.filterStatus ? 'pointer' : 'default',
+                        cursor: item.filter ? 'pointer' : 'default',
                       }}
                     >
                       <span className="text-[0.625rem] text-muted-foreground uppercase tracking-wider">{item.label}</span>
@@ -245,30 +270,36 @@ export default function InitialDraftPage() {
             </div>
           </div>
 
-          {/* Bulk accept */}
-          {highConfCount > 0 && (
+          {/* Alert banner for items needing attention */}
+          {summary.pending > 0 && (
             <div
               className="rounded-lg border px-5 py-3 mb-5 flex items-center gap-3"
-              style={{ backgroundColor: 'oklch(0.97 0.02 145)', borderColor: 'oklch(0.88 0.06 145)' }}
+              style={{ backgroundColor: 'oklch(0.98 0.02 55)', borderColor: 'oklch(0.90 0.06 55)' }}
             >
-              <CheckCircle className="size-5 shrink-0" style={{ color: 'oklch(0.45 0.16 145)' }} />
+              <AlertTriangle className="size-5 shrink-0" style={{ color: 'oklch(0.55 0.16 55)' }} />
               <div className="flex-1">
                 <p className="text-sm font-semibold text-foreground">
-                  {highConfCount} items have 90%+ confidence
+                  {summary.pending} documents need attention
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Accept all high-confidence classifications at once
+                  {summary.superseded > 0 && `${summary.superseded} superseded. `}
+                  {summary.duplicate > 0 && `${summary.duplicate} duplicate. `}
+                  {summary.cfa > 0 && `${summary.cfa} CFA. `}
+                  {summary.nfr > 0 && `${summary.nfr} NFR. `}
+                  {summary.needsReview > 0 && `${summary.needsReview} need field review.`}
                 </p>
               </div>
-              <Button
-                size="sm"
-                className="gap-1.5 h-8"
-                style={{ backgroundColor: 'oklch(0.45 0.16 145)', color: 'oklch(0.98 0 0)' }}
-                onClick={handleAcceptHighConfidence}
-              >
-                <CheckCircle className="size-3.5" />
-                Accept All ({highConfCount})
-              </Button>
+              {highConfCount > 0 && (
+                <Button
+                  size="sm"
+                  className="gap-1.5 h-8"
+                  style={{ backgroundColor: 'oklch(0.45 0.16 145)', color: 'oklch(0.98 0 0)' }}
+                  onClick={handleAcceptAllHighConf}
+                >
+                  <CheckCircle className="size-3.5" />
+                  Accept High Confidence ({highConfCount})
+                </Button>
+              )}
             </div>
           )}
 
@@ -308,20 +339,9 @@ export default function InitialDraftPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="w-36">
-              <label className="text-sm font-medium text-foreground mb-1 block">Review</label>
-              <Select value={reviewFilter} onValueChange={setReviewFilter}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {REVIEW_FILTERS.map(opt => (
-                    <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
           </div>
 
-          {/* Documents table with inline expand and pair grouping */}
+          {/* Documents table -- originals only */}
           <div className="rounded-lg border border-border overflow-hidden">
             <table className="w-full">
               <thead>
@@ -329,40 +349,32 @@ export default function InitialDraftPage() {
                   <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-10" />
                   <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-12">Pg</th>
                   <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Name</th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Form Type</th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-24">Paired With</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-28">Form Type</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-36">Status</th>
                   <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-16">Fields</th>
-                  <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-36">Actions</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-48">Notifications</th>
+                  <th className="px-3 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider w-32">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {groupedDocs.map((entry, idx) => {
-                  if (Array.isArray(entry)) {
-                    // Paired group
-                    return (
-                      <PairedGroup
-                        key={`pair-${idx}`}
-                        docs={entry}
-                        expandedDocId={expandedDocId}
-                        onToggleExpand={toggleExpand}
-                        onUpdateDoc={handleUpdateDoc}
-                        allDocs={documents}
-                      />
-                    )
-                  }
-                  // Single doc
-                  return (
-                    <DocRow
-                      key={entry.id}
-                      doc={entry}
-                      isExpanded={expandedDocId === entry.id}
-                      onToggleExpand={() => toggleExpand(entry.id)}
-                      onUpdateDoc={handleUpdateDoc}
-                      allDocs={documents}
-                    />
-                  )
-                })}
+                {filteredDocs.map(doc => (
+                  <DocRow
+                    key={doc.id}
+                    doc={doc}
+                    isExpanded={expandedDocId === doc.id}
+                    expandedNotifId={expandedNotifId}
+                    onToggleExpand={() => setExpandedDocId(prev => prev === doc.id ? null : doc.id)}
+                    onToggleNotif={(notifId: string) => {
+                      setExpandedDocId(doc.id)
+                      setExpandedNotifId(prev => prev === notifId ? null : notifId)
+                    }}
+                    onAcceptLinked={handleAcceptLinked}
+                    onSwapOriginal={handleSwapOriginal}
+                    onRejectClassification={handleRejectClassification}
+                    onAcceptDoc={handleAcceptClassification}
+                    onFlagDoc={handleFlagDoc}
+                  />
+                ))}
               </tbody>
             </table>
           </div>
@@ -383,106 +395,50 @@ export default function InitialDraftPage() {
           </div>
         </div>
       </main>
-
-      {/* Review Wizard Sheet */}
-      <ReviewWizardSheet
-        open={showWizard}
-        onOpenChange={setShowWizard}
-        documents={pendingDocs}
-        onUpdateDoc={handleUpdateDoc}
-      />
     </div>
   )
 }
 
-// ── Paired Group (visually connected rows) ──
-
-function PairedGroup({
-  docs,
-  expandedDocId,
-  onToggleExpand,
-  onUpdateDoc,
-  allDocs,
-}: {
-  docs: UnifiedDocument[]
-  expandedDocId: string | null
-  onToggleExpand: (id: string) => void
-  onUpdateDoc: (id: string, state: 'accepted' | 'overridden' | 'flagged') => void
-  allDocs: UnifiedDocument[]
-}) {
-  return (
-    <>
-      {docs.map((doc, i) => (
-        <DocRow
-          key={doc.id}
-          doc={doc}
-          isExpanded={expandedDocId === doc.id}
-          onToggleExpand={() => onToggleExpand(doc.id)}
-          onUpdateDoc={onUpdateDoc}
-          allDocs={allDocs}
-          isPaired
-          isFirstInPair={i === 0}
-          isLastInPair={i === docs.length - 1}
-        />
-      ))}
-    </>
-  )
-}
-
-// ── Document Row with inline expand ──
+// ── Document Row ──
 
 function DocRow({
   doc,
   isExpanded,
+  expandedNotifId,
   onToggleExpand,
-  onUpdateDoc,
-  allDocs,
-  isPaired = false,
-  isFirstInPair = false,
-  isLastInPair = false,
+  onToggleNotif,
+  onAcceptLinked,
+  onSwapOriginal,
+  onRejectClassification,
+  onAcceptDoc,
+  onFlagDoc,
 }: {
   doc: UnifiedDocument
   isExpanded: boolean
+  expandedNotifId: string | null
   onToggleExpand: () => void
-  onUpdateDoc: (id: string, state: 'accepted' | 'overridden' | 'flagged') => void
-  allDocs: UnifiedDocument[]
-  isPaired?: boolean
-  isFirstInPair?: boolean
-  isLastInPair?: boolean
+  onToggleNotif: (id: string) => void
+  onAcceptLinked: (docId: string, linkedId: string) => void
+  onSwapOriginal: (docId: string, linkedId: string) => void
+  onRejectClassification: (docId: string, linkedId: string) => void
+  onAcceptDoc: (docId: string) => void
+  onFlagDoc: (docId: string) => void
 }) {
   const statusCfg = STATUS_CONFIG[doc.status]
   const reviewCfg = REVIEW_STATE_CONFIG[doc.reviewState]
-
-  // Pair band color
-  const pairBandColor = isPaired
-    ? doc.status === 'superseded' || doc.pair?.role === 'original'
-      ? 'oklch(0.65 0.15 290)' // purple for superseded pairs
-      : 'oklch(0.55 0.15 250)' // blue for duplicate pairs
-    : 'transparent'
+  const hasNotifications = doc.linkedDocs.length > 0 || doc.classification !== null
 
   return (
     <>
       {/* Main row */}
       <tr
-        className={`transition-colors cursor-pointer hover:bg-accent/30 ${
-          isExpanded ? 'bg-accent/20' : ''
-        } ${isPaired && !isLastInPair ? 'border-b-0' : 'border-b border-border'} ${isPaired && isLastInPair ? 'border-b-2' : ''}`}
+        className={`transition-colors cursor-pointer hover:bg-accent/30 border-b border-border ${isExpanded ? 'bg-accent/20' : ''}`}
         onClick={onToggleExpand}
-        style={isPaired && isLastInPair ? { borderBottomColor: pairBandColor } : undefined}
       >
-        {/* Expand chevron */}
         <td className="px-3 py-3">
-          <div className="flex items-center">
-            {isPaired && (
-              <div
-                className="w-0.5 self-stretch mr-2 rounded-full"
-                style={{ backgroundColor: pairBandColor, minHeight: '24px' }}
-              />
-            )}
-            <ChevronDown
-              className={`size-4 text-muted-foreground transition-transform ${isExpanded ? 'rotate-0' : '-rotate-90'}`}
-            />
-          </div>
+          <ChevronDown
+            className={`size-4 text-muted-foreground transition-transform ${isExpanded ? 'rotate-0' : '-rotate-90'}`}
+          />
         </td>
         <td className="px-3 py-3 text-sm font-mono text-muted-foreground">{doc.pageNumber}</td>
         <td className="px-3 py-3">
@@ -496,41 +452,60 @@ function DocRow({
         </td>
         <td className="px-3 py-3 text-sm text-foreground">{doc.formType}</td>
         <td className="px-3 py-3">
-          <div className="flex items-center gap-1.5">
-            <span
-              className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium"
-              style={{ backgroundColor: statusCfg.bg, color: statusCfg.color, border: `1px solid ${statusCfg.border}` }}
-            >
-              {statusCfg.label}
-            </span>
-            {doc.evidence && doc.evidence.confidence > 0 && (
-              <ConfBadge score={doc.evidence.confidence} />
-            )}
-          </div>
+          <span
+            className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium"
+            style={{ backgroundColor: statusCfg.bg, color: statusCfg.color, border: `1px solid ${statusCfg.border}` }}
+          >
+            {statusCfg.label}
+          </span>
         </td>
-        {/* Paired With column */}
-        <td className="px-3 py-3">
-          {doc.pair && (
-            <div className="flex items-center gap-1.5">
-              <Link2 className="size-3 text-muted-foreground shrink-0" />
-              <span className="text-xs text-muted-foreground">
-                Pg {doc.pair.pairedPage}
-              </span>
-              <span
-                className="inline-flex items-center rounded px-1.5 py-0.5 text-[0.5625rem] font-medium uppercase"
-                style={{
-                  backgroundColor: doc.pair.role === 'superseded' || doc.pair.role === 'duplicate'
-                    ? 'oklch(0.97 0.02 25)' : 'oklch(0.97 0.02 145)',
-                  color: doc.pair.role === 'superseded' || doc.pair.role === 'duplicate'
-                    ? 'oklch(0.50 0.18 25)' : 'oklch(0.40 0.16 145)',
-                }}
-              >
-                {doc.pair.role}
-              </span>
+        <td className="px-3 py-3 text-sm text-foreground">{doc.fieldsToReview}</td>
+        {/* Notifications column */}
+        <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
+          {hasNotifications && (
+            <div className="flex flex-col gap-1">
+              {doc.linkedDocs.map(ld => {
+                const notifCfg = STATUS_CONFIG[ld.type]
+                return (
+                  <button
+                    key={ld.id}
+                    onClick={() => onToggleNotif(ld.id)}
+                    className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-all hover:shadow-sm text-left"
+                    style={{
+                      backgroundColor: notifCfg.bg,
+                      color: notifCfg.color,
+                      border: `1px solid ${expandedNotifId === ld.id ? notifCfg.color : notifCfg.border}`,
+                    }}
+                  >
+                    <ShieldAlert className="size-3 shrink-0" />
+                    <span>1 {notifCfg.label} doc</span>
+                    <ChevronDown
+                      className={`size-3 transition-transform ${expandedNotifId === ld.id ? 'rotate-0' : '-rotate-90'}`}
+                    />
+                  </button>
+                )
+              })}
+              {doc.classification && (
+                <button
+                  onClick={() => onToggleNotif(`cls-${doc.id}`)}
+                  className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-all hover:shadow-sm text-left"
+                  style={{
+                    backgroundColor: STATUS_CONFIG[doc.classification.type].bg,
+                    color: STATUS_CONFIG[doc.classification.type].color,
+                    border: `1px solid ${expandedNotifId === `cls-${doc.id}` ? STATUS_CONFIG[doc.classification.type].color : STATUS_CONFIG[doc.classification.type].border}`,
+                  }}
+                >
+                  <Info className="size-3 shrink-0" />
+                  <span>{STATUS_CONFIG[doc.classification.type].label}</span>
+                  <ChevronDown
+                    className={`size-3 transition-transform ${expandedNotifId === `cls-${doc.id}` ? 'rotate-0' : '-rotate-90'}`}
+                  />
+                </button>
+              )}
             </div>
           )}
         </td>
-        <td className="px-3 py-3 text-sm text-foreground">{doc.fieldsToReview}</td>
+        {/* Actions column */}
         <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
           <div className="flex items-center gap-1.5">
             <span
@@ -539,12 +514,12 @@ function DocRow({
             >
               {reviewCfg.label}
             </span>
-            {doc.reviewState === 'pending' && doc.status !== 'verified' && (
+            {doc.reviewState === 'pending' && (
               <Button
                 variant="outline"
                 size="sm"
                 className="gap-1 h-6 text-[0.625rem] px-2"
-                onClick={() => onUpdateDoc(doc.id, 'accepted')}
+                onClick={() => onAcceptDoc(doc.id)}
                 style={{ color: 'oklch(0.45 0.16 145)' }}
               >
                 <CheckCircle className="size-2.5" />
@@ -555,14 +530,18 @@ function DocRow({
         </td>
       </tr>
 
-      {/* Expanded detail row */}
+      {/* Expanded section */}
       {isExpanded && (
         <tr className="border-b border-border">
           <td colSpan={8} className="p-0">
-            <ExpandedDetail
+            <ExpandedSection
               doc={doc}
-              allDocs={allDocs}
-              onUpdateDoc={onUpdateDoc}
+              expandedNotifId={expandedNotifId}
+              onAcceptLinked={onAcceptLinked}
+              onSwapOriginal={onSwapOriginal}
+              onRejectClassification={onRejectClassification}
+              onAcceptDoc={onAcceptDoc}
+              onFlagDoc={onFlagDoc}
             />
           </td>
         </tr>
@@ -571,27 +550,34 @@ function DocRow({
   )
 }
 
-// ── Expanded inline detail ──
+// ── Expanded Section (shows notification details or fields) ──
 
-function ExpandedDetail({
+function ExpandedSection({
   doc,
-  allDocs,
-  onUpdateDoc,
+  expandedNotifId,
+  onAcceptLinked,
+  onSwapOriginal,
+  onRejectClassification,
+  onAcceptDoc,
+  onFlagDoc,
 }: {
   doc: UnifiedDocument
-  allDocs: UnifiedDocument[]
-  onUpdateDoc: (id: string, state: 'accepted' | 'overridden' | 'flagged') => void
+  expandedNotifId: string | null
+  onAcceptLinked: (docId: string, linkedId: string) => void
+  onSwapOriginal: (docId: string, linkedId: string) => void
+  onRejectClassification: (docId: string, linkedId: string) => void
+  onAcceptDoc: (docId: string) => void
+  onFlagDoc: (docId: string) => void
 }) {
-  const [activeTab, setActiveTab] = useState<'classification' | 'fields'>(
-    doc.evidence ? 'classification' : 'fields'
-  )
-  const [showOverride, setShowOverride] = useState(false)
-  const [overrideReason, setOverrideReason] = useState('')
+  const [activeTab, setActiveTab] = useState<'details' | 'fields'>('details')
   const [fieldSearch, setFieldSearch] = useState('')
   const [fieldTypeFilter, setFieldTypeFilter] = useState('All fields')
-  const statusCfg = STATUS_CONFIG[doc.status]
+  const [showSwapDialog, setShowSwapDialog] = useState<LinkedDocument | null>(null)
+  const [showRejectDialog, setShowRejectDialog] = useState<LinkedDocument | null>(null)
 
-  const pairedDoc = doc.pair ? allDocs.find(d => d.id === doc.pair!.pairedDocId) : null
+  // Find which notification is expanded
+  const activeLinkedDoc = doc.linkedDocs.find(ld => ld.id === expandedNotifId)
+  const activeClassification = expandedNotifId === `cls-${doc.id}` ? doc.classification : null
 
   const filteredFields = useMemo(() => {
     return W2_EXTRACTED_FIELDS.filter(field => {
@@ -611,176 +597,84 @@ function ExpandedDetail({
     })
   }, [fieldSearch, fieldTypeFilter])
 
-  const confirmOverride = () => {
-    onUpdateDoc(doc.id, 'overridden')
-    setShowOverride(false)
-    setOverrideReason('')
-  }
-
   return (
     <div style={{ backgroundColor: 'oklch(0.985 0 0)' }}>
       <div className="flex gap-0 border-t border-border">
-        {/* Left panel: tabs */}
-        <div className="w-[520px] shrink-0 border-r border-border">
-          {/* Tab row + Actions */}
-          <div className="flex items-center justify-between border-b border-border px-4 py-2">
-            <div className="flex gap-0">
-              {doc.evidence && (
-                <button
-                  className="px-3 py-1.5 text-xs font-medium rounded-t transition-colors"
-                  style={{
-                    color: activeTab === 'classification' ? 'oklch(0.25 0.01 260)' : 'oklch(0.55 0 0)',
-                    borderBottom: activeTab === 'classification' ? '2px solid oklch(0.25 0.01 260)' : '2px solid transparent',
-                  }}
-                  onClick={() => setActiveTab('classification')}
-                >
-                  Classification
-                </button>
-              )}
-              <button
-                className="px-3 py-1.5 text-xs font-medium rounded-t transition-colors"
-                style={{
-                  color: activeTab === 'fields' ? 'oklch(0.25 0.01 260)' : 'oklch(0.55 0 0)',
-                  borderBottom: activeTab === 'fields' ? '2px solid oklch(0.25 0.01 260)' : '2px solid transparent',
-                }}
-                onClick={() => setActiveTab('fields')}
-              >
-                Extracted Fields ({W2_EXTRACTED_FIELDS.length})
-              </button>
-            </div>
-
-            {/* Inline actions */}
-            {doc.reviewState === 'pending' && doc.status !== 'verified' && (
-              <div className="flex items-center gap-1.5">
-                <Button
-                  size="sm"
-                  className="gap-1 h-7 text-xs"
-                  style={{ backgroundColor: 'oklch(0.45 0.16 145)', color: 'oklch(0.98 0 0)' }}
-                  onClick={() => onUpdateDoc(doc.id, 'accepted')}
-                >
-                  <CheckCircle className="size-3" />
-                  Accept
-                </Button>
-                <Button variant="outline" size="sm" className="gap-1 h-7 text-xs" onClick={() => setShowOverride(true)}>
-                  <RotateCcw className="size-3" />
-                  Override
-                </Button>
-                <Button variant="outline" size="sm" className="gap-1 h-7 text-xs" onClick={() => onUpdateDoc(doc.id, 'flagged')}>
-                  <Flag className="size-3" />
-                  Flag
-                </Button>
-              </div>
-            )}
+        {/* Left panel */}
+        <div className="w-[560px] shrink-0 border-r border-border">
+          {/* Tabs */}
+          <div className="flex items-center border-b border-border px-4 py-2">
+            <button
+              className="px-3 py-1.5 text-xs font-medium transition-colors"
+              style={{
+                color: activeTab === 'details' ? 'oklch(0.25 0.01 260)' : 'oklch(0.55 0 0)',
+                borderBottom: activeTab === 'details' ? '2px solid oklch(0.25 0.01 260)' : '2px solid transparent',
+              }}
+              onClick={() => setActiveTab('details')}
+            >
+              Details
+            </button>
+            <button
+              className="px-3 py-1.5 text-xs font-medium transition-colors"
+              style={{
+                color: activeTab === 'fields' ? 'oklch(0.25 0.01 260)' : 'oklch(0.55 0 0)',
+                borderBottom: activeTab === 'fields' ? '2px solid oklch(0.25 0.01 260)' : '2px solid transparent',
+              }}
+              onClick={() => setActiveTab('fields')}
+            >
+              Extracted Fields ({W2_EXTRACTED_FIELDS.length})
+            </button>
           </div>
 
-          {/* Tab content */}
-          <div className="max-h-[400px] overflow-y-auto">
-            {activeTab === 'classification' && doc.evidence ? (
+          <div className="max-h-[460px] overflow-y-auto">
+            {activeTab === 'details' ? (
               <div className="p-4">
-                {/* Decision + Rule */}
-                <div className="rounded-lg border border-border p-3 mb-3" style={{ backgroundColor: 'oklch(0.99 0 0)' }}>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs text-muted-foreground">Decision:</span>
-                    <span
-                      className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold"
-                      style={{ backgroundColor: statusCfg.bg, color: statusCfg.color, border: `1px solid ${statusCfg.border}` }}
-                    >
-                      {statusCfg.label}
-                    </span>
-                    <span className="text-xs text-muted-foreground ml-auto">Rule:</span>
-                    <span className="text-xs font-mono text-foreground">{doc.evidence.rule}</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground leading-relaxed">{doc.evidence.reason}</p>
-                </div>
-
-                {/* Paired document card */}
-                {pairedDoc && (
-                  <div
-                    className="rounded-lg border px-3 py-2.5 mb-3 flex items-center gap-3"
-                    style={{ borderColor: 'oklch(0.85 0.06 250)', backgroundColor: 'oklch(0.97 0.01 250)' }}
-                  >
-                    <ArrowRightLeft className="size-4 shrink-0" style={{ color: 'oklch(0.45 0.15 250)' }} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-foreground truncate">{pairedDoc.formLabel}</p>
-                      <p className="text-[0.625rem] text-muted-foreground">
-                        Page {pairedDoc.pageNumber} -- {doc.pair?.role === 'superseded' ? 'Original' : doc.pair?.role === 'duplicate' ? 'Original' : doc.pair?.role}
-                      </p>
-                    </div>
-                    <span
-                      className="inline-flex items-center rounded-md px-2 py-0.5 text-[0.625rem] font-medium"
-                      style={{
-                        backgroundColor: STATUS_CONFIG[pairedDoc.status].bg,
-                        color: STATUS_CONFIG[pairedDoc.status].color,
-                        border: `1px solid ${STATUS_CONFIG[pairedDoc.status].border}`,
-                      }}
-                    >
-                      {STATUS_CONFIG[pairedDoc.status].label}
-                    </span>
-                  </div>
-                )}
-
-                {/* CFA parent */}
-                {doc.evidence.parentFormLabel && (
-                  <div
-                    className="rounded-lg border px-3 py-2.5 mb-3 flex items-center gap-3"
-                    style={{ borderColor: 'oklch(0.85 0.06 165)', backgroundColor: 'oklch(0.97 0.01 165)' }}
-                  >
-                    <Link2 className="size-4 shrink-0" style={{ color: 'oklch(0.40 0.17 165)' }} />
-                    <div className="flex-1">
-                      <p className="text-xs font-medium text-foreground">Parent: {doc.evidence.parentFormLabel}</p>
-                      {doc.evidence.isAddForm && (
-                        <p className="text-[0.625rem]" style={{ color: 'oklch(0.50 0.16 50)' }}>AddForm required</p>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* NFR mapping */}
-                {doc.evidence.sourceMapping && (
-                  <div
-                    className="rounded-lg border px-3 py-2.5 mb-3"
-                    style={{ borderColor: 'oklch(0.88 0.06 60)', backgroundColor: 'oklch(0.98 0.01 60)' }}
-                  >
-                    <p className="text-xs text-muted-foreground">
-                      Source: <span className="font-medium text-foreground">{doc.evidence.sourceMapping}</span>
+                {/* Linked doc notification detail */}
+                {activeLinkedDoc ? (
+                  <LinkedDocDetail
+                    doc={doc}
+                    linkedDoc={activeLinkedDoc}
+                    onAccept={() => onAcceptLinked(doc.id, activeLinkedDoc.id)}
+                    onSwap={() => setShowSwapDialog(activeLinkedDoc)}
+                    onReject={() => setShowRejectDialog(activeLinkedDoc)}
+                  />
+                ) : activeClassification ? (
+                  <ClassificationDetail
+                    doc={doc}
+                    classification={activeClassification}
+                    onAccept={() => onAcceptDoc(doc.id)}
+                    onFlag={() => onFlagDoc(doc.id)}
+                  />
+                ) : (
+                  <div className="text-center py-8">
+                    <Info className="size-8 mx-auto mb-2 text-muted-foreground/40" />
+                    <p className="text-sm text-muted-foreground">
+                      {doc.linkedDocs.length > 0 || doc.classification
+                        ? 'Click a notification badge to see details'
+                        : 'No classification issues for this document'}
                     </p>
-                    <p className="text-xs text-muted-foreground">
-                      Return: <span className="font-medium text-foreground">{doc.evidence.returnMapping}</span>
-                    </p>
-                  </div>
-                )}
-
-                {/* Field comparison */}
-                {doc.evidence.comparedValues.length > 0 && (
-                  <div>
-                    <p className="text-xs font-semibold text-foreground mb-2">Field Comparison</p>
-                    <div className="flex flex-col gap-1">
-                      {doc.evidence.comparedValues.map((cv, i) => (
-                        <div
-                          key={i}
-                          className="flex items-center gap-2 rounded px-2.5 py-1.5 text-xs"
-                          style={{ backgroundColor: cv.match ? 'oklch(0.98 0.01 145)' : 'oklch(0.98 0.02 25)' }}
+                    {doc.reviewState === 'pending' && (
+                      <div className="flex items-center justify-center gap-2 mt-4">
+                        <Button
+                          size="sm"
+                          className="gap-1.5"
+                          style={{ backgroundColor: 'oklch(0.45 0.16 145)', color: 'oklch(0.98 0 0)' }}
+                          onClick={() => onAcceptDoc(doc.id)}
                         >
-                          <span style={{ color: cv.match ? 'oklch(0.45 0.16 145)' : 'oklch(0.50 0.20 25)' }}>
-                            {cv.match ? <CheckCircle className="size-3" /> : <AlertTriangle className="size-3" />}
-                          </span>
-                          <span className="font-medium text-foreground w-28 shrink-0 truncate">{cv.field}</span>
-                          <span className="text-muted-foreground flex-1 truncate">{cv.valueA}</span>
-                          {!cv.match && (
-                            <>
-                              <span className="text-muted-foreground/50 shrink-0">vs</span>
-                              <span className="text-muted-foreground flex-1 truncate">{cv.valueB}</span>
-                            </>
-                          )}
-                        </div>
-                      ))}
-                    </div>
+                          <CheckCircle className="size-3.5" />
+                          Accept Document
+                        </Button>
+                        <Button variant="outline" size="sm" className="gap-1.5" onClick={() => onFlagDoc(doc.id)}>
+                          <Flag className="size-3.5" />
+                          Flag
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
             ) : (
               <div className="p-4">
-                {/* Field search + filter */}
                 <div className="flex items-center gap-2 mb-3">
                   <div className="relative flex-1">
                     <Input
@@ -811,50 +705,355 @@ function ExpandedDetail({
         </div>
 
         {/* Right panel: Document preview */}
-        <div className="flex-1 overflow-hidden p-4 flex items-center justify-center" style={{ backgroundColor: 'oklch(0.96 0 0)', height: '440px' }}>
+        <div className="flex-1 overflow-hidden p-4 flex items-center justify-center" style={{ backgroundColor: 'oklch(0.96 0 0)', height: '460px' }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/images/w2-form-sample.jpg"
             alt={`${doc.formLabel} document preview`}
-            style={{ width: 'auto', height: 'auto', maxHeight: '400px', maxWidth: '100%', objectFit: 'contain' }}
+            style={{ width: 'auto', height: 'auto', maxHeight: '430px', maxWidth: '100%', objectFit: 'contain' }}
           />
         </div>
       </div>
 
-      {/* Override Dialog */}
-      <Dialog open={showOverride} onOpenChange={setShowOverride}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Override Classification</DialogTitle>
-            <DialogDescription>
-              Override &quot;{statusCfg.label}&quot; for {doc.formLabel}. Please provide a reason.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-2">
-            <label className="text-sm font-medium text-foreground mb-1.5 block">Reason</label>
-            <Input
-              placeholder="e.g., Different account, not a duplicate"
-              value={overrideReason}
-              onChange={e => setOverrideReason(e.target.value)}
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowOverride(false)}>Cancel</Button>
-            <Button
-              onClick={confirmOverride}
-              disabled={!overrideReason.trim()}
-              style={{ backgroundColor: 'oklch(0.25 0.01 260)', color: 'oklch(0.98 0 0)' }}
-            >
-              Confirm Override
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Swap Confirmation Dialog */}
+      {showSwapDialog && (
+        <SwapDialog
+          doc={doc}
+          linkedDoc={showSwapDialog}
+          onConfirm={() => {
+            onSwapOriginal(doc.id, showSwapDialog.id)
+            setShowSwapDialog(null)
+          }}
+          onCancel={() => setShowSwapDialog(null)}
+        />
+      )}
+
+      {/* Reject Confirmation Dialog */}
+      {showRejectDialog && (
+        <RejectDialog
+          linkedDoc={showRejectDialog}
+          onConfirm={() => {
+            onRejectClassification(doc.id, showRejectDialog.id)
+            setShowRejectDialog(null)
+          }}
+          onCancel={() => setShowRejectDialog(null)}
+        />
+      )}
     </div>
   )
 }
 
-// ── Field Card (compact for inline view) ──
+// ── Linked Document Detail (Superseded/Duplicate) ──
+
+function LinkedDocDetail({
+  doc,
+  linkedDoc,
+  onAccept,
+  onSwap,
+  onReject,
+}: {
+  doc: UnifiedDocument
+  linkedDoc: LinkedDocument
+  onAccept: () => void
+  onSwap: () => void
+  onReject: () => void
+}) {
+  const notifCfg = STATUS_CONFIG[linkedDoc.type]
+  const typeLabel = linkedDoc.type === 'superseded' ? 'Superseded' : 'Duplicate'
+
+  return (
+    <div>
+      {/* Header */}
+      <div
+        className="rounded-lg border p-3 mb-3"
+        style={{ backgroundColor: notifCfg.bg, borderColor: notifCfg.border }}
+      >
+        <div className="flex items-center gap-2 mb-1.5">
+          <ShieldAlert className="size-4" style={{ color: notifCfg.color }} />
+          <span className="text-sm font-semibold" style={{ color: notifCfg.color }}>
+            {typeLabel} Document Detected
+          </span>
+          <ConfBadge score={linkedDoc.evidence.confidence} />
+        </div>
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          {linkedDoc.evidence.reason}
+        </p>
+      </div>
+
+      {/* The superseded/duplicate document info */}
+      <div className="rounded-lg border border-border p-3 mb-3" style={{ backgroundColor: 'oklch(0.99 0 0)' }}>
+        <div className="flex items-center gap-2 mb-1">
+          <FileText className="size-3.5 text-muted-foreground" />
+          <span className="text-xs font-semibold text-foreground">{typeLabel} Document</span>
+        </div>
+        <p className="text-sm font-medium text-foreground">{linkedDoc.formLabel}</p>
+        <p className="text-xs text-muted-foreground">Page {linkedDoc.pageNumber} -- {linkedDoc.fileName}</p>
+        <div className="flex items-center gap-1.5 mt-1.5">
+          <span className="text-xs text-muted-foreground">Rule:</span>
+          <span className="text-xs font-mono text-foreground">{linkedDoc.evidence.rule}</span>
+        </div>
+      </div>
+
+      {/* Field comparison */}
+      {linkedDoc.evidence.comparedValues.length > 0 && (
+        <div className="mb-3">
+          <p className="text-xs font-semibold text-foreground mb-2">Field Comparison</p>
+          <div className="rounded-lg border border-border overflow-hidden">
+            <table className="w-full text-xs">
+              <thead>
+                <tr style={{ backgroundColor: 'oklch(0.97 0 0)' }}>
+                  <th className="px-2.5 py-1.5 text-left font-medium text-muted-foreground">Field</th>
+                  <th className="px-2.5 py-1.5 text-left font-medium text-muted-foreground">This Document</th>
+                  <th className="px-2.5 py-1.5 text-left font-medium text-muted-foreground">{typeLabel} Doc</th>
+                  <th className="px-2.5 py-1.5 text-center font-medium text-muted-foreground w-12">Match</th>
+                </tr>
+              </thead>
+              <tbody>
+                {linkedDoc.evidence.comparedValues.map((cv, i) => (
+                  <tr
+                    key={i}
+                    className="border-t border-border"
+                    style={{ backgroundColor: cv.match ? 'oklch(0.99 0.005 145)' : 'oklch(0.99 0.01 25)' }}
+                  >
+                    <td className="px-2.5 py-1.5 font-medium text-foreground">{cv.field}</td>
+                    <td className="px-2.5 py-1.5 text-muted-foreground">{cv.valueA}</td>
+                    <td className="px-2.5 py-1.5 text-muted-foreground">{cv.valueB}</td>
+                    <td className="px-2.5 py-1.5 text-center">
+                      {cv.match ? (
+                        <CheckCircle className="size-3.5 mx-auto" style={{ color: 'oklch(0.45 0.16 145)' }} />
+                      ) : (
+                        <AlertTriangle className="size-3.5 mx-auto" style={{ color: 'oklch(0.55 0.18 35)' }} />
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Action buttons */}
+      <div className="flex items-center gap-2">
+        <Button
+          size="sm"
+          className="gap-1.5 flex-1"
+          style={{ backgroundColor: 'oklch(0.45 0.16 145)', color: 'oklch(0.98 0 0)' }}
+          onClick={onAccept}
+        >
+          <CheckCircle className="size-3.5" />
+          Accept as {typeLabel}
+        </Button>
+        <Button variant="outline" size="sm" className="gap-1.5 flex-1" onClick={onSwap}>
+          <ArrowRightLeft className="size-3.5" />
+          Swap Original
+        </Button>
+        <Button variant="outline" size="sm" className="gap-1.5 flex-1" onClick={onReject}
+          style={{ color: 'oklch(0.50 0.18 25)', borderColor: 'oklch(0.85 0.06 25)' }}
+        >
+          <X className="size-3.5" />
+          Not {typeLabel}
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+// ── Classification Detail (CFA / NFR) ──
+
+function ClassificationDetail({
+  doc,
+  classification,
+  onAccept,
+  onFlag,
+}: {
+  doc: UnifiedDocument
+  classification: ClassificationInfo
+  onAccept: () => void
+  onFlag: () => void
+}) {
+  const cfgType = STATUS_CONFIG[classification.type]
+  const ev = classification.evidence
+
+  return (
+    <div>
+      <div
+        className="rounded-lg border p-3 mb-3"
+        style={{ backgroundColor: cfgType.bg, borderColor: cfgType.border }}
+      >
+        <div className="flex items-center gap-2 mb-1.5">
+          <Link2 className="size-4" style={{ color: cfgType.color }} />
+          <span className="text-sm font-semibold" style={{ color: cfgType.color }}>
+            {cfgType.label}
+          </span>
+          <ConfBadge score={ev.confidence} />
+        </div>
+        <p className="text-xs text-muted-foreground leading-relaxed">{ev.reason}</p>
+      </div>
+
+      {/* Rule + extras */}
+      <div className="rounded-lg border border-border p-3 mb-3" style={{ backgroundColor: 'oklch(0.99 0 0)' }}>
+        <div className="flex items-center gap-1.5 mb-1">
+          <span className="text-xs text-muted-foreground">Rule:</span>
+          <span className="text-xs font-mono text-foreground">{ev.rule}</span>
+        </div>
+        {ev.parentFormLabel && (
+          <p className="text-xs text-muted-foreground">
+            Parent: <span className="font-medium text-foreground">{ev.parentFormLabel}</span>
+            {ev.isAddForm && <span className="ml-1.5" style={{ color: 'oklch(0.50 0.16 50)' }}>(AddForm required)</span>}
+          </p>
+        )}
+        {ev.sourceMapping && (
+          <>
+            <p className="text-xs text-muted-foreground mt-1">
+              Source: <span className="font-medium text-foreground">{ev.sourceMapping}</span>
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Return: <span className="font-medium text-foreground">{ev.returnMapping}</span>
+            </p>
+          </>
+        )}
+      </div>
+
+      {/* Field comparison */}
+      {ev.comparedValues.length > 0 && (
+        <div className="mb-3">
+          <p className="text-xs font-semibold text-foreground mb-2">Field Comparison</p>
+          <div className="flex flex-col gap-1">
+            {ev.comparedValues.map((cv, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-2 rounded px-2.5 py-1.5 text-xs"
+                style={{ backgroundColor: cv.match ? 'oklch(0.98 0.01 145)' : 'oklch(0.98 0.02 25)' }}
+              >
+                <span style={{ color: cv.match ? 'oklch(0.45 0.16 145)' : 'oklch(0.50 0.20 25)' }}>
+                  {cv.match ? <CheckCircle className="size-3" /> : <AlertTriangle className="size-3" />}
+                </span>
+                <span className="font-medium text-foreground w-28 shrink-0 truncate">{cv.field}</span>
+                <span className="text-muted-foreground flex-1 truncate">{cv.valueA}</span>
+                {!cv.match && (
+                  <>
+                    <span className="text-muted-foreground/50 shrink-0">vs</span>
+                    <span className="text-muted-foreground flex-1 truncate">{cv.valueB}</span>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Actions */}
+      {doc.reviewState === 'pending' && (
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            className="gap-1.5 flex-1"
+            style={{ backgroundColor: 'oklch(0.45 0.16 145)', color: 'oklch(0.98 0 0)' }}
+            onClick={onAccept}
+          >
+            <CheckCircle className="size-3.5" />
+            Accept
+          </Button>
+          <Button variant="outline" size="sm" className="gap-1.5 flex-1" onClick={onFlag}>
+            <Flag className="size-3.5" />
+            Flag for Review
+          </Button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Swap Confirmation Dialog ──
+
+function SwapDialog({
+  doc,
+  linkedDoc,
+  onConfirm,
+  onCancel,
+}: {
+  doc: UnifiedDocument
+  linkedDoc: LinkedDocument
+  onConfirm: () => void
+  onCancel: () => void
+}) {
+  return (
+    <Dialog open onOpenChange={() => onCancel()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Swap Original Document?</DialogTitle>
+          <DialogDescription>
+            This will make the currently {linkedDoc.type} document the new original, and the current
+            original will become {linkedDoc.type}.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="py-3">
+          <div className="rounded-lg border border-border p-3 mb-2" style={{ backgroundColor: 'oklch(0.98 0.01 25)' }}>
+            <p className="text-xs text-muted-foreground mb-0.5">Current original (will become {linkedDoc.type}):</p>
+            <p className="text-sm font-medium text-foreground">{doc.formLabel}</p>
+            <p className="text-xs text-muted-foreground">Page {doc.pageNumber}</p>
+          </div>
+          <div className="flex justify-center py-1">
+            <ArrowRightLeft className="size-4 text-muted-foreground" />
+          </div>
+          <div className="rounded-lg border border-border p-3" style={{ backgroundColor: 'oklch(0.98 0.01 145)' }}>
+            <p className="text-xs text-muted-foreground mb-0.5">Will become new original:</p>
+            <p className="text-sm font-medium text-foreground">{linkedDoc.formLabel}</p>
+            <p className="text-xs text-muted-foreground">Page {linkedDoc.pageNumber}</p>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onCancel}>Cancel</Button>
+          <Button
+            onClick={onConfirm}
+            style={{ backgroundColor: 'oklch(0.25 0.01 260)', color: 'oklch(0.98 0 0)' }}
+          >
+            Yes, Swap
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ── Reject Classification Dialog ──
+
+function RejectDialog({
+  linkedDoc,
+  onConfirm,
+  onCancel,
+}: {
+  linkedDoc: LinkedDocument
+  onConfirm: () => void
+  onCancel: () => void
+}) {
+  const typeLabel = linkedDoc.type === 'superseded' ? 'Superseded' : 'Duplicate'
+  return (
+    <Dialog open onOpenChange={() => onCancel()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Not {typeLabel}?</DialogTitle>
+          <DialogDescription>
+            This will remove the {typeLabel.toLowerCase()} classification from &quot;{linkedDoc.formLabel}&quot;.
+            The document will be treated as a separate, independent document.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" onClick={onCancel}>Cancel</Button>
+          <Button
+            onClick={onConfirm}
+            style={{ backgroundColor: 'oklch(0.50 0.18 25)', color: 'oklch(0.98 0 0)' }}
+          >
+            Yes, Not {typeLabel}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ── Field Card ──
 
 function FieldCard({ field }: { field: ExtractedField }) {
   const statusConfig: Record<string, { label: string; bg: string; text: string; border: string }> = {
@@ -878,14 +1077,8 @@ function FieldCard({ field }: { field: ExtractedField }) {
           </span>
           <span className="text-[0.5625rem] text-muted-foreground">{field.source}</span>
         </div>
-        {field.hasOverride && (
-          <span className="text-[0.5625rem] text-muted-foreground flex items-center gap-0.5">
-            <RotateCcw className="size-2.5" />
-            Overriding
-          </span>
-        )}
       </div>
-      <p className="text-xs text-muted-foreground mb-0.5">{field.order}. {field.label}</p>
+      <p className="text-xs text-muted-foreground mb-0.5">{field.id}. {field.label}</p>
       <div className="flex items-center gap-2">
         <div className="flex-1 rounded border border-border bg-background px-2 py-1 text-xs text-foreground">
           {field.value || <span className="text-muted-foreground">$</span>}
@@ -898,196 +1091,7 @@ function FieldCard({ field }: { field: ExtractedField }) {
   )
 }
 
-// ── Review Wizard Sheet ──
-
-function ReviewWizardSheet({
-  open,
-  onOpenChange,
-  documents,
-  onUpdateDoc,
-}: {
-  open: boolean
-  onOpenChange: (v: boolean) => void
-  documents: UnifiedDocument[]
-  onUpdateDoc: (id: string, state: 'accepted' | 'overridden' | 'flagged') => void
-}) {
-  const [currentIdx, setCurrentIdx] = useState(0)
-  const [showOverride, setShowOverride] = useState(false)
-  const [overrideReason, setOverrideReason] = useState('')
-
-  const doc = documents[currentIdx]
-  if (!doc) return null
-
-  const statusCfg = STATUS_CONFIG[doc.status]
-  const reviewed = documents.filter(d => d.reviewState !== 'pending').length
-  const progressPct = documents.length > 0 ? Math.round((reviewed / documents.length) * 100) : 0
-
-  const goNext = () => { if (currentIdx < documents.length - 1) setCurrentIdx(i => i + 1) }
-  const goPrev = () => { if (currentIdx > 0) setCurrentIdx(i => i - 1) }
-
-  const handleAccept = () => { onUpdateDoc(doc.id, 'accepted'); goNext() }
-  const handleFlag = () => { onUpdateDoc(doc.id, 'flagged'); goNext() }
-  const confirmOverride = () => {
-    onUpdateDoc(doc.id, 'overridden')
-    setShowOverride(false)
-    setOverrideReason('')
-    goNext()
-  }
-
-  return (
-    <>
-      <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="right" className="w-[540px] sm:max-w-[540px] p-0 flex flex-col [&>button]:hidden">
-          <SheetHeader className="px-5 py-4 border-b border-border shrink-0">
-            <div className="flex items-center justify-between">
-              <SheetTitle className="text-base font-bold">Review Wizard</SheetTitle>
-              <button onClick={() => onOpenChange(false)} className="rounded-md p-1 hover:bg-accent" aria-label="Close wizard">
-                <X className="size-4 text-muted-foreground" />
-              </button>
-            </div>
-            <div className="flex items-center gap-3 mt-2">
-              <Progress value={progressPct} className="h-1.5 flex-1" />
-              <span className="text-xs text-muted-foreground shrink-0">
-                {currentIdx + 1} / {documents.length}
-              </span>
-            </div>
-          </SheetHeader>
-
-          <div className="flex-1 overflow-y-auto px-5 py-5">
-            <div className="mb-4">
-              <div className="flex items-center gap-2 mb-1">
-                <span
-                  className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium"
-                  style={{ backgroundColor: statusCfg.bg, color: statusCfg.color, border: `1px solid ${statusCfg.border}` }}
-                >
-                  {statusCfg.label}
-                </span>
-                {doc.evidence && <ConfBadge score={doc.evidence.confidence} />}
-              </div>
-              <h3 className="text-lg font-bold text-foreground">{doc.formLabel}</h3>
-              <p className="text-sm text-muted-foreground">Page {doc.pageNumber} -- {doc.fileName}</p>
-            </div>
-
-            {doc.evidence && (
-              <div className="rounded-lg border border-border p-4 mb-4" style={{ backgroundColor: 'oklch(0.99 0 0)' }}>
-                <div className="flex items-center gap-2 mb-1.5">
-                  <span className="text-xs font-medium text-muted-foreground">Rule:</span>
-                  <span className="text-xs font-mono text-foreground">{doc.evidence.rule}</span>
-                </div>
-                <p className="text-sm text-muted-foreground leading-relaxed mb-3">{doc.evidence.reason}</p>
-                {doc.evidence.comparedValues.length > 0 && (
-                  <div>
-                    <p className="text-xs font-semibold text-foreground mb-2">Evidence</p>
-                    <div className="flex flex-col gap-1">
-                      {doc.evidence.comparedValues.map((cv, i) => (
-                        <div
-                          key={i}
-                          className="flex items-center gap-2 rounded px-2 py-1.5 text-xs"
-                          style={{ backgroundColor: cv.match ? 'oklch(0.98 0.01 145)' : 'oklch(0.98 0.02 25)' }}
-                        >
-                          <span style={{ color: cv.match ? 'oklch(0.45 0.16 145)' : 'oklch(0.50 0.20 25)' }}>
-                            {cv.match ? <CheckCircle className="size-3" /> : <AlertTriangle className="size-3" />}
-                          </span>
-                          <span className="font-medium text-foreground w-32 shrink-0 truncate">{cv.field}</span>
-                          <span className="text-muted-foreground truncate flex-1">{cv.valueA}</span>
-                          {!cv.match && (
-                            <>
-                              <span className="text-muted-foreground/50">vs</span>
-                              <span className="text-muted-foreground truncate flex-1">{cv.valueB}</span>
-                            </>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {doc.pair && (
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Paired with Page {doc.pair.pairedPage} ({doc.pair.pairedLabel})
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
-
-          <div className="border-t border-border px-5 py-4 shrink-0">
-            {doc.reviewState === 'pending' ? (
-              <div className="flex flex-col gap-2.5">
-                <Button
-                  className="w-full gap-1.5"
-                  style={{ backgroundColor: 'oklch(0.45 0.16 145)', color: 'oklch(0.98 0 0)' }}
-                  onClick={handleAccept}
-                >
-                  <CheckCircle className="size-4" />
-                  Accept
-                </Button>
-                <div className="grid grid-cols-2 gap-2.5">
-                  <Button variant="outline" className="gap-1.5" onClick={() => setShowOverride(true)}>
-                    Override
-                  </Button>
-                  <Button variant="outline" className="gap-1.5" onClick={handleFlag}>
-                    Flag for Later
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="text-center">
-                <span
-                  className="inline-flex items-center rounded-md px-3 py-1 text-sm font-medium"
-                  style={{
-                    backgroundColor: REVIEW_STATE_CONFIG[doc.reviewState].bg,
-                    color: REVIEW_STATE_CONFIG[doc.reviewState].color,
-                  }}
-                >
-                  {REVIEW_STATE_CONFIG[doc.reviewState].label}
-                </span>
-              </div>
-            )}
-            <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
-              <Button variant="ghost" size="sm" className="gap-1" disabled={currentIdx === 0} onClick={goPrev}>
-                <ChevronLeft className="size-4" /> Previous
-              </Button>
-              <Button variant="ghost" size="sm" className="gap-1" disabled={currentIdx === documents.length - 1} onClick={goNext}>
-                Next <ChevronRight className="size-4" />
-              </Button>
-            </div>
-          </div>
-        </SheetContent>
-      </Sheet>
-
-      <Dialog open={showOverride} onOpenChange={setShowOverride}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Override Classification</DialogTitle>
-            <DialogDescription>
-              Override &quot;{statusCfg.label}&quot; for {doc.formLabel}. Please explain why.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-2">
-            <label className="text-sm font-medium text-foreground mb-1.5 block">Reason</label>
-            <Input
-              placeholder="e.g., Different account, not a duplicate"
-              value={overrideReason}
-              onChange={e => setOverrideReason(e.target.value)}
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowOverride(false)}>Cancel</Button>
-            <Button
-              onClick={confirmOverride}
-              disabled={!overrideReason.trim()}
-              style={{ backgroundColor: 'oklch(0.25 0.01 260)', color: 'oklch(0.98 0 0)' }}
-            >
-              Confirm Override
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
-  )
-}
-
-// ── Confidence badge ──
+// ── Confidence Badge ──
 
 function ConfBadge({ score }: { score: number }) {
   const pct = Math.round(score * 100)
