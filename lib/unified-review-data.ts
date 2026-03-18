@@ -1,45 +1,41 @@
 /**
  * Unified Review Data
  *
- * Merges verification, superseded, duplicate, CFA, and NFR
- * into a single document-centric model for the Initial Draft view.
+ * Single-model approach: every document has ONE status that covers
+ * both verification and classification. The Status column in the
+ * Figma table absorbs classification labels naturally.
  *
- * Classification priority (mutually exclusive):
- *   Superseded > Duplicate > CFA > NFR > Clean
+ * Priority: Superseded > CFA > Duplicate > NFR > Clean
  */
 
-import type { ComparedValue, DocumentRef } from '@/lib/types'
+import type { ComparedValue } from '@/lib/types'
 
-// ── Classification types ──
+// ── Types ──
 
-export type ClassificationType =
+export type DocStatus =
   | 'superseded'
   | 'duplicate'
-  | 'cfa'
-  | 'nfr'
-  | 'clean'
+  | 'cfa-child'
+  | 'nfr-unmatched'
+  | 'needs-review'
+  | 'incorrect-tax-year'
+  | 'verified'
 
-export type ReviewStatus = 'pending' | 'accepted' | 'overridden' | 'flagged'
+export type ReviewState = 'pending' | 'accepted' | 'overridden' | 'flagged'
 
-export interface ClassificationDetail {
-  type: ClassificationType
-  decision: string
+export interface RuleEvidence {
   rule: string
   reason: string
   confidence: number
-  reviewRequired: boolean
-  escalationReason: string | null
   comparedValues: ComparedValue[]
-  /** For superseded: which page it's superseded by */
+  /** Superseded: retained page */
   retainedPageId?: number
-  /** For duplicate: which doc to retain */
-  retainDocId?: number
-  /** For CFA: parent form info */
+  /** CFA: parent info */
   parentFormLabel?: string
   isAddForm?: boolean
-  /** For NFR: source/return mapping */
-  sourceValue?: string
-  returnValue?: string
+  /** NFR: mapping */
+  sourceMapping?: string
+  returnMapping?: string
 }
 
 export interface UnifiedDocument {
@@ -48,52 +44,57 @@ export interface UnifiedDocument {
   fileName: string
   formType: string
   formLabel: string
-  pdfPath: string
-  /** Verification status from field extraction */
-  verificationStatus: 'confident' | 'needs-review' | 'incorrect-tax-year'
+  status: DocStatus
   fieldsToReview: number
-  /** AI classification (mutually exclusive, priority order applied) */
-  classification: ClassificationDetail
-  /** User review status */
-  reviewStatus: ReviewStatus
+  reviewState: ReviewState
+  evidence: RuleEvidence | null
 }
 
-// ── Constants ──
+// ── Status display config ──
 
-const PDF_PATH = '/documents/1TDI-CCH-2024-binder.pdf'
+export const STATUS_CONFIG: Record<DocStatus, { label: string; color: string; bg: string; border: string }> = {
+  superseded:         { label: 'Superseded',        color: 'oklch(0.40 0.18 290)', bg: 'oklch(0.96 0.02 290)', border: 'oklch(0.85 0.06 290)' },
+  duplicate:          { label: 'Duplicate',         color: 'oklch(0.40 0.15 250)', bg: 'oklch(0.96 0.02 250)', border: 'oklch(0.85 0.06 250)' },
+  'cfa-child':        { label: 'CFA Child',         color: 'oklch(0.40 0.17 165)', bg: 'oklch(0.96 0.02 165)', border: 'oklch(0.85 0.06 165)' },
+  'nfr-unmatched':    { label: 'NFR Unmatched',     color: 'oklch(0.45 0.15 60)',  bg: 'oklch(0.97 0.02 60)',  border: 'oklch(0.88 0.06 60)' },
+  'needs-review':     { label: 'Needs review',      color: 'oklch(0.50 0.18 45)',  bg: 'oklch(0.97 0.03 45)',  border: 'oklch(0.88 0.08 45)' },
+  'incorrect-tax-year': { label: 'Incorrect tax year', color: 'oklch(0.50 0.20 25)', bg: 'oklch(0.97 0.02 25)', border: 'oklch(0.88 0.06 25)' },
+  verified:           { label: 'Verified',          color: 'oklch(0.40 0.16 145)', bg: 'oklch(0.97 0.02 145)', border: 'oklch(0.88 0.06 145)' },
+}
 
-// ── Mock data: 48 pages scanned, each gets ONE classification ──
+export const REVIEW_STATE_CONFIG: Record<ReviewState, { label: string; color: string; bg: string }> = {
+  pending:    { label: 'Pending',    color: 'oklch(0.50 0.16 50)', bg: 'oklch(0.97 0.02 60)' },
+  accepted:   { label: 'Accepted',   color: 'oklch(0.40 0.16 145)', bg: 'oklch(0.97 0.02 145)' },
+  overridden: { label: 'Overridden', color: 'oklch(0.40 0.15 250)', bg: 'oklch(0.95 0.03 250)' },
+  flagged:    { label: 'Flagged',    color: 'oklch(0.50 0.20 25)', bg: 'oklch(0.97 0.02 25)' },
+}
 
-export const UNIFIED_DOCUMENTS: UnifiedDocument[] = [
-  // ── SUPERSEDED DOCUMENTS ──
+// ── Mock documents ──
+
+export const DOCUMENTS: UnifiedDocument[] = [
+  // Superseded
   {
     id: 'page-5',
     pageNumber: 5,
     fileName: 'W-2-WHYNOT-STOP.pdf',
     formType: 'W-2',
     formLabel: 'W-2 (WHYNOT STOP INC)',
-    pdfPath: PDF_PATH,
-    verificationStatus: 'confident',
+    status: 'superseded',
     fieldsToReview: 0,
-    classification: {
-      type: 'superseded',
-      decision: 'Superseded',
+    reviewState: 'pending',
+    evidence: {
       rule: 'A9',
       reason: 'Page 14 is the corrected version with updated wage amounts.',
       confidence: 0.95,
-      reviewRequired: false,
-      escalationReason: null,
       retainedPageId: 14,
       comparedValues: [
-        { field: 'Employer Name', valueA: 'WHYNOT STOP INC', valueB: 'WHYNOT STOP INC', match: true, category: 'Employer Info' },
-        { field: 'Employer EIN', valueA: '53-XXXXXXX', valueB: '53-XXXXXXX', match: true, category: 'Employer Info' },
-        { field: 'Employee Name', valueA: 'JILL ANDERSON', valueB: 'JILL ANDERSON', match: true, category: 'Employee Info' },
+        { field: 'Employer Name', valueA: 'WHYNOT STOP INC', valueB: 'WHYNOT STOP INC', match: true, category: 'Employer' },
+        { field: 'Employer EIN', valueA: '53-XXXXXXX', valueB: '53-XXXXXXX', match: true, category: 'Employer' },
         { field: 'Wages (Box 1)', valueA: '$62,400.00', valueB: '$63,150.00', match: false, category: 'Income' },
-        { field: 'Federal Tax Withheld (Box 2)', valueA: '$9,360.00', valueB: '$9,472.50', match: false, category: 'Income' },
+        { field: 'Fed Tax Withheld', valueA: '$9,360.00', valueB: '$9,472.50', match: false, category: 'Income' },
         { field: 'Corrected', valueA: 'No', valueB: 'Yes', match: false, category: 'Document' },
       ],
     },
-    reviewStatus: 'pending',
   },
   {
     id: 'page-21',
@@ -101,52 +102,20 @@ export const UNIFIED_DOCUMENTS: UnifiedDocument[] = [
     fileName: 'ExxonMobil-1099-DIV.pdf',
     formType: '1099-DIV',
     formLabel: '1099-DIV (ExxonMobil)',
-    pdfPath: PDF_PATH,
-    verificationStatus: 'confident',
+    status: 'superseded',
     fieldsToReview: 0,
-    classification: {
-      type: 'superseded',
-      decision: 'Superseded',
+    reviewState: 'pending',
+    evidence: {
       rule: 'A9',
       reason: 'Page 32 is the corrected version with updated dividend amounts.',
       confidence: 0.92,
-      reviewRequired: false,
-      escalationReason: null,
       retainedPageId: 32,
       comparedValues: [
-        { field: 'Payer Name', valueA: 'EXXON MOBIL CORPORATION', valueB: 'EXXON MOBIL CORPORATION', match: true, category: 'Payer Info' },
-        { field: 'Recipient Name', valueA: 'JILL ANDERSON', valueB: 'JILL ANDERSON', match: true, category: 'Recipient Info' },
-        { field: 'Total Ordinary Dividends (Box 1a)', valueA: '$3,285.60', valueB: '$3,412.80', match: false, category: 'Income' },
+        { field: 'Payer Name', valueA: 'EXXON MOBIL CORP', valueB: 'EXXON MOBIL CORP', match: true, category: 'Payer' },
+        { field: 'Dividends (1a)', valueA: '$3,285.60', valueB: '$3,412.80', match: false, category: 'Income' },
         { field: 'Corrected', valueA: 'No', valueB: 'Yes', match: false, category: 'Document' },
       ],
     },
-    reviewStatus: 'pending',
-  },
-  {
-    id: 'page-17',
-    pageNumber: 17,
-    fileName: 'ExxonMobil-1099-DIV-draft.pdf',
-    formType: '1099-DIV',
-    formLabel: '1099-DIV (ExxonMobil) - Draft',
-    pdfPath: PDF_PATH,
-    verificationStatus: 'confident',
-    fieldsToReview: 0,
-    classification: {
-      type: 'superseded',
-      decision: 'Superseded',
-      rule: 'A9',
-      reason: 'Earliest draft. Replaced first by page 21, then by corrected page 32.',
-      confidence: 0.92,
-      reviewRequired: false,
-      escalationReason: null,
-      retainedPageId: 32,
-      comparedValues: [
-        { field: 'Payer Name', valueA: 'EXXON MOBIL CORPORATION', valueB: 'EXXON MOBIL CORPORATION', match: true, category: 'Payer Info' },
-        { field: 'Document Number', valueA: 'D04018-DRAFT', valueB: 'D04018-C', match: false, category: 'Document' },
-        { field: 'Corrected', valueA: 'No', valueB: 'Yes', match: false, category: 'Document' },
-      ],
-    },
-    reviewStatus: 'pending',
   },
   {
     id: 'page-8',
@@ -154,240 +123,167 @@ export const UNIFIED_DOCUMENTS: UnifiedDocument[] = [
     fileName: 'Chase-1099-INT.pdf',
     formType: '1099-INT',
     formLabel: '1099-INT (Chase Bank)',
-    pdfPath: PDF_PATH,
-    verificationStatus: 'needs-review',
+    status: 'superseded',
     fieldsToReview: 2,
-    classification: {
-      type: 'superseded',
-      decision: 'Superseded',
+    reviewState: 'pending',
+    evidence: {
       rule: 'A6',
-      reason: 'Same bank, same account. Interest amounts differ by $142. Page 22 has higher amount.',
-      confidence: 0.78,
-      reviewRequired: true,
-      escalationReason: 'Interest amounts differ. Could be a corrected version or a different account.',
+      reason: 'Same bank, same account. Page 22 has higher interest. Could be corrected or different period.',
+      confidence: 0.72,
       retainedPageId: 22,
       comparedValues: [
-        { field: 'Payer Name', valueA: 'JPMORGAN CHASE BANK NA', valueB: 'JPMORGAN CHASE BANK NA', match: true, category: 'Payer Info' },
-        { field: 'Interest Income (Box 1)', valueA: '$1,845.00', valueB: '$1,987.00', match: false, category: 'Income' },
-        { field: 'Account Number', valueA: '****8821', valueB: '****8821', match: true, category: 'Account' },
+        { field: 'Payer Name', valueA: 'JPMORGAN CHASE BANK NA', valueB: 'JPMORGAN CHASE BANK NA', match: true, category: 'Payer' },
+        { field: 'Interest (Box 1)', valueA: '$1,845.00', valueB: '$1,987.00', match: false, category: 'Income' },
+        { field: 'Account', valueA: '****8821', valueB: '****8821', match: true, category: 'Account' },
       ],
     },
-    reviewStatus: 'pending',
-  },
-  {
-    id: 'page-15',
-    pageNumber: 15,
-    fileName: 'Chapman-Trust-K1.pdf',
-    formType: 'Schedule K-1',
-    formLabel: 'K-1 (Chapman Trust)',
-    pdfPath: PDF_PATH,
-    verificationStatus: 'needs-review',
-    fieldsToReview: 3,
-    classification: {
-      type: 'superseded',
-      decision: 'Superseded',
-      rule: 'A7',
-      reason: 'Same trust EIN. Multiple income categories differ significantly. May be from different reporting periods.',
-      confidence: 0.58,
-      reviewRequired: true,
-      escalationReason: 'Confidence below threshold. Multiple income categories differ. Could be amended K-1 or different distribution period.',
-      retainedPageId: 42,
-      comparedValues: [
-        { field: 'Trust Name', valueA: 'CHAPMAN IRREVOCABLE TRUST', valueB: 'CHAPMAN IRREVOCABLE TRUST', match: true, category: 'Entity Info' },
-        { field: 'Ordinary Business Income', valueA: '$8,748.00', valueB: '$12,200.00', match: false, category: 'Income' },
-        { field: 'Ordinary Dividends', valueA: '$62,565.00', valueB: '$58,900.00', match: false, category: 'Income' },
-        { field: 'Net Rental Income', valueA: '$4,200.00', valueB: '$0.00', match: false, category: 'Income' },
-      ],
-    },
-    reviewStatus: 'pending',
   },
 
-  // ── DUPLICATE DOCUMENTS ──
+  // Duplicate
   {
     id: 'page-1-dup',
     pageNumber: 1,
     fileName: 'W-2-WHYNOT-organizer.pdf',
     formType: 'W-2',
-    formLabel: 'W-2 (WHYNOT STOP INC) - Organizer Copy',
-    pdfPath: PDF_PATH,
-    verificationStatus: 'confident',
+    formLabel: 'W-2 (WHYNOT STOP) - Organizer',
+    status: 'duplicate',
     fieldsToReview: 0,
-    classification: {
-      type: 'duplicate',
-      decision: 'Duplicate Data',
+    reviewState: 'pending',
+    evidence: {
       rule: 'EXACT_DATA_MATCH',
-      reason: 'Exact match between organizer W-2 and source W-2. All fields identical.',
+      reason: 'Exact data match between organizer W-2 and source W-2. All fields identical.',
       confidence: 0.97,
-      reviewRequired: false,
-      escalationReason: null,
-      retainDocId: 101,
       comparedValues: [
         { field: 'Employee SSN', valueA: '***-**-1234', valueB: '***-**-1234', match: true },
         { field: 'Employer EIN', valueA: '53-XXXXXXX', valueB: '53-XXXXXXX', match: true },
         { field: 'Employer Name', valueA: 'WHYNOT STOP INC', valueB: 'WHYNOT STOP INC', match: true },
-        { field: 'Tax Year', valueA: '2024', valueB: '2024', match: true },
       ],
     },
-    reviewStatus: 'pending',
   },
   {
     id: 'page-4-dup',
     pageNumber: 4,
     fileName: '1099-MISC-RICHMONT-organizer.pdf',
     formType: '1099-MISC',
-    formLabel: '1099-MISC (RICHMONT) - Organizer Copy',
-    pdfPath: PDF_PATH,
-    verificationStatus: 'confident',
+    formLabel: '1099-MISC (RICHMONT) - Organizer',
+    status: 'duplicate',
     fieldsToReview: 0,
-    classification: {
-      type: 'duplicate',
-      decision: 'Duplicate Data',
+    reviewState: 'pending',
+    evidence: {
       rule: 'NEAR_DATA_MATCH',
-      reason: 'Income amounts match exactly. Same person on both documents.',
+      reason: 'Income amounts match exactly. Same payer and recipient on both.',
       confidence: 0.94,
-      reviewRequired: false,
-      escalationReason: null,
-      retainDocId: 102,
       comparedValues: [
-        { field: 'Recipient Name', valueA: 'JACK ANDERSON', valueB: 'JACK ANDERSON', match: true },
-        { field: 'Payer Name', valueA: 'RICHMONT NORTH AMERICA, INC', valueB: 'RICHMONT NORTH AMERICA, INC', match: true },
-        { field: 'Box 3 (Other Income)', valueA: '$14,921.24', valueB: '$14,921.24', match: true },
+        { field: 'Recipient', valueA: 'JACK ANDERSON', valueB: 'JACK ANDERSON', match: true },
+        { field: 'Payer', valueA: 'RICHMONT NORTH AMERICA', valueB: 'RICHMONT NORTH AMERICA', match: true },
+        { field: 'Box 3', valueA: '$14,921.24', valueB: '$14,921.24', match: true },
       ],
     },
-    reviewStatus: 'pending',
-  },
-  {
-    id: 'page-2-scan',
-    pageNumber: 2,
-    fileName: 'W-2-scan-B.pdf',
-    formType: 'W-2',
-    formLabel: 'W-2 (WHYNOT STOP) - Scan B',
-    pdfPath: PDF_PATH,
-    verificationStatus: 'confident',
-    fieldsToReview: 0,
-    classification: {
-      type: 'duplicate',
-      decision: 'Duplicate Document',
-      rule: 'VISUAL_DOC_MATCH',
-      reason: 'Two copies of the same document. Pixel similarity 92%. Different scan quality (300 DPI vs 150 DPI).',
-      confidence: 0.88,
-      reviewRequired: true,
-      escalationReason: null,
-      retainDocId: 101,
-      comparedValues: [
-        { field: 'Employer Name', valueA: 'WHYNOT STOP INC', valueB: 'WHYNOT STOP INC', match: true },
-        { field: 'Employee Name', valueA: 'JILL ANDERSON', valueB: 'JILL ANDERSON', match: true },
-        { field: 'Pixel Similarity', valueA: '92%', valueB: '92%', match: true },
-        { field: 'Scan Quality', valueA: '300 DPI', valueB: '150 DPI', match: false },
-      ],
-    },
-    reviewStatus: 'pending',
   },
 
-  // ── CFA DOCUMENTS ──
+  // CFA
   {
     id: 'page-4-cfa',
-    pageNumber: 4,
+    pageNumber: 30,
     fileName: '1099-MISC-RICHMONT.pdf',
     formType: '1099-MISC',
     formLabel: '1099-MISC (RICHMONT NORTH AMERICA)',
-    pdfPath: PDF_PATH,
-    verificationStatus: 'needs-review',
+    status: 'cfa-child',
     fieldsToReview: 2,
-    classification: {
-      type: 'cfa',
-      decision: 'Associate (AddForm)',
+    reviewState: 'pending',
+    evidence: {
       rule: 'CFA-4',
       reason: 'Recipient name and TIN do not match primary filer. AddForm required for spouse filing.',
       confidence: 0.78,
-      reviewRequired: true,
-      escalationReason: null,
       parentFormLabel: 'Form 1040 (Jill Anderson)',
       isAddForm: true,
       comparedValues: [
-        { field: 'Recipient Name', valueA: 'JACK ANDERSON', valueB: 'JILL ANDERSON (1040 Filer)', match: false },
-        { field: 'Recipient TIN', valueA: '111-11-1111', valueB: '***-**-1234 (Primary SSN)', match: false },
-        { field: 'Address', valueA: '1234 MAIN STREET, DALLAS, TX 75202', valueB: '1234 MAIN STREET, DALLAS, TX 75202', match: true },
+        { field: 'Recipient', valueA: 'JACK ANDERSON', valueB: 'JILL ANDERSON (Filer)', match: false },
+        { field: 'Recipient TIN', valueA: '111-11-1111', valueB: '***-**-1234', match: false },
+        { field: 'Address', valueA: '1234 MAIN ST, DALLAS TX', valueB: '1234 MAIN ST, DALLAS TX', match: true },
       ],
     },
-    reviewStatus: 'pending',
   },
 
-  // ── NFR DOCUMENTS ──
+  // NFR
   {
-    id: 'page-4-nfr',
-    pageNumber: 4,
-    fileName: '1099-MISC-RICHMONT-nfr.pdf',
+    id: 'page-nfr-1',
+    pageNumber: 35,
+    fileName: '1099-MISC-Other.pdf',
     formType: '1099-MISC',
     formLabel: '1099-MISC Other Income',
-    pdfPath: PDF_PATH,
-    verificationStatus: 'needs-review',
+    status: 'nfr-unmatched',
     fieldsToReview: 1,
-    classification: {
-      type: 'nfr',
-      decision: 'Unmatched',
+    reviewState: 'pending',
+    evidence: {
       rule: 'NFR-6',
-      reason: 'Recipient name and TIN do not match primary filer. No proforma form meets threshold.',
+      reason: 'Recipient does not match filer. No proforma form meets threshold.',
       confidence: 0.68,
-      reviewRequired: true,
-      escalationReason: null,
-      sourceValue: '1099-MISC Box 3',
-      returnValue: '1040 Schedule 1, Line 8z',
+      sourceMapping: '1099-MISC Box 3',
+      returnMapping: '1040 Schedule 1, Line 8z',
       comparedValues: [
-        { field: 'Recipient Name', valueA: 'JACK ANDERSON (1099-MISC)', valueB: 'JILL ANDERSON (1040 Filer)', match: false },
+        { field: 'Recipient', valueA: 'JACK ANDERSON', valueB: 'JILL ANDERSON (Filer)', match: false },
         { field: 'Box 3 Amount', valueA: '$14,921.24', valueB: '$14,921.24', match: true },
       ],
     },
-    reviewStatus: 'pending',
   },
   {
-    id: 'page-5-nfr',
-    pageNumber: 5,
+    id: 'page-nfr-2',
+    pageNumber: 38,
     fileName: 'K1-Chapman-Business.pdf',
     formType: 'Schedule K-1',
     formLabel: 'K-1 Business Income',
-    pdfPath: PDF_PATH,
-    verificationStatus: 'needs-review',
+    status: 'nfr-unmatched',
     fieldsToReview: 2,
-    classification: {
-      type: 'nfr',
-      decision: 'Unmatched',
+    reviewState: 'pending',
+    evidence: {
       rule: 'NFR-3',
-      reason: 'Business income amount differs. Beneficiary name does not match filer.',
+      reason: 'Business income differs. Beneficiary name does not match filer.',
       confidence: 0.55,
-      reviewRequired: true,
-      escalationReason: null,
-      sourceValue: 'K-1 (Form 1041) Box 6',
-      returnValue: '1040 Schedule E, Part III',
+      sourceMapping: 'K-1 (1041) Box 6',
+      returnMapping: '1040 Schedule E, Part III',
       comparedValues: [
-        { field: 'Business Income (Box 6)', valueA: '$8,748', valueB: '$9,200', match: false },
-        { field: 'Beneficiary Name', valueA: 'JILL BAKER FAMILY TRUST', valueB: 'JILL ANDERSON', match: false },
+        { field: 'Business Income', valueA: '$8,748', valueB: '$9,200', match: false },
+        { field: 'Beneficiary', valueA: 'JILL BAKER FAMILY TRUST', valueB: 'JILL ANDERSON', match: false },
       ],
     },
-    reviewStatus: 'pending',
   },
 
-  // ── CLEAN DOCUMENTS (no issues) ──
+  // Verification issues
+  {
+    id: 'page-v1',
+    pageNumber: 12,
+    fileName: 'Wendy1099-div.pdf',
+    formType: '1099-DIV',
+    formLabel: '1099-DIV (Wendy)',
+    status: 'incorrect-tax-year',
+    fieldsToReview: 4,
+    reviewState: 'pending',
+    evidence: null,
+  },
+  {
+    id: 'page-v2',
+    pageNumber: 18,
+    fileName: 'W-2-2024.pdf',
+    formType: 'W-2',
+    formLabel: 'W-2 (2024 Filing)',
+    status: 'needs-review',
+    fieldsToReview: 4,
+    reviewState: 'pending',
+    evidence: null,
+  },
+
+  // Clean / Verified
   {
     id: 'page-14',
     pageNumber: 14,
     fileName: 'W-2-WHYNOT-corrected.pdf',
     formType: 'W-2',
-    formLabel: 'W-2 (WHYNOT STOP INC) - Corrected',
-    pdfPath: PDF_PATH,
-    verificationStatus: 'confident',
+    formLabel: 'W-2 (WHYNOT STOP) - Corrected',
+    status: 'verified',
     fieldsToReview: 0,
-    classification: {
-      type: 'clean',
-      decision: 'Original',
-      rule: '-',
-      reason: 'This is the corrected W-2. Retained as original.',
-      confidence: 1.0,
-      reviewRequired: false,
-      escalationReason: null,
-      comparedValues: [],
-    },
-    reviewStatus: 'accepted',
+    reviewState: 'accepted',
+    evidence: null,
   },
   {
     id: 'page-32',
@@ -395,83 +291,32 @@ export const UNIFIED_DOCUMENTS: UnifiedDocument[] = [
     fileName: 'ExxonMobil-1099-DIV-corrected.pdf',
     formType: '1099-DIV',
     formLabel: '1099-DIV (ExxonMobil) - Corrected',
-    pdfPath: PDF_PATH,
-    verificationStatus: 'confident',
+    status: 'verified',
     fieldsToReview: 0,
-    classification: {
-      type: 'clean',
-      decision: 'Original',
-      rule: '-',
-      reason: 'Corrected 1099-DIV. Retained as original.',
-      confidence: 1.0,
-      reviewRequired: false,
-      escalationReason: null,
-      comparedValues: [],
-    },
-    reviewStatus: 'accepted',
+    reviewState: 'accepted',
+    evidence: null,
   },
   {
     id: 'page-22',
     pageNumber: 22,
     fileName: 'Chase-1099-INT-updated.pdf',
     formType: '1099-INT',
-    formLabel: '1099-INT (Chase Bank) - Updated',
-    pdfPath: PDF_PATH,
-    verificationStatus: 'confident',
+    formLabel: '1099-INT (Chase) - Updated',
+    status: 'verified',
     fieldsToReview: 0,
-    classification: {
-      type: 'clean',
-      decision: 'Original',
-      rule: '-',
-      reason: 'Updated 1099-INT with higher interest amount. Retained.',
-      confidence: 1.0,
-      reviewRequired: false,
-      escalationReason: null,
-      comparedValues: [],
-    },
-    reviewStatus: 'accepted',
-  },
-  {
-    id: 'page-1',
-    pageNumber: 1,
-    fileName: 'W-2-WHYNOT-source.pdf',
-    formType: 'W-2',
-    formLabel: 'W-2 (WHYNOT STOP INC) - Source',
-    pdfPath: PDF_PATH,
-    verificationStatus: 'confident',
-    fieldsToReview: 0,
-    classification: {
-      type: 'clean',
-      decision: 'Original',
-      rule: '-',
-      reason: 'Source W-2 document. No issues detected.',
-      confidence: 1.0,
-      reviewRequired: false,
-      escalationReason: null,
-      comparedValues: [],
-    },
-    reviewStatus: 'accepted',
+    reviewState: 'accepted',
+    evidence: null,
   },
   {
     id: 'page-3',
     pageNumber: 3,
     fileName: 'Schedule-C-Craft-Shop.pdf',
     formType: 'Schedule C',
-    formLabel: 'Schedule C (Jill\'s Craft Shop)',
-    pdfPath: PDF_PATH,
-    verificationStatus: 'confident',
+    formLabel: 'Schedule C (Craft Shop)',
+    status: 'verified',
     fieldsToReview: 0,
-    classification: {
-      type: 'clean',
-      decision: 'Original',
-      rule: '-',
-      reason: 'Schedule C verified. No duplicates or superseded versions found.',
-      confidence: 1.0,
-      reviewRequired: false,
-      escalationReason: null,
-      comparedValues: [],
-    },
-    reviewStatus: 'accepted',
+    reviewState: 'accepted',
+    evidence: null,
   },
   {
     id: 'page-42',
@@ -479,86 +324,52 @@ export const UNIFIED_DOCUMENTS: UnifiedDocument[] = [
     fileName: 'Chapman-Trust-K1-amended.pdf',
     formType: 'Schedule K-1',
     formLabel: 'K-1 (Chapman Trust) - Amended',
-    pdfPath: PDF_PATH,
-    verificationStatus: 'confident',
+    status: 'verified',
     fieldsToReview: 0,
-    classification: {
-      type: 'clean',
-      decision: 'Original',
-      rule: '-',
-      reason: 'Amended K-1. Retained as the current version.',
-      confidence: 1.0,
-      reviewRequired: false,
-      escalationReason: null,
-      comparedValues: [],
-    },
-    reviewStatus: 'accepted',
+    reviewState: 'accepted',
+    evidence: null,
+  },
+  {
+    id: 'page-1',
+    pageNumber: 1,
+    fileName: 'W-2-WHYNOT-source.pdf',
+    formType: 'W-2',
+    formLabel: 'W-2 (WHYNOT STOP) - Source',
+    status: 'verified',
+    fieldsToReview: 0,
+    reviewState: 'accepted',
+    evidence: null,
   },
 ]
 
-// ── Derived summaries ──
+// ── Helpers ──
 
-export function getClassificationSummary(docs: UnifiedDocument[]) {
-  const counts = {
+export function getSummary(docs: UnifiedDocument[]) {
+  const out = {
+    total: docs.length,
     superseded: 0,
     duplicate: 0,
     cfa: 0,
     nfr: 0,
-    clean: 0,
-    total: docs.length,
     needsReview: 0,
-    reviewed: 0,
+    verified: 0,
+    pending: 0,
+    accepted: 0,
   }
+  for (const d of docs) {
+    if (d.status === 'superseded') out.superseded++
+    else if (d.status === 'duplicate') out.duplicate++
+    else if (d.status === 'cfa-child') out.cfa++
+    else if (d.status === 'nfr-unmatched') out.nfr++
+    else if (d.status === 'verified') out.verified++
+    else out.needsReview++
 
-  for (const doc of docs) {
-    counts[doc.classification.type]++
-    if (doc.reviewStatus === 'pending' && doc.classification.reviewRequired) {
-      counts.needsReview++
-    }
-    if (doc.reviewStatus === 'accepted' || doc.reviewStatus === 'overridden') {
-      counts.reviewed++
-    }
+    if (d.reviewState === 'pending') out.pending++
+    else if (d.reviewState === 'accepted') out.accepted++
   }
-
-  return counts
+  return out
 }
 
-export const CLASSIFICATION_LABELS: Record<ClassificationType, string> = {
-  superseded: 'Superseded',
-  duplicate: 'Duplicate',
-  cfa: 'Child Form Association',
-  nfr: 'New Form Review',
-  clean: 'Clean',
-}
-
-export const CLASSIFICATION_COLORS: Record<ClassificationType, { bg: string; text: string; border: string }> = {
-  superseded: {
-    bg: 'oklch(0.95 0.03 290)',
-    text: 'oklch(0.40 0.18 290)',
-    border: 'oklch(0.82 0.08 290)',
-  },
-  duplicate: {
-    bg: 'oklch(0.95 0.03 250)',
-    text: 'oklch(0.40 0.15 250)',
-    border: 'oklch(0.82 0.08 250)',
-  },
-  cfa: {
-    bg: 'oklch(0.95 0.03 165)',
-    text: 'oklch(0.40 0.17 165)',
-    border: 'oklch(0.82 0.08 165)',
-  },
-  nfr: {
-    bg: 'oklch(0.95 0.03 60)',
-    text: 'oklch(0.45 0.15 60)',
-    border: 'oklch(0.82 0.08 60)',
-  },
-  clean: {
-    bg: 'oklch(0.97 0.02 145)',
-    text: 'oklch(0.40 0.16 145)',
-    border: 'oklch(0.88 0.08 145)',
-  },
-}
-
-export const FILTER_OPTIONS = ['All', 'Superseded', 'Duplicate', 'CFA', 'NFR', 'Clean'] as const
-export const FORM_TYPE_OPTIONS = ['All', 'W-2', '1099-DIV', '1099-INT', '1099-MISC', 'Schedule K-1', 'Schedule C'] as const
-export const REVIEW_STATUS_OPTIONS = ['All', 'Pending', 'Accepted', 'Overridden', 'Flagged'] as const
+export const FORM_TYPES = ['All', 'W-2', '1099-DIV', '1099-INT', '1099-MISC', 'Schedule K-1', 'Schedule C'] as const
+export const STATUS_FILTERS = ['All', 'Superseded', 'Duplicate', 'CFA Child', 'NFR Unmatched', 'Needs review', 'Incorrect tax year', 'Verified'] as const
+export const REVIEW_FILTERS = ['All', 'Pending', 'Accepted', 'Overridden', 'Flagged'] as const
