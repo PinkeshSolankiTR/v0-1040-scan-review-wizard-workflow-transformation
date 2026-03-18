@@ -2,7 +2,7 @@
  * Unified Review Data
  *
  * Single-model approach: every document has ONE status.
- * Superseded/Duplicate docs are paired with their original/retained counterpart.
+ * Superseded/Duplicate docs are paired with their original counterpart.
  * Priority: Superseded > CFA > Duplicate > NFR > Clean
  */
 
@@ -26,7 +26,7 @@ export interface RuleEvidence {
   reason: string
   confidence: number
   comparedValues: ComparedValue[]
-  retainedPageId?: number
+  originalPageId?: number
   parentFormLabel?: string
   isAddForm?: boolean
   sourceMapping?: string
@@ -95,7 +95,7 @@ export const DOCUMENTS: UnifiedDocument[] = [
       rule: 'A9',
       reason: 'Page 14 is the corrected version with updated wage amounts.',
       confidence: 0.95,
-      retainedPageId: 14,
+      originalPageId: 14,
       comparedValues: [
         { field: 'Employer Name', valueA: 'WHYNOT STOP INC', valueB: 'WHYNOT STOP INC', match: true, category: 'Employer' },
         { field: 'Employer EIN', valueA: '53-XXXXXXX', valueB: '53-XXXXXXX', match: true, category: 'Employer' },
@@ -143,7 +143,7 @@ export const DOCUMENTS: UnifiedDocument[] = [
       rule: 'A9',
       reason: 'Page 32 is the corrected version with updated dividend amounts.',
       confidence: 0.92,
-      retainedPageId: 32,
+      originalPageId: 32,
       comparedValues: [
         { field: 'Payer Name', valueA: 'EXXON MOBIL CORP', valueB: 'EXXON MOBIL CORP', match: true, category: 'Payer' },
         { field: 'Dividends (1a)', valueA: '$3,285.60', valueB: '$3,412.80', match: false, category: 'Income' },
@@ -189,7 +189,7 @@ export const DOCUMENTS: UnifiedDocument[] = [
       rule: 'A6',
       reason: 'Same bank, same account. Page 22 has higher interest. Could be corrected or different period.',
       confidence: 0.72,
-      retainedPageId: 22,
+      originalPageId: 22,
       comparedValues: [
         { field: 'Payer Name', valueA: 'JPMORGAN CHASE BANK NA', valueB: 'JPMORGAN CHASE BANK NA', match: true, category: 'Payer' },
         { field: 'Interest (Box 1)', valueA: '$1,845.00', valueB: '$1,987.00', match: false, category: 'Income' },
@@ -475,7 +475,7 @@ export function getGroupedDocs(docs: UnifiedDocument[]): (UnifiedDocument | Unif
       const paired = docs.find(d => d.id === doc.pair!.pairedDocId)
       if (paired && !used.has(paired.id)) {
         used.add(paired.id)
-        // Put the actionable doc (superseded/duplicate) first, retained/original second
+        // Put the actionable doc (superseded/duplicate) first, original second
         if (doc.status === 'superseded' || doc.status === 'duplicate') {
           result.push([doc, paired])
         } else {

@@ -812,13 +812,13 @@ function ExpandedDetail({
         </div>
 
         {/* Right panel: Document preview */}
-        <div className="flex-1 flex items-center justify-center overflow-hidden p-4" style={{ backgroundColor: 'oklch(0.96 0 0)', maxHeight: '440px' }}>
+        <div className="flex-1 overflow-hidden p-4" style={{ backgroundColor: 'oklch(0.96 0 0)', height: '440px', position: 'relative' }}>
           <Image
             src="/images/w2-form-sample.jpg"
             alt={`${doc.formLabel} document preview`}
-            width={800}
-            height={1035}
-            className="max-h-[400px] w-auto h-auto object-contain"
+            fill
+            className="object-contain"
+            sizes="(max-width: 768px) 100vw, 50vw"
           />
         </div>
       </div>
