@@ -417,8 +417,10 @@ function DocRow({
   onFlagDoc: (docId: string) => void
 }) {
   const defaultCfg = { label: 'Unknown', color: 'oklch(0.5 0 0)', bg: 'oklch(0.97 0 0)', border: 'oklch(0.88 0 0)' }
-  const statusCfg = (doc.status && STATUS_CONFIG[doc.status]) ? STATUS_CONFIG[doc.status] : defaultCfg
-  const reviewCfg = REVIEW_STATE_CONFIG[doc.reviewState] ?? { label: 'Unknown', color: 'oklch(0.5 0 0)', bg: 'oklch(0.97 0 0)' }
+  const rawStatusCfg = doc.status ? STATUS_CONFIG[doc.status] : null
+  const statusCfg = rawStatusCfg?.bg ? rawStatusCfg : defaultCfg
+  const rawReviewCfg = doc.reviewState ? REVIEW_STATE_CONFIG[doc.reviewState] : null
+  const reviewCfg = rawReviewCfg?.bg ? rawReviewCfg : { label: 'Unknown', color: 'oklch(0.5 0 0)', bg: 'oklch(0.97 0 0)' }
   const hasNotifications = doc.linkedDocs.length > 0
 
   return (
