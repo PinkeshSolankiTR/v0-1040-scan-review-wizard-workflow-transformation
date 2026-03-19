@@ -50,15 +50,14 @@ import {
   type ExtractedField,
 } from '@/lib/initial-draft-data'
 
-type Tab = 'fields' | 'classification' | 'notifications'
+type Tab = 'fields' | 'notifications'
 
 export default function DocumentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const doc = DOCUMENTS.find(d => d.id === id) ?? DOCUMENTS[0]
 
-  const hasClassification = doc.classification !== null
   const hasNotifications = doc.linkedDocs.length > 0
-  const defaultTab: Tab = hasNotifications ? 'notifications' : hasClassification ? 'classification' : 'fields'
+  const defaultTab: Tab = hasNotifications ? 'notifications' : 'fields'
   const [activeTab, setActiveTab] = useState<Tab>(defaultTab)
 
   const [fieldSearch, setFieldSearch] = useState('')
@@ -217,19 +216,6 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
                 </span>
               </button>
             )}
-            {hasClassification && (
-              <button
-                className="flex-1 px-4 py-3 text-sm font-medium text-center transition-colors"
-                style={{
-                  color: activeTab === 'classification' ? 'oklch(0.25 0.01 260)' : 'oklch(0.5 0.01 260)',
-                  borderBottom: activeTab === 'classification' ? '2px solid oklch(0.25 0.01 260)' : '2px solid transparent',
-                  backgroundColor: activeTab === 'classification' ? 'oklch(0.98 0 0)' : 'transparent',
-                }}
-                onClick={() => setActiveTab('classification')}
-              >
-                Classification
-              </button>
-            )}
           </div>
 
           {/* Tab content */}
@@ -242,10 +228,8 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
                 typeFilter={fieldTypeFilter}
                 onTypeFilterChange={setFieldTypeFilter}
               />
-            ) : activeTab === 'notifications' ? (
-              <NotificationsPanel doc={doc} />
             ) : (
-              <ClassificationPanel doc={doc} />
+              <NotificationsPanel doc={doc} />
             )}
           </div>
         </div>
@@ -476,84 +460,6 @@ function NotificationsPanel({ doc }: { doc: UnifiedDocument }) {
           )
         })}
       </div>
-    </div>
-  )
-}
-
-// ── Classification Panel (CFA / NFR) ──
-
-function ClassificationPanel({ doc }: { doc: UnifiedDocument }) {
-  const classification = doc.classification
-  if (!classification) return null
-
-  const cfgType = STATUS_CONFIG[classification.type]
-  const ev = classification.evidence
-
-  return (
-    <div className="p-5">
-      <div
-        className="rounded-lg border p-4 mb-4"
-        style={{ backgroundColor: cfgType.bg, borderColor: cfgType.border }}
-      >
-        <div className="flex items-center gap-2 mb-1.5">
-          <Info className="size-4" style={{ color: cfgType.color }} />
-          <span className="text-sm font-semibold" style={{ color: cfgType.color }}>
-            {cfgType.label}
-          </span>
-          <ConfBadge score={ev.confidence} />
-        </div>
-        <p className="text-sm text-muted-foreground leading-relaxed">{ev.reason}</p>
-      </div>
-
-      <div className="rounded-lg border border-border p-4 mb-4" style={{ backgroundColor: 'oklch(0.99 0 0)' }}>
-        <div className="flex items-center gap-2 mb-1.5">
-          <span className="text-xs font-medium text-muted-foreground">Rule:</span>
-          <span className="text-xs font-mono text-foreground">{ev.rule}</span>
-        </div>
-        {ev.parentFormLabel && (
-          <p className="text-xs text-muted-foreground">
-            Parent: <span className="font-medium text-foreground">{ev.parentFormLabel}</span>
-            {ev.isAddForm && <span className="ml-1" style={{ color: 'oklch(0.50 0.16 50)' }}>(AddForm required)</span>}
-          </p>
-        )}
-        {ev.sourceMapping && (
-          <>
-            <p className="text-xs text-muted-foreground mt-1">
-              Source: <span className="font-medium text-foreground">{ev.sourceMapping}</span>
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Return: <span className="font-medium text-foreground">{ev.returnMapping}</span>
-            </p>
-          </>
-        )}
-      </div>
-
-      {ev.comparedValues.length > 0 && (
-        <div>
-          <p className="text-sm font-semibold text-foreground mb-3">Field Comparison</p>
-          <div className="flex flex-col gap-1">
-            {ev.comparedValues.map((cv, i) => (
-              <div
-                key={i}
-                className="flex items-center gap-2 rounded px-2.5 py-2 text-xs"
-                style={{ backgroundColor: cv.match ? 'oklch(0.98 0.01 145)' : 'oklch(0.98 0.02 25)' }}
-              >
-                <span style={{ color: cv.match ? 'oklch(0.45 0.16 145)' : 'oklch(0.50 0.20 25)' }}>
-                  {cv.match ? <CheckCircle className="size-3.5" /> : <AlertTriangle className="size-3.5" />}
-                </span>
-                <span className="font-medium text-foreground w-32 shrink-0 truncate">{cv.field}</span>
-                <span className="text-muted-foreground flex-1 truncate">{cv.valueA}</span>
-                {!cv.match && (
-                  <>
-                    <span className="text-muted-foreground/50 shrink-0">vs</span>
-                    <span className="text-muted-foreground flex-1 truncate">{cv.valueB}</span>
-                  </>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   )
 }

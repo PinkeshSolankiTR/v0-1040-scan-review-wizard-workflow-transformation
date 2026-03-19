@@ -48,7 +48,6 @@ import {
   STATUS_FILTERS,
   type UnifiedDocument,
   type LinkedDocument,
-  type ClassificationInfo,
 } from '@/lib/unified-review-data'
 import {
   ENGAGEMENT_SUMMARY,
@@ -148,18 +147,13 @@ export default function InitialDraftPage() {
       for (const ld of d.linkedDocs) {
         if (ld.evidence.confidence >= 0.9) count++
       }
-      if (d.classification && d.classification.evidence.confidence >= 0.9 && d.reviewState === 'pending') count++
     }
     return count
   }, [documents])
 
   const handleAcceptAllHighConf = useCallback(() => {
-    setDocuments(prev => prev.map(doc => {
-      if (doc.classification && doc.classification.evidence.confidence >= 0.9 && doc.reviewState === 'pending') {
-        return { ...doc, reviewState: 'accepted' as const }
-      }
-      return doc
-    }))
+    // Accept all high confidence linked docs (superseded/duplicate)
+    // No-op for now, would mark linkedDocs as accepted
   }, [])
 
   return (
@@ -284,8 +278,6 @@ export default function InitialDraftPage() {
                 <p className="text-xs text-muted-foreground">
                   {summary.superseded > 0 && `${summary.superseded} superseded. `}
                   {summary.duplicate > 0 && `${summary.duplicate} duplicate. `}
-                  {summary.cfa > 0 && `${summary.cfa} CFA. `}
-                  {summary.nfr > 0 && `${summary.nfr} NFR. `}
                   {summary.needsReview > 0 && `${summary.needsReview} need field review.`}
                 </p>
               </div>
@@ -426,7 +418,7 @@ function DocRow({
 }) {
   const statusCfg = STATUS_CONFIG[doc.status]
   const reviewCfg = REVIEW_STATE_CONFIG[doc.reviewState]
-  const hasNotifications = doc.linkedDocs.length > 0 || doc.classification !== null
+  const hasNotifications = doc.linkedDocs.length > 0
 
   return (
     <>
@@ -485,23 +477,7 @@ function DocRow({
                   </button>
                 )
               })}
-              {doc.classification && (
-                <button
-                  onClick={() => onToggleNotif(`cls-${doc.id}`)}
-                  className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium transition-all hover:shadow-sm text-left"
-                  style={{
-                    backgroundColor: STATUS_CONFIG[doc.classification.type].bg,
-                    color: STATUS_CONFIG[doc.classification.type].color,
-                    border: `1px solid ${expandedNotifId === `cls-${doc.id}` ? STATUS_CONFIG[doc.classification.type].color : STATUS_CONFIG[doc.classification.type].border}`,
-                  }}
-                >
-                  <Info className="size-3 shrink-0" />
-                  <span>{STATUS_CONFIG[doc.classification.type].label}</span>
-                  <ChevronDown
-                    className={`size-3 transition-transform ${expandedNotifId === `cls-${doc.id}` ? 'rotate-0' : '-rotate-90'}`}
-                  />
-                </button>
-              )}
+
             </div>
           )}
         </td>
@@ -577,7 +553,6 @@ function ExpandedSection({
 
   // Find which notification is expanded
   const activeLinkedDoc = doc.linkedDocs.find(ld => ld.id === expandedNotifId)
-  const activeClassification = expandedNotifId === `cls-${doc.id}` ? doc.classification : null
 
   const filteredFields = useMemo(() => {
     return W2_EXTRACTED_FIELDS.filter(field => {
@@ -638,20 +613,13 @@ function ExpandedSection({
                     onSwap={() => setShowSwapDialog(activeLinkedDoc)}
                     onReject={() => setShowRejectDialog(activeLinkedDoc)}
                   />
-                ) : activeClassification ? (
-                  <ClassificationDetail
-                    doc={doc}
-                    classification={activeClassification}
-                    onAccept={() => onAcceptDoc(doc.id)}
-                    onFlag={() => onFlagDoc(doc.id)}
-                  />
                 ) : (
                   <div className="text-center py-8">
                     <Info className="size-8 mx-auto mb-2 text-muted-foreground/40" />
                     <p className="text-sm text-muted-foreground">
-                      {doc.linkedDocs.length > 0 || doc.classification
+                      {doc.linkedDocs.length > 0
                         ? 'Click a notification badge to see details'
-                        : 'No classification issues for this document'}
+                        : 'No superseded or duplicate documents'}
                     </p>
                     {doc.reviewState === 'pending' && (
                       <div className="flex items-center justify-center gap-2 mt-4">
@@ -855,112 +823,6 @@ function LinkedDocDetail({
           Not {typeLabel}
         </Button>
       </div>
-    </div>
-  )
-}
-
-// ── Classification Detail (CFA / NFR) ──
-
-function ClassificationDetail({
-  doc,
-  classification,
-  onAccept,
-  onFlag,
-}: {
-  doc: UnifiedDocument
-  classification: ClassificationInfo
-  onAccept: () => void
-  onFlag: () => void
-}) {
-  const cfgType = STATUS_CONFIG[classification.type]
-  const ev = classification.evidence
-
-  return (
-    <div>
-      <div
-        className="rounded-lg border p-3 mb-3"
-        style={{ backgroundColor: cfgType.bg, borderColor: cfgType.border }}
-      >
-        <div className="flex items-center gap-2 mb-1.5">
-          <Link2 className="size-4" style={{ color: cfgType.color }} />
-          <span className="text-sm font-semibold" style={{ color: cfgType.color }}>
-            {cfgType.label}
-          </span>
-          <ConfBadge score={ev.confidence} />
-        </div>
-        <p className="text-xs text-muted-foreground leading-relaxed">{ev.reason}</p>
-      </div>
-
-      {/* Rule + extras */}
-      <div className="rounded-lg border border-border p-3 mb-3" style={{ backgroundColor: 'oklch(0.99 0 0)' }}>
-        <div className="flex items-center gap-1.5 mb-1">
-          <span className="text-xs text-muted-foreground">Rule:</span>
-          <span className="text-xs font-mono text-foreground">{ev.rule}</span>
-        </div>
-        {ev.parentFormLabel && (
-          <p className="text-xs text-muted-foreground">
-            Parent: <span className="font-medium text-foreground">{ev.parentFormLabel}</span>
-            {ev.isAddForm && <span className="ml-1.5" style={{ color: 'oklch(0.50 0.16 50)' }}>(AddForm required)</span>}
-          </p>
-        )}
-        {ev.sourceMapping && (
-          <>
-            <p className="text-xs text-muted-foreground mt-1">
-              Source: <span className="font-medium text-foreground">{ev.sourceMapping}</span>
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Return: <span className="font-medium text-foreground">{ev.returnMapping}</span>
-            </p>
-          </>
-        )}
-      </div>
-
-      {/* Field comparison */}
-      {ev.comparedValues.length > 0 && (
-        <div className="mb-3">
-          <p className="text-xs font-semibold text-foreground mb-2">Field Comparison</p>
-          <div className="flex flex-col gap-1">
-            {ev.comparedValues.map((cv, i) => (
-              <div
-                key={i}
-                className="flex items-center gap-2 rounded px-2.5 py-1.5 text-xs"
-                style={{ backgroundColor: cv.match ? 'oklch(0.98 0.01 145)' : 'oklch(0.98 0.02 25)' }}
-              >
-                <span style={{ color: cv.match ? 'oklch(0.45 0.16 145)' : 'oklch(0.50 0.20 25)' }}>
-                  {cv.match ? <CheckCircle className="size-3" /> : <AlertTriangle className="size-3" />}
-                </span>
-                <span className="font-medium text-foreground w-28 shrink-0 truncate">{cv.field}</span>
-                <span className="text-muted-foreground flex-1 truncate">{cv.valueA}</span>
-                {!cv.match && (
-                  <>
-                    <span className="text-muted-foreground/50 shrink-0">vs</span>
-                    <span className="text-muted-foreground flex-1 truncate">{cv.valueB}</span>
-                  </>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Actions */}
-      {doc.reviewState === 'pending' && (
-        <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            className="gap-1.5 flex-1"
-            style={{ backgroundColor: 'oklch(0.45 0.16 145)', color: 'oklch(0.98 0 0)' }}
-            onClick={onAccept}
-          >
-            <CheckCircle className="size-3.5" />
-            Accept
-          </Button>
-          <Button variant="outline" size="sm" className="gap-1.5 flex-1" onClick={onFlag}>
-            <Flag className="size-3.5" />
-            Flag for Review
-          </Button>
-        </div>
-      )}
     </div>
   )
 }

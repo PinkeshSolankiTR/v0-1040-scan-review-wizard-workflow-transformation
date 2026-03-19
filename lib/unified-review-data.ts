@@ -4,7 +4,6 @@
  * Main table shows ONLY original documents.
  * Superseded/Duplicate docs are surfaced as notifications on the original.
  * User can: Accept, Swap (reclassify which is original), or reject (Not Superseded / Not Duplicate).
- * Priority: Superseded > CFA > Duplicate > NFR > Clean
  */
 
 import type { ComparedValue } from '@/lib/types'
@@ -15,8 +14,6 @@ export type DocStatus =
   | 'needs-review'
   | 'incorrect-tax-year'
   | 'verified'
-  | 'cfa-child'
-  | 'nfr-unmatched'
 
 export type ReviewState = 'pending' | 'accepted' | 'overridden' | 'flagged'
 
@@ -44,12 +41,6 @@ export interface LinkedDocument {
   evidence: RuleEvidence
 }
 
-/** CFA or NFR evidence attached directly to the original */
-export interface ClassificationInfo {
-  type: 'cfa-child' | 'nfr-unmatched'
-  evidence: RuleEvidence
-}
-
 export interface UnifiedDocument {
   id: string
   pageNumber: number
@@ -61,8 +52,6 @@ export interface UnifiedDocument {
   reviewState: ReviewState
   /** Superseded/Duplicate documents linked to this original */
   linkedDocs: LinkedDocument[]
-  /** CFA/NFR classification info (if applicable) */
-  classification: ClassificationInfo | null
 }
 
 // ── Status display config ──
@@ -74,8 +63,6 @@ export const STATUS_CONFIG: Record<
   'needs-review':       { label: 'Needs review',       color: 'oklch(0.50 0.18 45)',  bg: 'oklch(0.97 0.03 45)',  border: 'oklch(0.88 0.08 45)' },
   'incorrect-tax-year': { label: 'Incorrect tax year',  color: 'oklch(0.50 0.20 25)',  bg: 'oklch(0.97 0.02 25)',  border: 'oklch(0.88 0.06 25)' },
   verified:             { label: 'Verified',            color: 'oklch(0.40 0.16 145)', bg: 'oklch(0.97 0.02 145)', border: 'oklch(0.88 0.06 145)' },
-  'cfa-child':          { label: 'CFA Child',           color: 'oklch(0.40 0.17 165)', bg: 'oklch(0.96 0.02 165)', border: 'oklch(0.85 0.06 165)' },
-  'nfr-unmatched':      { label: 'NFR Unmatched',       color: 'oklch(0.45 0.15 60)',  bg: 'oklch(0.97 0.02 60)',  border: 'oklch(0.88 0.06 60)' },
   superseded:           { label: 'Superseded',          color: 'oklch(0.40 0.18 290)', bg: 'oklch(0.96 0.02 290)', border: 'oklch(0.85 0.06 290)' },
   duplicate:            { label: 'Duplicate',           color: 'oklch(0.40 0.15 250)', bg: 'oklch(0.96 0.02 250)', border: 'oklch(0.85 0.06 250)' },
 }
@@ -122,7 +109,6 @@ export const DOCUMENTS: UnifiedDocument[] = [
         },
       },
     ],
-    classification: null,
   },
 
   // ── Original 1099-DIV with 1 superseded document ──
@@ -156,7 +142,6 @@ export const DOCUMENTS: UnifiedDocument[] = [
         },
       },
     ],
-    classification: null,
   },
 
   // ── Original 1099-INT with 1 superseded (low confidence) ──
@@ -189,7 +174,6 @@ export const DOCUMENTS: UnifiedDocument[] = [
         },
       },
     ],
-    classification: null,
   },
 
   // ── Original W-2 with 1 duplicate (organizer copy) ──
@@ -223,7 +207,6 @@ export const DOCUMENTS: UnifiedDocument[] = [
         },
       },
     ],
-    classification: null,
   },
 
   // ── Original 1099-MISC with 1 duplicate (organizer copy) ──
@@ -256,92 +239,9 @@ export const DOCUMENTS: UnifiedDocument[] = [
         },
       },
     ],
-    classification: null,
   },
 
-  // ── CFA Child (no linked docs, has classification) ──
-  {
-    id: 'doc-cfa-1099misc',
-    pageNumber: 30,
-    fileName: '1099-MISC-RICHMONT.pdf',
-    formType: '1099-MISC',
-    formLabel: '1099-MISC (RICHMONT NORTH AMERICA)',
-    status: 'cfa-child',
-    fieldsToReview: 2,
-    reviewState: 'pending',
-    linkedDocs: [],
-    classification: {
-      type: 'cfa-child',
-      evidence: {
-        rule: 'CFA-4',
-        reason: 'Recipient name and TIN do not match primary filer. AddForm required for spouse filing.',
-        confidence: 0.78,
-        parentFormLabel: 'Form 1040 (Jill Anderson)',
-        isAddForm: true,
-        comparedValues: [
-          { field: 'Recipient', valueA: 'JACK ANDERSON', valueB: 'JILL ANDERSON (Filer)', match: false },
-          { field: 'Recipient TIN', valueA: '111-11-1111', valueB: '***-**-1234', match: false },
-          { field: 'Address', valueA: '1234 MAIN ST, DALLAS TX', valueB: '1234 MAIN ST, DALLAS TX', match: true },
-        ],
-      },
-    },
-  },
-
-  // ── NFR Unmatched ──
-  {
-    id: 'doc-nfr-1099misc',
-    pageNumber: 35,
-    fileName: '1099-MISC-Other.pdf',
-    formType: '1099-MISC',
-    formLabel: '1099-MISC Other Income',
-    status: 'nfr-unmatched',
-    fieldsToReview: 1,
-    reviewState: 'pending',
-    linkedDocs: [],
-    classification: {
-      type: 'nfr-unmatched',
-      evidence: {
-        rule: 'NFR-6',
-        reason: 'Recipient does not match filer. No proforma form meets threshold.',
-        confidence: 0.68,
-        sourceMapping: '1099-MISC Box 3',
-        returnMapping: '1040 Schedule 1, Line 8z',
-        comparedValues: [
-          { field: 'Recipient', valueA: 'JACK ANDERSON', valueB: 'JILL ANDERSON (Filer)', match: false },
-          { field: 'Box 3 Amount', valueA: '$14,921.24', valueB: '$14,921.24', match: true },
-        ],
-      },
-    },
-  },
-
-  // ── NFR Unmatched (low confidence) ──
-  {
-    id: 'doc-nfr-k1',
-    pageNumber: 38,
-    fileName: 'K1-Chapman-Business.pdf',
-    formType: 'Schedule K-1',
-    formLabel: 'K-1 Business Income',
-    status: 'nfr-unmatched',
-    fieldsToReview: 2,
-    reviewState: 'pending',
-    linkedDocs: [],
-    classification: {
-      type: 'nfr-unmatched',
-      evidence: {
-        rule: 'NFR-3',
-        reason: 'Business income differs. Beneficiary name does not match filer.',
-        confidence: 0.55,
-        sourceMapping: 'K-1 (1041) Box 6',
-        returnMapping: '1040 Schedule E, Part III',
-        comparedValues: [
-          { field: 'Business Income', valueA: '$8,748', valueB: '$9,200', match: false },
-          { field: 'Beneficiary', valueA: 'JILL BAKER FAMILY TRUST', valueB: 'JILL ANDERSON', match: false },
-        ],
-      },
-    },
-  },
-
-  // ── Verification issues (no linked docs, no classification) ──
+  // ── Verification issues (no linked docs) ──
   {
     id: 'doc-verify-1',
     pageNumber: 12,
@@ -352,7 +252,6 @@ export const DOCUMENTS: UnifiedDocument[] = [
     fieldsToReview: 4,
     reviewState: 'pending',
     linkedDocs: [],
-    classification: null,
   },
   {
     id: 'doc-verify-2',
@@ -364,7 +263,6 @@ export const DOCUMENTS: UnifiedDocument[] = [
     fieldsToReview: 4,
     reviewState: 'pending',
     linkedDocs: [],
-    classification: null,
   },
 
   // ── Clean / Verified (no issues) ──
@@ -378,7 +276,6 @@ export const DOCUMENTS: UnifiedDocument[] = [
     fieldsToReview: 0,
     reviewState: 'accepted',
     linkedDocs: [],
-    classification: null,
   },
   {
     id: 'doc-clean-2',
@@ -390,7 +287,6 @@ export const DOCUMENTS: UnifiedDocument[] = [
     fieldsToReview: 0,
     reviewState: 'accepted',
     linkedDocs: [],
-    classification: null,
   },
 ]
 
@@ -399,8 +295,6 @@ export const DOCUMENTS: UnifiedDocument[] = [
 export function getSummary(docs: UnifiedDocument[]) {
   let superseded = 0
   let duplicate = 0
-  let cfa = 0
-  let nfr = 0
   let needsReview = 0
   let verified = 0
   let pending = 0
@@ -411,10 +305,8 @@ export function getSummary(docs: UnifiedDocument[]) {
       if (ld.type === 'superseded') superseded++
       if (ld.type === 'duplicate') duplicate++
     }
-    // Count classification
-    if (d.status === 'cfa-child') cfa++
-    else if (d.status === 'nfr-unmatched') nfr++
-    else if (d.status === 'verified') verified++
+    // Count status
+    if (d.status === 'verified') verified++
     else needsReview++
 
     if (d.reviewState === 'pending') pending++
@@ -424,14 +316,12 @@ export function getSummary(docs: UnifiedDocument[]) {
     total: docs.length,
     superseded,
     duplicate,
-    cfa,
-    nfr,
     needsReview,
     verified,
     pending,
-    classified: superseded + duplicate + cfa + nfr,
+    classified: superseded + duplicate,
   }
 }
 
 export const FORM_TYPES = ['All', 'W-2', '1099-DIV', '1099-INT', '1099-MISC', 'Schedule K-1', 'Schedule C'] as const
-export const STATUS_FILTERS = ['All', 'Needs review', 'Incorrect tax year', 'Verified', 'CFA Child', 'NFR Unmatched', 'Has Superseded', 'Has Duplicate'] as const
+export const STATUS_FILTERS = ['All', 'Needs review', 'Incorrect tax year', 'Verified', 'Has Superseded', 'Has Duplicate'] as const
