@@ -416,13 +416,9 @@ function DocRow({
   onAcceptDoc: (docId: string) => void
   onFlagDoc: (docId: string) => void
 }) {
-  const statusCfg = STATUS_CONFIG[doc.status] ?? {
-    label: doc.status,
-    color: 'oklch(0.5 0 0)',
-    bg: 'oklch(0.97 0 0)',
-    border: 'oklch(0.88 0 0)',
-  }
-  const reviewCfg = REVIEW_STATE_CONFIG[doc.reviewState]
+  const defaultCfg = { label: 'Unknown', color: 'oklch(0.5 0 0)', bg: 'oklch(0.97 0 0)', border: 'oklch(0.88 0 0)' }
+  const statusCfg = (doc.status && STATUS_CONFIG[doc.status]) ? STATUS_CONFIG[doc.status] : defaultCfg
+  const reviewCfg = REVIEW_STATE_CONFIG[doc.reviewState] ?? { label: 'Unknown', color: 'oklch(0.5 0 0)', bg: 'oklch(0.97 0 0)' }
   const hasNotifications = doc.linkedDocs.length > 0
 
   return (
@@ -462,7 +458,7 @@ function DocRow({
           {hasNotifications && (
             <div className="flex flex-col gap-1">
               {doc.linkedDocs.map(ld => {
-                const notifCfg = STATUS_CONFIG[ld.type]
+                const notifCfg = STATUS_CONFIG[ld.type] ?? { label: ld.type, color: 'oklch(0.5 0 0)', bg: 'oklch(0.97 0 0)', border: 'oklch(0.88 0 0)' }
                 return (
                   <button
                     key={ld.id}
@@ -731,7 +727,7 @@ function LinkedDocDetail({
   onSwap: () => void
   onReject: () => void
 }) {
-  const notifCfg = STATUS_CONFIG[linkedDoc.type]
+  const notifCfg = STATUS_CONFIG[linkedDoc.type] ?? { label: linkedDoc.type, color: 'oklch(0.5 0 0)', bg: 'oklch(0.97 0 0)', border: 'oklch(0.88 0 0)' }
   const typeLabel = linkedDoc.type === 'superseded' ? 'Superseded' : 'Duplicate'
 
   return (
