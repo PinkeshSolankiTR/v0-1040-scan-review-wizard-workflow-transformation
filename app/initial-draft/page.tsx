@@ -416,7 +416,12 @@ function DocRow({
   onAcceptDoc: (docId: string) => void
   onFlagDoc: (docId: string) => void
 }) {
-  const statusCfg = STATUS_CONFIG[doc.status]
+  const statusCfg = STATUS_CONFIG[doc.status] ?? {
+    label: doc.status,
+    color: 'oklch(0.5 0 0)',
+    bg: 'oklch(0.97 0 0)',
+    border: 'oklch(0.88 0 0)',
+  }
   const reviewCfg = REVIEW_STATE_CONFIG[doc.reviewState]
   const hasNotifications = doc.linkedDocs.length > 0
 
