@@ -569,7 +569,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
               return (
               <div key="reclassify-panel-wrapper">
                 <div onClick={() => { setShowOverridePanel(false) }} style={{ position: 'fixed', inset: 0, zIndex: 49 }} aria-hidden="true" />
-                <div style={{ position: 'absolute', insetBlockStart: '100%', insetInlineEnd: 0, marginBlockStart: '0.25rem', zIndex: 50, inlineSize: 'max-content', minInlineSize: '22rem', maxBlockSize: '28rem', overflowY: 'auto', padding: '0.75rem', borderRadius: '0.375rem', border: '0.0625rem solid var(--border)', backgroundColor: 'var(--card)', boxShadow: '0 0.25rem 0.75rem var(--foreground) / 0.08' }}>
+                <div style={{ position: 'absolute', insetBlockStart: '100%', insetInlineEnd: 0, marginBlockStart: '0.25rem', zIndex: 50, inlineSize: 'max-content', minInlineSize: '22rem', maxBlockSize: '28rem', overflowY: 'auto', padding: '0.75rem', borderRadius: '0.375rem', border: '0.0625rem solid var(--border)', backgroundColor: 'var(--card)', boxShadow: '0 0.25rem 0.75rem rgba(0,0,0,0.15)' }}>
                   <p style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--foreground)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBlockEnd: '0.5rem' }}>Reclassify Documents</p>
 
                   {/* Per-document role dropdowns */}
@@ -715,7 +715,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
               return (
               <div key="reject-panel-wrapper">
                 <div onClick={() => { setShowRejectPanel(false); setRejectTargetPageId(null); setNewOriginalAfterReject(null); setRejectStep('reason') }} style={{ position: 'fixed', inset: 0, zIndex: 49 }} aria-hidden="true" />
-                <div style={{ position: 'absolute', insetBlockStart: '100%', insetInlineEnd: 0, marginBlockStart: '0.25rem', zIndex: 50, inlineSize: 'max-content', minInlineSize: '20rem', padding: '0.75rem', borderRadius: '0.375rem', border: '0.0625rem solid var(--border)', backgroundColor: 'var(--card)', boxShadow: '0 0.25rem 0.75rem var(--foreground) / 0.08' }}>
+                <div style={{ position: 'absolute', insetBlockStart: '100%', insetInlineEnd: 0, marginBlockStart: '0.25rem', zIndex: 50, inlineSize: 'max-content', minInlineSize: '20rem', padding: '0.75rem', borderRadius: '0.375rem', border: '0.0625rem solid var(--border)', backgroundColor: 'var(--card)', boxShadow: '0 0.25rem 0.75rem rgba(0,0,0,0.15)' }}>
                   <div>
                     <p style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--foreground)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBlockEnd: '0.5rem' }}>Not Superseded</p>
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.375rem', padding: '0.5rem 0.625rem', borderRadius: '0.25rem', backgroundColor: 'var(--status-warning-subtle)', border: '0.0625rem solid var(--status-warning-border)', marginBlockEnd: '0.625rem' }}>
@@ -776,7 +776,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
               </button>
             </div>
             {showAcceptDropdown && (
-              <div style={{ position: 'absolute', insetBlockStart: '100%', insetInlineEnd: 0, marginBlockStart: '0.25rem', zIndex: 50, inlineSize: '16rem', backgroundColor: 'var(--card)', borderRadius: '0.375rem', border: '0.0625rem solid var(--border)', boxShadow: '0 0.25rem 0.75rem var(--foreground) / 0.08', overflow: 'hidden' }}>
+              <div style={{ position: 'absolute', insetBlockStart: '100%', insetInlineEnd: 0, marginBlockStart: '0.25rem', zIndex: 50, inlineSize: '16rem', backgroundColor: 'var(--card)', borderRadius: '0.375rem', border: '0.0625rem solid var(--border)', boxShadow: '0 0.25rem 0.75rem rgba(0,0,0,0.15)', overflow: 'hidden' }}>
                 <button type="button" onClick={handleAcceptHighConfidence} disabled={highConfidenceUnreviewed.length === 0} style={{ display: 'flex', flexDirection: 'column', gap: '0.125rem', inlineSize: '100%', padding: '0.5rem 0.75rem', border: 'none', backgroundColor: 'transparent', cursor: highConfidenceUnreviewed.length === 0 ? 'not-allowed' : 'pointer', opacity: highConfidenceUnreviewed.length === 0 ? 0.4 : 1, textAlign: 'start' }} onMouseEnter={e => { if (highConfidenceUnreviewed.length > 0) (e.currentTarget.style.backgroundColor = 'var(--surface-raised)') }} onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
                     <Sparkles style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'var(--confidence-high)' }} />
@@ -806,8 +806,8 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
 
       {/* Bulk accept warning modal */}
       {showBulkWarning && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--foreground) / 0.3' }}>
-          <div style={{ inlineSize: '28rem', backgroundColor: 'var(--card)', borderRadius: '0.5rem', boxShadow: '0 0.5rem 2rem var(--foreground) / 0.12', overflow: 'hidden' }}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div style={{ inlineSize: '28rem', backgroundColor: 'var(--card)', borderRadius: '0.5rem', boxShadow: '0 0.5rem 2rem rgba(0,0,0,0.25)', overflow: 'hidden' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.875rem 1rem', backgroundColor: 'var(--status-warning-subtle)', borderBlockEnd: '0.0625rem solid var(--status-warning-border)' }}>
               <AlertTriangle style={{ inlineSize: '1rem', blockSize: '1rem', color: 'var(--status-warning)' }} />
               <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--foreground)' }}>Unreviewed Pairs Need Attention</span>
@@ -1165,7 +1165,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                   {supersededList.length > 1 && (
                     <div style={{ display: 'flex', gap: '0.25rem', marginBlockEnd: '0.375rem', padding: '0.25rem', backgroundColor: 'var(--surface-sunken)', borderRadius: '0.25rem', border: '0.0625rem solid var(--border)' }}>
                       {supersededList.map((sr, sIdx) => (
-                        <button key={sr.engagementPageId} type="button" onClick={() => setSelectedSupersededIdx(sIdx)} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.0625rem', padding: '0.3125rem 0.5rem', border: sIdx === safeIdx ? '0.0625rem solid var(--ai-accent)' : '0.0625rem solid transparent', borderRadius: '0.1875rem', backgroundColor: sIdx === safeIdx ? 'var(--card)' : 'transparent', boxShadow: sIdx === safeIdx ? '0 0.0625rem 0.1875rem var(--foreground) / 0.06' : 'none', cursor: 'pointer', transition: 'all 0.15s ease' }}>
+                        <button key={sr.engagementPageId} type="button" onClick={() => setSelectedSupersededIdx(sIdx)} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.0625rem', padding: '0.3125rem 0.5rem', border: sIdx === safeIdx ? '0.0625rem solid var(--ai-accent)' : '0.0625rem solid transparent', borderRadius: '0.1875rem', backgroundColor: sIdx === safeIdx ? 'var(--card)' : 'transparent', boxShadow: sIdx === safeIdx ? '0 0.0625rem 0.1875rem rgba(0,0,0,0.12)' : 'none', cursor: 'pointer', transition: 'all 0.15s ease' }}>
                           <span style={{ fontSize: '0.6875rem', fontWeight: sIdx === safeIdx ? 700 : 500, color: sIdx === safeIdx ? 'var(--ai-accent)' : 'var(--muted-foreground)' }}>Pg {sr.documentRef?.pageNumber ?? sr.engagementPageId}</span>
                           <span style={{ fontSize: '0.5625rem', fontWeight: 500, color: sIdx === safeIdx ? 'var(--ai-accent)' : 'var(--muted-foreground)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxInlineSize: '8rem' }}>{sr.documentRef?.formLabel?.replace(activeGroup?.formType ?? '', '').replace(/[()]/g, '').trim() || 'Superseded'}</span>
                         </button>

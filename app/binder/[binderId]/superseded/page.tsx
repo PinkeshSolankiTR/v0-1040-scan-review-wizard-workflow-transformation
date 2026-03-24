@@ -17,7 +17,7 @@ export default async function SupersededPage({
 
   if (data.length === 0) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+      <div className="tr-dark" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', minBlockSize: '100vh', backgroundColor: 'var(--background)', color: 'var(--foreground)', padding: '1.5rem' }}>
         <header>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--foreground)' }}>
             Superseded Documents
@@ -26,13 +26,13 @@ export default async function SupersededPage({
         <div style={{
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
           padding: '4rem 2rem', borderRadius: 'var(--radius)',
-          border: '0.125rem dashed oklch(0.88 0.01 260)', backgroundColor: 'oklch(0.98 0.003 260)',
+          border: '0.125rem dashed var(--border)', backgroundColor: 'var(--surface-raised)',
           textAlign: 'center', gap: '1rem',
         }}>
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             inlineSize: '3.5rem', blockSize: '3.5rem', borderRadius: '50%',
-            backgroundColor: 'oklch(0.94 0.04 145)', color: 'oklch(0.40 0.15 145)',
+            backgroundColor: 'var(--status-success-subtle)', color: 'var(--status-success)',
           }}>
             <Check style={{ inlineSize: '1.75rem', blockSize: '1.75rem' }} />
           </div>
@@ -40,7 +40,7 @@ export default async function SupersededPage({
             <p style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--foreground)', marginBlockEnd: '0.375rem' }}>
               No Superseded Documents Found
             </p>
-            <p style={{ fontSize: '0.875rem', color: 'oklch(0.5 0.01 260)', maxInlineSize: '28rem' }}>
+            <p style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)', maxInlineSize: '28rem' }}>
               The AI scanned all documents in this binder and found only one version of each form.
               All documents are retained.
             </p>
@@ -50,5 +50,9 @@ export default async function SupersededPage({
     )
   }
 
-  return <VariantEDocCompare data={data} />
+  return (
+    <div className="tr-dark" style={{ minBlockSize: '100vh', backgroundColor: 'var(--background)', color: 'var(--foreground)' }}>
+      <VariantEDocCompare data={data} />
+    </div>
+  )
 }
