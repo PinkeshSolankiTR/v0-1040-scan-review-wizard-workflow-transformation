@@ -4,68 +4,68 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: #faf9f7;
-  --foreground: #2c2c2c;
+  --background: #ffffff;
+  --foreground: #37352f;
   --card: #ffffff;
-  --card-foreground: #2c2c2c;
+  --card-foreground: #37352f;
   --popover: #ffffff;
-  --popover-foreground: #2c2c2c;
-  --primary: #3b5998;
+  --popover-foreground: #37352f;
+  --primary: #007aff;
   --primary-foreground: #ffffff;
-  --secondary: #f2f1ee;
-  --secondary-foreground: #2c2c2c;
-  --muted: #f2f1ee;
-  --muted-foreground: #757575;
-  --accent: #f2f1ee;
-  --accent-foreground: #2c2c2c;
-  --destructive: #c0392b;
-  --destructive-foreground: #c0392b;
-  --border: #e8e6e3;
-  --input: #e8e6e3;
-  --ring: #3b5998;
-  --chart-1: #3b5998;
-  --chart-2: #3a7d44;
-  --chart-3: #c0392b;
-  --chart-4: #d4a017;
-  --chart-5: #4682b4;
+  --secondary: #f7f7f5;
+  --secondary-foreground: #37352f;
+  --muted: #f7f7f5;
+  --muted-foreground: #8e8e93;
+  --accent: #f7f7f5;
+  --accent-foreground: #37352f;
+  --destructive: #df1b41;
+  --destructive-foreground: #df1b41;
+  --border: #e9e9e7;
+  --input: #e9e9e7;
+  --ring: #007aff;
+  --chart-1: #007aff;
+  --chart-2: #34c759;
+  --chart-3: #df1b41;
+  --chart-4: #ff8c00;
+  --chart-5: #7b61ff;
   --radius: 0.5rem;
-  --sidebar: #2c2c2c;
-  --sidebar-foreground: #f2f1ee;
-  --sidebar-primary: #3b5998;
+  --sidebar: #37352f;
+  --sidebar-foreground: #f7f7f5;
+  --sidebar-primary: #007aff;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #3a3a3a;
-  --sidebar-accent-foreground: #f2f1ee;
-  --sidebar-border: #444444;
-  --sidebar-ring: #3b5998;
+  --sidebar-accent: #4a4840;
+  --sidebar-accent-foreground: #f7f7f5;
+  --sidebar-border: #555249;
+  --sidebar-ring: #007aff;
 
-  /* Option C: Warm Professional palette */
-  --confidence-high: #3a7d44;
-  --confidence-medium: #d4a017;
-  --confidence-low: #c0392b;
-  --ai-accent: #4682b4;
+  /* Hybrid: Notion base + Apple vibrancy + Figma accents */
+  --confidence-high: #34c759;
+  --confidence-medium: #ff8c00;
+  --confidence-low: #df1b41;
+  --ai-accent: #7b61ff;
 
-  /* Primary action -- Slate Blue */
-  --tr-primary: #3b5998;
-  --tr-primary-hover: #2f4a80;
+  /* Primary action -- iOS Blue */
+  --tr-primary: #007aff;
+  --tr-primary-hover: #0066d6;
   --tr-primary-foreground: #ffffff;
 
   /* Status semantic tokens */
-  --status-success: #3a7d44;
-  --status-success-subtle: #f2f8f3;
-  --status-success-border: #a3d9ab;
-  --status-warning: #d4a017;
-  --status-warning-subtle: #fdf8ee;
-  --status-warning-border: #f0d57e;
-  --status-error: #c0392b;
-  --status-error-subtle: #fdf2f1;
-  --status-error-border: #e8a59e;
-  --status-info: #4682b4;
-  --status-info-subtle: #f0f5fa;
-  --status-info-border: #9dc4e0;
+  --status-success: #34c759;
+  --status-success-subtle: #f0faf2;
+  --status-success-border: #a8e6b4;
+  --status-warning: #ff8c00;
+  --status-warning-subtle: #fff7ed;
+  --status-warning-border: #ffc470;
+  --status-error: #df1b41;
+  --status-error-subtle: #fef1f3;
+  --status-error-border: #f5a0b0;
+  --status-info: #7b61ff;
+  --status-info-subtle: #f5f3ff;
+  --status-info-border: #c4b5fd;
 
   /* Surface tokens for panels */
-  --surface-raised: #faf9f7;
-  --surface-sunken: #f5f4f1;
+  --surface-raised: #f7f7f5;
+  --surface-sunken: #f2f1ef;
 }
 
 
