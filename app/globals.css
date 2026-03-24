@@ -10,7 +10,7 @@
   --card-foreground: #37352f;
   --popover: #ffffff;
   --popover-foreground: #37352f;
-  --primary: #007aff;
+  --primary: #1a73e8;
   --primary-foreground: #ffffff;
   --secondary: #f7f7f5;
   --secondary-foreground: #37352f;
@@ -18,50 +18,50 @@
   --muted-foreground: #8e8e93;
   --accent: #f7f7f5;
   --accent-foreground: #37352f;
-  --destructive: #df1b41;
-  --destructive-foreground: #df1b41;
+  --destructive: #c4163a;
+  --destructive-foreground: #c4163a;
   --border: #e9e9e7;
   --input: #e9e9e7;
-  --ring: #007aff;
-  --chart-1: #007aff;
-  --chart-2: #34c759;
-  --chart-3: #df1b41;
-  --chart-4: #ff8c00;
-  --chart-5: #7b61ff;
+  --ring: #1a73e8;
+  --chart-1: #1a73e8;
+  --chart-2: #2ea44f;
+  --chart-3: #c4163a;
+  --chart-4: #e07800;
+  --chart-5: #6e56cf;
   --radius: 0.5rem;
   --sidebar: #37352f;
   --sidebar-foreground: #f7f7f5;
-  --sidebar-primary: #007aff;
+  --sidebar-primary: #1a73e8;
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #4a4840;
   --sidebar-accent-foreground: #f7f7f5;
   --sidebar-border: #555249;
-  --sidebar-ring: #007aff;
+  --sidebar-ring: #1a73e8;
 
-  /* Hybrid: Notion base + Apple vibrancy + Figma accents */
-  --confidence-high: #34c759;
-  --confidence-medium: #ff8c00;
-  --confidence-low: #df1b41;
-  --ai-accent: #7b61ff;
+  /* Hybrid: Notion base + softened Apple/Figma accents */
+  --confidence-high: #2ea44f;
+  --confidence-medium: #e07800;
+  --confidence-low: #c4163a;
+  --ai-accent: #6e56cf;
 
-  /* Primary action -- iOS Blue */
-  --tr-primary: #007aff;
-  --tr-primary-hover: #0066d6;
+  /* Primary action -- softened blue */
+  --tr-primary: #1a73e8;
+  --tr-primary-hover: #1565c0;
   --tr-primary-foreground: #ffffff;
 
   /* Status semantic tokens */
-  --status-success: #34c759;
-  --status-success-subtle: #f0faf2;
-  --status-success-border: #a8e6b4;
-  --status-warning: #ff8c00;
-  --status-warning-subtle: #fff7ed;
-  --status-warning-border: #ffc470;
-  --status-error: #df1b41;
-  --status-error-subtle: #fef1f3;
-  --status-error-border: #f5a0b0;
-  --status-info: #7b61ff;
-  --status-info-subtle: #f5f3ff;
-  --status-info-border: #c4b5fd;
+  --status-success: #2ea44f;
+  --status-success-subtle: #f1f8f3;
+  --status-success-border: #9fd4ac;
+  --status-warning: #e07800;
+  --status-warning-subtle: #fef7ed;
+  --status-warning-border: #f0bf70;
+  --status-error: #c4163a;
+  --status-error-subtle: #fdf1f3;
+  --status-error-border: #e8a0ad;
+  --status-info: #6e56cf;
+  --status-info-subtle: #f5f3fd;
+  --status-info-border: #b8aee0;
 
   /* Surface tokens for panels */
   --surface-raised: #f7f7f5;
