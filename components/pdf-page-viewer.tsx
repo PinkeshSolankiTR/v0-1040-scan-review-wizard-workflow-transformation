@@ -22,8 +22,8 @@ export function PdfPageViewer({ documentRef, stamp, height = '32rem' }: PdfPageV
   const iframeSrc = `${pdfPath}#page=${pageNumber}&toolbar=0&navpanes=0&scrollbar=0&view=FitH`
 
   const stampColor =
-    stamp === 'ORIGINAL' ? { bg: 'oklch(0.92 0.06 145)', fg: 'oklch(0.35 0.17 145)', border: 'oklch(0.78 0.12 145)' } :
-    stamp === 'SUPERSEDED' ? { bg: 'oklch(0.92 0.06 25)', fg: 'oklch(0.40 0.22 25)', border: 'oklch(0.78 0.14 25)' } :
+    stamp === 'ORIGINAL' ? { bg: 'var(--status-success-subtle)', fg: 'var(--status-success)', border: 'var(--status-success-border)' } :
+    stamp === 'SUPERSEDED' ? { bg: 'var(--status-error-subtle)', fg: 'var(--status-error)', border: 'var(--status-error-border)' } :
     null
 
   return (
@@ -32,8 +32,8 @@ export function PdfPageViewer({ documentRef, stamp, height = '32rem' }: PdfPageV
         position: 'relative',
         borderRadius: '0.375rem',
         overflow: 'hidden',
-        border: '0.0625rem solid oklch(0.88 0.005 260)',
-        backgroundColor: 'oklch(0.97 0.003 260)',
+        border: '0.0625rem solid var(--border)',
+        backgroundColor: 'var(--surface-raised)',
       }}
     >
       {/* Header bar with form label and page number */}
@@ -42,13 +42,13 @@ export function PdfPageViewer({ documentRef, stamp, height = '32rem' }: PdfPageV
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: '0.5rem 0.75rem',
-        backgroundColor: 'oklch(0.17 0.01 260)',
-        color: 'oklch(0.92 0 0)',
+        backgroundColor: 'var(--foreground)',
+        color: 'var(--card)',
         fontSize: '0.75rem',
         fontWeight: 600,
       }}>
         <span>{formLabel}</span>
-        <span style={{ color: 'oklch(0.65 0 0)' }}>Page {pageNumber}</span>
+        <span style={{ color: 'var(--muted-foreground)' }}>Page {pageNumber}</span>
       </div>
 
       {/* PDF iframe — single page view */}

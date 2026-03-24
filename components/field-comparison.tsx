@@ -53,8 +53,8 @@ export function FieldComparison({
         key={v.field}
         style={{
           backgroundColor: isSelected
-            ? 'oklch(0.94 0.04 240 / 0.4)'
-            : v.match ? 'var(--card)' : 'oklch(0.97 0.015 25 / 0.35)',
+            ? 'var(--status-info-subtle)'
+            : v.match ? 'var(--card)' : 'var(--status-error-subtle)',
           borderBlockStart: '0.0625rem solid var(--border)',
           cursor: hasCrops ? 'pointer' : 'default',
         }}
@@ -98,7 +98,7 @@ export function FieldComparison({
           }}>
             <ScanSearch style={{
               inlineSize: '0.8125rem', blockSize: '0.8125rem', margin: '0 auto',
-              color: isSelected ? 'oklch(0.4 0.15 240)' : 'oklch(0.6 0.01 260)',
+              color: isSelected ? 'var(--ai-accent)' : 'var(--muted-foreground)',
             }} aria-label="View source" />
           </td>
         )}
@@ -157,10 +157,10 @@ export function FieldComparison({
             display: 'flex', alignItems: 'center', gap: '0.375rem',
             padding: '0.3125rem 0.625rem',
             borderRadius: '0.25rem',
-            backgroundColor: 'oklch(0.95 0.04 65)',
-            border: '0.0625rem solid oklch(0.85 0.08 65)',
+            backgroundColor: 'var(--status-warning-subtle)',
+            border: '0.0625rem solid var(--status-warning-border)',
             fontSize: '0.6875rem', fontWeight: 600,
-            color: 'oklch(0.4 0.12 65)',
+            color: 'var(--status-warning)',
           }}
         >
           <svg
@@ -250,7 +250,7 @@ export function FieldComparison({
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               padding: '1.5rem', gap: '0.5rem',
               borderRadius: '0.375rem',
-              backgroundColor: 'oklch(0.96 0.03 145 / 0.3)',
+              backgroundColor: 'var(--status-success-subtle)',
               border: '0.0625rem solid var(--status-success-border)',
             }}>
               <CheckCircle2 style={{ inlineSize: '1.125rem', blockSize: '1.125rem', color: 'var(--confidence-high)' }} />
@@ -285,7 +285,7 @@ export function FieldComparison({
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               padding: '1.5rem', gap: '0.5rem',
               borderRadius: '0.375rem',
-              backgroundColor: 'oklch(0.96 0.03 25 / 0.3)',
+              backgroundColor: 'var(--status-error-subtle)',
               border: '0.0625rem solid var(--status-error-border)',
             }}>
               <XCircle style={{ inlineSize: '1.125rem', blockSize: '1.125rem', color: 'var(--destructive)' }} />
@@ -323,7 +323,7 @@ export function FieldComparison({
           borderRadius: '0.375rem',
           overflow: 'hidden',
           border: '0.0625rem solid var(--status-info-border)',
-          backgroundColor: 'oklch(0.97 0.01 240 / 0.3)',
+          backgroundColor: 'var(--status-info-subtle)',
         }}>
           {/* Strip header */}
           <div style={{
@@ -334,7 +334,7 @@ export function FieldComparison({
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
               <ScanSearch style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem', color: 'var(--ai-accent)' }} />
-              <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.3 0.08 240)' }}>
+              <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--ai-accent)' }}>
                 Source View
               </span>
               <span style={{ fontSize: '0.625rem', color: 'var(--muted-foreground)' }}>
@@ -362,10 +362,10 @@ export function FieldComparison({
             display: 'grid',
             gridTemplateColumns: '1fr 1fr',
             gap: '0.0625rem',
-            backgroundColor: 'oklch(0.91 0.005 260)',
+            backgroundColor: 'var(--border)',
           }}>
             {/* Doc A crop */}
-            <div style={{ backgroundColor: 'oklch(0.99 0.002 260)', padding: '0.5rem' }}>
+            <div style={{ backgroundColor: 'var(--background)', padding: '0.5rem' }}>
               <p style={{ margin: '0 0 0.375rem', fontSize: '0.625rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                 {labelA}
               </p>
@@ -376,7 +376,7 @@ export function FieldComparison({
                   overflow: 'hidden',
                   borderRadius: '0.25rem',
                   border: '0.0625rem solid var(--border)',
-                  backgroundColor: 'oklch(0.97 0.003 260)',
+                  backgroundColor: 'var(--surface-raised)',
                 }}>
                   {/* Simulated crop: use iframe pointing to the PDF page region */}
                   {/* In production, replace with actual cropped image from OCR pipeline */}
@@ -393,11 +393,11 @@ export function FieldComparison({
                   <div style={{
                     position: 'absolute', insetBlockEnd: 0, insetInlineStart: 0, insetInlineEnd: 0,
                     padding: '0.25rem 0.5rem',
-                    backgroundColor: 'oklch(0.15 0.01 260 / 0.85)',
+                    backgroundColor: 'color-mix(in oklch, var(--foreground) 85%, transparent)',
                   }}>
                     <span style={{
                       fontSize: '0.75rem', fontWeight: 600, fontFamily: 'var(--font-mono)',
-                      color: 'oklch(0.95 0 0)',
+                      color: 'var(--card)',
                     }}>
                       {selectedValue.valueA}
                     </span>
@@ -411,7 +411,7 @@ export function FieldComparison({
             </div>
 
             {/* Doc B crop */}
-            <div style={{ backgroundColor: 'oklch(0.99 0.002 260)', padding: '0.5rem' }}>
+            <div style={{ backgroundColor: 'var(--background)', padding: '0.5rem' }}>
               <p style={{ margin: '0 0 0.375rem', fontSize: '0.625rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                 {labelB}
               </p>
@@ -421,8 +421,8 @@ export function FieldComparison({
                   blockSize: '5rem',
                   overflow: 'hidden',
                   borderRadius: '0.25rem',
-                  border: `0.0625rem solid ${selectedValue.match ? 'var(--border)' : 'oklch(0.75 0.1 25)'}`,
-                  backgroundColor: 'oklch(0.97 0.003 260)',
+                  border: `0.0625rem solid ${selectedValue.match ? 'var(--border)' : 'var(--status-error-border)'}`,
+                  backgroundColor: 'var(--surface-raised)',
                 }}>
                   <iframe
                     src={`${docRefB.pdfPath}#page=${docRefB.pageNumber}&toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
@@ -437,12 +437,12 @@ export function FieldComparison({
                     position: 'absolute', insetBlockEnd: 0, insetInlineStart: 0, insetInlineEnd: 0,
                     padding: '0.25rem 0.5rem',
                     backgroundColor: selectedValue.match
-                      ? 'oklch(0.15 0.01 260 / 0.85)'
-                      : 'oklch(0.25 0.12 25 / 0.9)',
+                      ? 'color-mix(in oklch, var(--foreground) 85%, transparent)'
+                      : 'color-mix(in oklch, var(--status-error) 90%, transparent)',
                   }}>
                     <span style={{
                       fontSize: '0.75rem', fontWeight: 600, fontFamily: 'var(--font-mono)',
-                      color: selectedValue.match ? 'oklch(0.95 0 0)' : 'oklch(0.95 0.04 60)',
+                      color: selectedValue.match ? 'var(--card)' : 'var(--status-warning-subtle)',
                     }}>
                       {selectedValue.valueB}
                       {!selectedValue.match && (
