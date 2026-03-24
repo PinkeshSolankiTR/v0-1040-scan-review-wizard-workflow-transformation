@@ -860,10 +860,23 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
               const groupRejectedCount = group.records.filter(r => rejectedDocs.has(String(r.engagementPageId))).length
               const isThisGroupRejected = groupRejectedCount === group.records.length
               const hasThisGroupPartialRejects = groupRejectedCount > 0 && !isThisGroupRejected
+              const isThisGroupAccepted = group.records.every(r => decisions[`sup-pg${r.engagementPageId}`] === 'accepted')
+              const isThisGroupReclassified = flippedGroups.has(group.formType)
+
+              // Row background: rejected = muted strikethrough, reclassified = light warning, accepted = light success, active = light info
+              const rowBg = isThisGroupRejected
+                ? '#f5f5f5'
+                : isThisGroupReclassified
+                ? 'var(--status-warning-subtle)'
+                : isThisGroupAccepted
+                ? 'var(--status-success-subtle)'
+                : isActiveGroup
+                ? 'var(--status-info-subtle)'
+                : 'transparent'
 
               return (
-                <div key={group.formType} style={{ borderBlockEnd: '0.0625rem solid var(--border)', backgroundColor: isThisGroupRejected ? 'var(--status-error-subtle)' : isActiveGroup ? 'var(--status-info-subtle)' : 'transparent', opacity: isThisGroupRejected ? 0.7 : 1 }}>
-                  <button type="button" onClick={() => toggleGroup(group.formType, gIdx)} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', inlineSize: '100%', padding: '0.625rem 0.75rem', border: 'none', cursor: 'pointer', textAlign: 'start', backgroundColor: 'transparent', borderInlineStart: isActiveGroup ? '0.1875rem solid var(--ai-accent)' : '0.1875rem solid transparent' }}>
+                <div key={group.formType} style={{ borderBlockEnd: '0.0625rem solid var(--border)', backgroundColor: rowBg, opacity: isThisGroupRejected ? 0.65 : 1 }}>
+                  <button type="button" onClick={() => toggleGroup(group.formType, gIdx)} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', inlineSize: '100%', padding: '0.625rem 0.75rem', border: 'none', cursor: 'pointer', textAlign: 'start', backgroundColor: 'transparent', borderInlineStart: isActiveGroup ? '0.1875rem solid var(--ai-accent)' : isThisGroupAccepted ? '0.1875rem solid var(--status-success)' : isThisGroupReclassified ? '0.1875rem solid var(--status-warning)' : isThisGroupRejected ? '0.1875rem solid var(--muted-foreground)' : '0.1875rem solid transparent' }}>
                     <div style={{ flex: '1 1 0', minInlineSize: 0 }}>
                       {(() => {
                         const identifier = extractIdentifier(group.records)
@@ -876,7 +889,11 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                       })()}
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginBlockStart: '0.25rem', flexWrap: 'wrap' }}>
                         {isThisGroupRejected ? (
-                          <span style={{ fontSize: '0.625rem', fontWeight: 700, fontFamily: 'var(--font-mono)', padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem', backgroundColor: 'var(--muted)', color: 'var(--muted-foreground)' }} title="All documents in this group were marked as not superseded">Not Superseded</span>
+                          <span style={{ fontSize: '0.625rem', fontWeight: 700, fontFamily: 'var(--font-mono)', padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem', backgroundColor: '#e5e7eb', color: '#6b7280', textDecoration: 'line-through' }} title="All documents in this group were marked as not superseded">Not Superseded</span>
+                        ) : isThisGroupAccepted ? (
+                          <span style={{ fontSize: '0.625rem', fontWeight: 700, fontFamily: 'var(--font-mono)', padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem', backgroundColor: 'var(--status-success-subtle)', color: 'var(--status-success)', border: '0.0625rem solid var(--status-success-border)' }} title="Accepted by reviewer">Accepted</span>
+                        ) : isThisGroupReclassified ? (
+                          <span style={{ fontSize: '0.625rem', fontWeight: 700, fontFamily: 'var(--font-mono)', padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem', backgroundColor: 'var(--status-warning-subtle)', color: 'var(--status-warning)', border: '0.0625rem solid var(--status-warning-border)' }} title="Roles reclassified by reviewer">Reclassified</span>
                         ) : hasThisGroupPartialRejects ? (
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
                             <span style={{ fontSize: '0.625rem', fontWeight: 700, padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem', backgroundColor: `${confColor} / 0.12`, color: confColor }} title={actionTooltip}>{actionLabel}</span>
