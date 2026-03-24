@@ -54,46 +54,46 @@ export function FieldComparison({
         style={{
           backgroundColor: isSelected
             ? 'oklch(0.94 0.04 240 / 0.4)'
-            : v.match ? 'oklch(1 0 0)' : 'oklch(0.97 0.015 25 / 0.35)',
-          borderBlockStart: '0.0625rem solid oklch(0.93 0.003 250)',
+            : v.match ? 'var(--card)' : 'oklch(0.97 0.015 25 / 0.35)',
+          borderBlockStart: '0.0625rem solid var(--border)',
           cursor: hasCrops ? 'pointer' : 'default',
         }}
         onClick={hasCrops ? () => setSelectedField(isSelected ? null : v.field) : undefined}
       >
-        <td style={{ padding: '0.375rem 0.625rem', fontSize: '0.75rem', fontWeight: 500, color: 'oklch(0.3 0.01 250)' }}>
+        <td style={{ padding: '0.375rem 0.625rem', fontSize: '0.75rem', fontWeight: 500, color: 'var(--foreground)' }}>
           {v.field}
         </td>
         <td style={{
           padding: '0.375rem 0.625rem', fontSize: '0.75rem',
-          fontFamily: 'var(--font-mono)', color: 'oklch(0.25 0.01 250)',
-          borderInlineStart: '0.0625rem solid oklch(0.93 0.003 250)',
+          fontFamily: 'var(--font-mono)', color: 'var(--foreground)',
+          borderInlineStart: '0.0625rem solid var(--border)',
         }}>
           {v.valueA}
         </td>
         <td style={{
           padding: '0.375rem 0.625rem', fontSize: '0.75rem',
           fontFamily: 'var(--font-mono)',
-          color: v.match ? 'oklch(0.25 0.01 250)' : 'oklch(0.45 0.18 25)',
+          color: v.match ? 'var(--foreground)' : 'var(--status-error)',
           fontWeight: v.match ? 400 : 600,
-          borderInlineStart: '0.0625rem solid oklch(0.93 0.003 250)',
+          borderInlineStart: '0.0625rem solid var(--border)',
         }}>
           {v.valueB}
         </td>
         <td style={{
           padding: '0.375rem 0.25rem', textAlign: 'center',
-          borderInlineStart: '0.0625rem solid oklch(0.93 0.003 250)',
+          borderInlineStart: '0.0625rem solid var(--border)',
           inlineSize: '2rem',
         }}>
           {v.match ? (
-            <CheckCircle2 style={{ inlineSize: '0.875rem', blockSize: '0.875rem', color: 'oklch(0.55 0.17 145)', margin: '0 auto' }} aria-label="Match" />
+            <CheckCircle2 style={{ inlineSize: '0.875rem', blockSize: '0.875rem', color: 'var(--confidence-high)', margin: '0 auto' }} aria-label="Match" />
           ) : (
-            <XCircle style={{ inlineSize: '0.875rem', blockSize: '0.875rem', color: 'oklch(0.55 0.22 25)', margin: '0 auto' }} aria-label="Mismatch" />
+            <XCircle style={{ inlineSize: '0.875rem', blockSize: '0.875rem', color: 'var(--destructive)', margin: '0 auto' }} aria-label="Mismatch" />
           )}
         </td>
         {hasCrops && (
           <td style={{
             padding: '0.375rem 0.25rem', textAlign: 'center',
-            borderInlineStart: '0.0625rem solid oklch(0.93 0.003 250)',
+            borderInlineStart: '0.0625rem solid var(--border)',
             inlineSize: '2rem',
           }}>
             <ScanSearch style={{
@@ -111,11 +111,11 @@ export function FieldComparison({
     padding: '0.375rem 0.625rem',
     fontSize: '0.6875rem',
     fontWeight: 700,
-    color: 'oklch(0.45 0.01 250)',
+    color: 'var(--muted-foreground)',
     textAlign: 'start',
     textTransform: 'uppercase',
     letterSpacing: '0.04em',
-    backgroundColor: 'oklch(0.96 0.005 250)',
+    backgroundColor: 'var(--surface-sunken)',
     position: 'sticky',
     insetBlockStart: 0,
     zIndex: 1,
@@ -128,17 +128,17 @@ export function FieldComparison({
         <th style={{ ...thBase }}>
           Field
         </th>
-        <th style={{ ...thBase, borderInlineStart: '0.0625rem solid oklch(0.91 0.005 250)' }}>
+        <th style={{ ...thBase, borderInlineStart: '0.0625rem solid var(--border)' }}>
           {labelA}
         </th>
-        <th style={{ ...thBase, borderInlineStart: '0.0625rem solid oklch(0.91 0.005 250)' }}>
+        <th style={{ ...thBase, borderInlineStart: '0.0625rem solid var(--border)' }}>
           {labelB}
         </th>
-        <th style={{ ...thBase, padding: '0.375rem 0.25rem', textAlign: 'center', inlineSize: '2rem', borderInlineStart: '0.0625rem solid oklch(0.91 0.005 250)' }} aria-label="Status">
+        <th style={{ ...thBase, padding: '0.375rem 0.25rem', textAlign: 'center', inlineSize: '2rem', borderInlineStart: '0.0625rem solid var(--border)' }} aria-label="Status">
           {''}
         </th>
         {hasCrops && (
-          <th style={{ ...thBase, padding: '0.375rem 0.25rem', fontSize: '0.5625rem', textAlign: 'center', inlineSize: '2rem', borderInlineStart: '0.0625rem solid oklch(0.91 0.005 250)' }}>
+          <th style={{ ...thBase, padding: '0.375rem 0.25rem', fontSize: '0.5625rem', textAlign: 'center', inlineSize: '2rem', borderInlineStart: '0.0625rem solid var(--border)' }}>
             Src
           </th>
         )}
@@ -183,7 +183,7 @@ export function FieldComparison({
           display: 'flex',
           borderRadius: '0.25rem',
           overflow: 'hidden',
-          border: '0.0625rem solid oklch(0.88 0.01 260)',
+          border: '0.0625rem solid var(--border)',
         }}>
           <button
             type="button"
@@ -193,8 +193,8 @@ export function FieldComparison({
               padding: '0.3125rem 0.625rem',
               border: 'none', cursor: 'pointer',
               fontSize: '0.6875rem', fontWeight: 600,
-              backgroundColor: viewMode === 'unmatched' ? 'oklch(0.35 0.12 25)' : 'oklch(0.98 0.003 260)',
-              color: viewMode === 'unmatched' ? 'oklch(0.98 0 0)' : 'oklch(0.4 0.01 260)',
+              backgroundColor: viewMode === 'unmatched' ? 'var(--status-error)' : 'var(--surface-raised)',
+              color: viewMode === 'unmatched' ? 'var(--card)' : 'var(--muted-foreground)',
             }}
             aria-pressed={viewMode === 'unmatched'}
           >
@@ -204,8 +204,8 @@ export function FieldComparison({
               padding: '0.0625rem 0.3125rem',
               borderRadius: '0.5rem',
               fontSize: '0.625rem', fontWeight: 700,
-              backgroundColor: viewMode === 'unmatched' ? 'oklch(0.95 0.03 25)' : 'oklch(0.93 0.005 260)',
-              color: viewMode === 'unmatched' ? 'oklch(0.4 0.15 25)' : 'oklch(0.45 0.01 260)',
+              backgroundColor: viewMode === 'unmatched' ? 'var(--status-error-subtle)' : 'var(--muted)',
+              color: viewMode === 'unmatched' ? 'var(--status-error)' : 'var(--muted-foreground)',
             }}>
               {mismatches.length}
             </span>
@@ -217,10 +217,10 @@ export function FieldComparison({
               display: 'flex', alignItems: 'center', gap: '0.3125rem',
               padding: '0.3125rem 0.625rem',
               border: 'none', cursor: 'pointer',
-              borderInlineStart: '0.0625rem solid oklch(0.88 0.01 260)',
+              borderInlineStart: '0.0625rem solid var(--border)',
               fontSize: '0.6875rem', fontWeight: 600,
-              backgroundColor: viewMode === 'matched' ? 'oklch(0.3 0.1 145)' : 'oklch(0.98 0.003 260)',
-              color: viewMode === 'matched' ? 'oklch(0.98 0 0)' : 'oklch(0.4 0.01 260)',
+              backgroundColor: viewMode === 'matched' ? 'var(--status-success)' : 'var(--surface-raised)',
+              color: viewMode === 'matched' ? 'var(--card)' : 'var(--muted-foreground)',
             }}
             aria-pressed={viewMode === 'matched'}
           >
@@ -230,14 +230,14 @@ export function FieldComparison({
               padding: '0.0625rem 0.3125rem',
               borderRadius: '0.5rem',
               fontSize: '0.625rem', fontWeight: 700,
-              backgroundColor: viewMode === 'matched' ? 'oklch(0.92 0.04 145)' : 'oklch(0.93 0.005 260)',
-              color: viewMode === 'matched' ? 'oklch(0.35 0.14 145)' : 'oklch(0.45 0.01 260)',
+              backgroundColor: viewMode === 'matched' ? 'var(--status-success-subtle)' : 'var(--muted)',
+              color: viewMode === 'matched' ? 'var(--status-success)' : 'var(--muted-foreground)',
             }}>
               {matched}
             </span>
           </button>
         </div>
-        <span style={{ fontSize: '0.6875rem', color: 'oklch(0.55 0.01 260)', fontWeight: 400 }}>
+        <span style={{ fontSize: '0.6875rem', color: 'var(--muted-foreground)', fontWeight: 400 }}>
           of {totalFields} fields
         </span>
       </div>
@@ -251,17 +251,17 @@ export function FieldComparison({
               padding: '1.5rem', gap: '0.5rem',
               borderRadius: '0.375rem',
               backgroundColor: 'oklch(0.96 0.03 145 / 0.3)',
-              border: '0.0625rem solid oklch(0.88 0.06 145)',
+              border: '0.0625rem solid var(--status-success-border)',
             }}>
-              <CheckCircle2 style={{ inlineSize: '1.125rem', blockSize: '1.125rem', color: 'oklch(0.5 0.17 145)' }} />
-              <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'oklch(0.35 0.1 145)' }}>
+              <CheckCircle2 style={{ inlineSize: '1.125rem', blockSize: '1.125rem', color: 'var(--confidence-high)' }} />
+              <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--status-success)' }}>
                 All {totalFields} fields match perfectly
               </span>
             </div>
           ) : (
             <div style={{
               borderRadius: '0.375rem',
-              border: '0.0625rem solid oklch(0.91 0.005 250)',
+              border: '0.0625rem solid var(--border)',
               overflow: 'hidden',
               maxBlockSize: '18rem',
               overflowY: 'auto',
@@ -286,17 +286,17 @@ export function FieldComparison({
               padding: '1.5rem', gap: '0.5rem',
               borderRadius: '0.375rem',
               backgroundColor: 'oklch(0.96 0.03 25 / 0.3)',
-              border: '0.0625rem solid oklch(0.88 0.06 25)',
+              border: '0.0625rem solid var(--status-error-border)',
             }}>
-              <XCircle style={{ inlineSize: '1.125rem', blockSize: '1.125rem', color: 'oklch(0.5 0.18 25)' }} />
-              <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'oklch(0.35 0.1 25)' }}>
+              <XCircle style={{ inlineSize: '1.125rem', blockSize: '1.125rem', color: 'var(--destructive)' }} />
+              <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--status-error)' }}>
                 No matched fields found
               </span>
             </div>
           ) : (
             <div style={{
               borderRadius: '0.375rem',
-              border: '0.0625rem solid oklch(0.91 0.005 250)',
+              border: '0.0625rem solid var(--border)',
               overflow: 'hidden',
               maxBlockSize: '18rem',
               overflowY: 'auto',
@@ -322,22 +322,22 @@ export function FieldComparison({
         <div style={{
           borderRadius: '0.375rem',
           overflow: 'hidden',
-          border: '0.0625rem solid oklch(0.85 0.04 240)',
+          border: '0.0625rem solid var(--status-info-border)',
           backgroundColor: 'oklch(0.97 0.01 240 / 0.3)',
         }}>
           {/* Strip header */}
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '0.375rem 0.625rem',
-            backgroundColor: 'oklch(0.94 0.02 240)',
-            borderBlockEnd: '0.0625rem solid oklch(0.85 0.04 240)',
+            backgroundColor: 'var(--status-info-subtle)',
+            borderBlockEnd: '0.0625rem solid var(--status-info-border)',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-              <ScanSearch style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem', color: 'oklch(0.4 0.12 240)' }} />
+              <ScanSearch style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem', color: 'var(--ai-accent)' }} />
               <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'oklch(0.3 0.08 240)' }}>
                 Source View
               </span>
-              <span style={{ fontSize: '0.625rem', color: 'oklch(0.45 0.01 260)' }}>
+              <span style={{ fontSize: '0.625rem', color: 'var(--muted-foreground)' }}>
                 {selectedValue.field}
               </span>
             </div>
@@ -349,7 +349,7 @@ export function FieldComparison({
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 inlineSize: '1.25rem', blockSize: '1.25rem',
                 border: 'none', borderRadius: '0.1875rem',
-                backgroundColor: 'transparent', color: 'oklch(0.4 0.01 260)',
+                backgroundColor: 'transparent', color: 'var(--muted-foreground)',
                 cursor: 'pointer',
               }}
             >
@@ -366,7 +366,7 @@ export function FieldComparison({
           }}>
             {/* Doc A crop */}
             <div style={{ backgroundColor: 'oklch(0.99 0.002 260)', padding: '0.5rem' }}>
-              <p style={{ margin: '0 0 0.375rem', fontSize: '0.625rem', fontWeight: 700, color: 'oklch(0.45 0.01 260)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              <p style={{ margin: '0 0 0.375rem', fontSize: '0.625rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                 {labelA}
               </p>
               {docRefA ? (
@@ -375,7 +375,7 @@ export function FieldComparison({
                   blockSize: '5rem',
                   overflow: 'hidden',
                   borderRadius: '0.25rem',
-                  border: '0.0625rem solid oklch(0.88 0.01 260)',
+                  border: '0.0625rem solid var(--border)',
                   backgroundColor: 'oklch(0.97 0.003 260)',
                 }}>
                   {/* Simulated crop: use iframe pointing to the PDF page region */}
@@ -404,7 +404,7 @@ export function FieldComparison({
                   </div>
                 </div>
               ) : (
-                <div style={{ blockSize: '5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', color: 'oklch(0.55 0.01 260)' }}>
+                <div style={{ blockSize: '5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', color: 'var(--muted-foreground)' }}>
                   No document
                 </div>
               )}
@@ -412,7 +412,7 @@ export function FieldComparison({
 
             {/* Doc B crop */}
             <div style={{ backgroundColor: 'oklch(0.99 0.002 260)', padding: '0.5rem' }}>
-              <p style={{ margin: '0 0 0.375rem', fontSize: '0.625rem', fontWeight: 700, color: 'oklch(0.45 0.01 260)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              <p style={{ margin: '0 0 0.375rem', fontSize: '0.625rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                 {labelB}
               </p>
               {docRefB ? (
@@ -421,7 +421,7 @@ export function FieldComparison({
                   blockSize: '5rem',
                   overflow: 'hidden',
                   borderRadius: '0.25rem',
-                  border: `0.0625rem solid ${selectedValue.match ? 'oklch(0.88 0.01 260)' : 'oklch(0.75 0.1 25)'}`,
+                  border: `0.0625rem solid ${selectedValue.match ? 'var(--border)' : 'oklch(0.75 0.1 25)'}`,
                   backgroundColor: 'oklch(0.97 0.003 260)',
                 }}>
                   <iframe
@@ -454,7 +454,7 @@ export function FieldComparison({
                   </div>
                 </div>
               ) : (
-                <div style={{ blockSize: '5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', color: 'oklch(0.55 0.01 260)' }}>
+                <div style={{ blockSize: '5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', color: 'var(--muted-foreground)' }}>
                   No document
                 </div>
               )}
