@@ -6,7 +6,7 @@
 :root {
   --background: #ffffff;
   --foreground: #37352f;
-  --card: #ffffff;
+  --card: #fdfbf7;
   --card-foreground: #37352f;
   --popover: #ffffff;
   --popover-foreground: #37352f;
@@ -24,9 +24,9 @@
   --input: #e9e9e7;
   --ring: #1a73e8;
   --chart-1: #1a73e8;
-  --chart-2: #2ea44f;
+  --chart-2: #1a7f37;
   --chart-3: #c4163a;
-  --chart-4: #e07800;
+  --chart-4: #b45309;
   --chart-5: #6e56cf;
   --radius: 0.5rem;
   --sidebar: #37352f;
@@ -38,24 +38,24 @@
   --sidebar-border: #555249;
   --sidebar-ring: #1a73e8;
 
-  /* Hybrid: Notion base + softened Apple/Figma accents */
-  --confidence-high: #2ea44f;
-  --confidence-medium: #e07800;
+  /* Accessible hybrid: WCAG AA compliant on #ffffff */
+  --confidence-high: #1a7f37;
+  --confidence-medium: #b45309;
   --confidence-low: #c4163a;
   --ai-accent: #6e56cf;
 
-  /* Primary action -- softened blue */
+  /* Primary action -- blue */
   --tr-primary: #1a73e8;
   --tr-primary-hover: #1565c0;
   --tr-primary-foreground: #ffffff;
 
-  /* Status semantic tokens */
-  --status-success: #2ea44f;
-  --status-success-subtle: #f1f8f3;
-  --status-success-border: #9fd4ac;
-  --status-warning: #e07800;
-  --status-warning-subtle: #fef7ed;
-  --status-warning-border: #f0bf70;
+  /* Status semantic tokens -- all pass 4.5:1 on white */
+  --status-success: #1a7f37;
+  --status-success-subtle: #f0f9f2;
+  --status-success-border: #8ccf9c;
+  --status-warning: #b45309;
+  --status-warning-subtle: #fef6ee;
+  --status-warning-border: #e6b06a;
   --status-error: #c4163a;
   --status-error-subtle: #fdf1f3;
   --status-error-border: #e8a0ad;
@@ -63,9 +63,9 @@
   --status-info-subtle: #f5f3fd;
   --status-info-border: #b8aee0;
 
-  /* Surface tokens for panels */
-  --surface-raised: #f7f7f5;
-  --surface-sunken: #f2f1ef;
+  /* Surface tokens -- warm ivory cards on white page */
+  --surface-raised: #fdfbf7;
+  --surface-sunken: #f7f5f0;
 }
 
 
