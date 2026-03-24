@@ -4,25 +4,25 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: oklch(0.985 0 0);
-  --foreground: oklch(0.17 0.01 260);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.17 0.01 260);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.17 0.01 260);
-  --primary: oklch(0.17 0.01 260);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.965 0.005 260);
-  --secondary-foreground: oklch(0.17 0.01 260);
-  --muted: oklch(0.96 0.005 260);
-  --muted-foreground: oklch(0.5 0.01 260);
-  --accent: oklch(0.96 0.005 260);
-  --accent-foreground: oklch(0.17 0.01 260);
-  --destructive: oklch(0.55 0.22 25);
-  --destructive-foreground: oklch(0.55 0.22 25);
-  --border: oklch(0.91 0.005 260);
-  --input: oklch(0.91 0.005 260);
-  --ring: oklch(0.55 0.15 250);
+  --background: #fafafa;
+  --foreground: #1a1a1a;
+  --card: #ffffff;
+  --card-foreground: #1a1a1a;
+  --popover: #ffffff;
+  --popover-foreground: #1a1a1a;
+  --primary: #1e3a5f;
+  --primary-foreground: #ffffff;
+  --secondary: #f3f4f6;
+  --secondary-foreground: #1a1a1a;
+  --muted: #f3f4f6;
+  --muted-foreground: #6b7280;
+  --accent: #f3f4f6;
+  --accent-foreground: #1a1a1a;
+  --destructive: #d32f2f;
+  --destructive-foreground: #d32f2f;
+  --border: #e5e7eb;
+  --input: #e5e7eb;
+  --ring: #3f51b5;
   --chart-1: oklch(0.55 0.15 250);
   --chart-2: oklch(0.6 0.15 160);
   --chart-3: oklch(0.55 0.22 25);
@@ -38,33 +38,33 @@
   --sidebar-border: oklch(0.3 0.015 260);
   --sidebar-ring: oklch(0.55 0.15 250);
 
-  /* Custom tokens */
-  --confidence-high: #2e7d32;
-  --confidence-medium: #e65100;
-  --confidence-low: #c62828;
-  --ai-accent: #006fc4;
+  /* Option B: Clean Clinical palette */
+  --confidence-high: #0d7c66;
+  --confidence-medium: #bf5a00;
+  --confidence-low: #d32f2f;
+  --ai-accent: #3f51b5;
 
-  /* TR primary action -- burnt orange */
-  --tr-primary: #d64000;
-  --tr-primary-hover: #b83700;
+  /* Primary action -- Deep Navy */
+  --tr-primary: #1e3a5f;
+  --tr-primary-hover: #152d4a;
   --tr-primary-foreground: #ffffff;
 
   /* Status semantic tokens */
-  --status-success: #2e7d32;
-  --status-success-subtle: #f1f8f1;
-  --status-success-border: #a5d6a7;
-  --status-warning: #e65100;
-  --status-warning-subtle: #fff8f1;
-  --status-warning-border: #ffcc80;
-  --status-error: #c62828;
+  --status-success: #0d7c66;
+  --status-success-subtle: #eef8f6;
+  --status-success-border: #80cbc4;
+  --status-warning: #bf5a00;
+  --status-warning-subtle: #fff6ee;
+  --status-warning-border: #ffb74d;
+  --status-error: #d32f2f;
   --status-error-subtle: #fef2f2;
   --status-error-border: #ef9a9a;
-  --status-info: #006fc4;
-  --status-info-subtle: #f0f7ff;
-  --status-info-border: #90caf9;
+  --status-info: #3f51b5;
+  --status-info-subtle: #f0f1fa;
+  --status-info-border: #9fa8da;
 
   /* Surface tokens for panels */
-  --surface-raised: #f8f9fa;
+  --surface-raised: #f9fafb;
   --surface-sunken: #f3f4f6;
 }
 
