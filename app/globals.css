@@ -39,82 +39,35 @@
   --sidebar-ring: oklch(0.55 0.15 250);
 
   /* Custom tokens */
-  --confidence-high: oklch(0.55 0.17 145);
-  --confidence-medium: oklch(0.7 0.15 75);
-  --confidence-low: oklch(0.55 0.22 25);
-  --ai-accent: oklch(0.55 0.15 250);
+  --confidence-high: #2e7d32;
+  --confidence-medium: #e65100;
+  --confidence-low: #c62828;
+  --ai-accent: #006fc4;
+
+  /* TR primary action -- burnt orange */
+  --tr-primary: #d64000;
+  --tr-primary-hover: #b83700;
+  --tr-primary-foreground: #ffffff;
 
   /* Status semantic tokens */
-  --status-success: oklch(0.45 0.16 145);
-  --status-success-subtle: oklch(0.97 0.01 145);
-  --status-success-border: oklch(0.88 0.05 145);
-  --status-warning: oklch(0.60 0.16 60);
-  --status-warning-subtle: oklch(0.97 0.02 60);
-  --status-warning-border: oklch(0.88 0.06 60);
-  --status-error: oklch(0.55 0.22 25);
-  --status-error-subtle: oklch(0.97 0.02 25);
-  --status-error-border: oklch(0.88 0.06 25);
-  --status-info: oklch(0.55 0.15 250);
-  --status-info-subtle: oklch(0.96 0.02 250);
-  --status-info-border: oklch(0.88 0.05 250);
+  --status-success: #2e7d32;
+  --status-success-subtle: #f1f8f1;
+  --status-success-border: #a5d6a7;
+  --status-warning: #e65100;
+  --status-warning-subtle: #fff8f1;
+  --status-warning-border: #ffcc80;
+  --status-error: #c62828;
+  --status-error-subtle: #fef2f2;
+  --status-error-border: #ef9a9a;
+  --status-info: #006fc4;
+  --status-info-subtle: #f0f7ff;
+  --status-info-border: #90caf9;
 
   /* Surface tokens for panels */
-  --surface-raised: oklch(0.97 0.003 260);
-  --surface-sunken: oklch(0.96 0.003 260);
+  --surface-raised: #f8f9fa;
+  --surface-sunken: #f3f4f6;
 }
 
-/* ── TR Dark Mode for Superseded Prototype ── */
-.tr-dark {
-  /* Core palette -- TR official dark mode */
-  --background: #1a1a1a;
-  --foreground: #f2f2f2;
-  --card: #232323;
-  --card-foreground: #f2f2f2;
-  --popover: #232323;
-  --popover-foreground: #f2f2f2;
-  --primary: #e85d00;
-  --primary-foreground: #ffffff;
-  --secondary: #2d2d2d;
-  --secondary-foreground: #f2f2f2;
-  --muted: #333333;
-  --muted-foreground: #a3a3a3;
-  --accent: #3b8eed;
-  --accent-foreground: #ffffff;
-  --destructive: #d64000;
-  --destructive-foreground: #ffffff;
-  --border: #3a3a3a;
-  --input: #3a3a3a;
-  --ring: #e85d00;
-  --radius: 0.375rem;
-
-  /* Status -- vivid on dark */
-  --status-success: #34d399;
-  --status-success-subtle: rgba(52, 211, 153, 0.12);
-  --status-success-border: rgba(52, 211, 153, 0.25);
-  --status-warning: #fbbf24;
-  --status-warning-subtle: rgba(251, 191, 36, 0.12);
-  --status-warning-border: rgba(251, 191, 36, 0.25);
-  --status-error: #f87171;
-  --status-error-subtle: rgba(248, 113, 113, 0.12);
-  --status-error-border: rgba(248, 113, 113, 0.25);
-  --status-info: #60a5fa;
-  --status-info-subtle: rgba(96, 165, 250, 0.12);
-  --status-info-border: rgba(96, 165, 250, 0.25);
-
-  /* AI accent -- bright blue */
-  --ai-accent: #60a5fa;
-
-  /* Confidence */
-  --confidence-high: #34d399;
-  --confidence-medium: #fbbf24;
-  --confidence-low: #f87171;
-
-  /* Surfaces */
-  --surface-raised: #2a2a2a;
-  --surface-sunken: #1f1f1f;
-
-  color-scheme: dark;
-}
 
 .dark {
   --background: oklch(0.145 0 0);

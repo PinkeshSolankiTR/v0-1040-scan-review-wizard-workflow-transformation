@@ -798,7 +798,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
             )}
           </div>
 
-          <button type="button" style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', padding: '0.375rem 0.875rem', border: 'none', borderRadius: '0.25rem', backgroundColor: 'var(--destructive)', fontSize: '0.75rem', fontWeight: 700, color: 'var(--card)', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+          <button type="button" style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', padding: '0.375rem 0.875rem', border: 'none', borderRadius: '0.25rem', backgroundColor: 'var(--tr-primary)', fontSize: '0.75rem', fontWeight: 700, color: 'var(--tr-primary-foreground)', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
             Next Step <ArrowRight style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} />
           </button>
         </div>
@@ -818,7 +818,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                 {unreviewedModLow.map(g => {
                   const avg = Math.round(g.records.reduce((s, r) => s + r.confidenceLevel, 0) / g.records.length * 100)
                   const label = avg >= 70 ? 'Moderate' : 'Low'
-                  const color = avg >= 70 ? 'var(--status-warning)' : 'var(--destructive)'
+                  const color = avg >= 70 ? 'var(--status-warning)' : 'var(--status-error)'
                   return (
                     <div key={g.formType} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.25rem 0.375rem' }}>
                       <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--foreground)' }}>{g.formType} ({g.formEntity})</span>

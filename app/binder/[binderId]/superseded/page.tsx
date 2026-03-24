@@ -17,7 +17,7 @@ export default async function SupersededPage({
 
   if (data.length === 0) {
     return (
-      <div className="tr-dark" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', minBlockSize: '100vh', backgroundColor: 'var(--background)', color: 'var(--foreground)', padding: '1.5rem' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
         <header>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--foreground)' }}>
             Superseded Documents
@@ -50,9 +50,5 @@ export default async function SupersededPage({
     )
   }
 
-  return (
-    <div className="tr-dark" style={{ minBlockSize: '100vh', backgroundColor: 'var(--background)', color: 'var(--foreground)' }}>
-      <VariantEDocCompare data={data} />
-    </div>
-  )
+  return <VariantEDocCompare data={data} />
 }
