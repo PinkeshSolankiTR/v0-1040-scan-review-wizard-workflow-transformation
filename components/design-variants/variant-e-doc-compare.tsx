@@ -459,10 +459,8 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
     return { avgConf, confColor, panelActionLabel, panelTooltip, isGroupOverridden, panelIdentifier }
   }, [activeGroup, isActiveFlipped, overrides])
 
-  console.log("[v0] VariantE NEW LAYOUT rendering - groups:", groups.length, "reviewedCount:", reviewedCount)
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', border: '0.0625rem solid var(--border)', borderRadius: 'var(--radius)', overflow: 'hidden', backgroundColor: 'var(--card)', blockSize: '100vh', maxBlockSize: '56rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', backgroundColor: 'var(--card)', blockSize: '100%' }}>
 
       {/* ══════════════════════════════════════════════════════════
           STICKY HEADER BAR: Title + Confidence + All Actions
