@@ -607,7 +607,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                 <X className="h-3.5 w-3.5" /> Excluded
               </span>
             )}
-            {isGroupOverridden && !isGroupRejected && !allGroupAccepted && (
+            {aiAnalysisData.isGroupOverridden && !isGroupRejected && !allGroupAccepted && (
               <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold" style={{ backgroundColor: 'var(--status-warning-subtle)', color: 'var(--status-warning)' }}>
                 <ArrowLeftRight className="h-3.5 w-3.5" /> Reclassified
               </span>
@@ -631,7 +631,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
               >
                 <Undo2 className="h-3.5 w-3.5" /> Undo
               </button>
-            ) : isGroupOverridden ? (
+            ) : aiAnalysisData.isGroupOverridden ? (
               <button
                 type="button"
                 onClick={() => {
