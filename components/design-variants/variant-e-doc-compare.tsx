@@ -460,6 +460,8 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
     return { avgConf, confColor, panelActionLabel, panelTooltip, isGroupOverridden, panelIdentifier }
   }, [activeGroup, isActiveFlipped, overrides])
 
+  console.log("[v0] VariantE NEW LAYOUT rendering - groups:", groups.length, "reviewedCount:", reviewedCount)
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', border: '0.0625rem solid var(--border)', borderRadius: 'var(--radius)', overflow: 'hidden', backgroundColor: 'var(--card)', blockSize: '100vh', maxBlockSize: '56rem' }}>
 
@@ -851,7 +853,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
 
       {/* ══════════════════════════════════════════════════════════
           PROGRESS FOOTER
-          ══════════════════════════════════════════════════════════ */}
+          ══════════════���═══════════════════════════════════════════ */}
       <footer style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.375rem 1rem', borderBlockStart: '0.0625rem solid var(--border)', backgroundColor: 'var(--surface-raised)', flexShrink: 0 }}>
         <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--muted-foreground)' }}>{reviewedCount} of {groups.length} reviewed</span>
         <div style={{ flex: '1 1 0', blockSize: '0.25rem', borderRadius: '0.125rem', backgroundColor: 'var(--muted)', overflow: 'hidden' }}>
