@@ -911,6 +911,8 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                     {/* ── Collapsible reclassification section + Not Superseded button ── */}
                     {!allGroupAccepted && !isGroupRejected && (() => {
                       const tableRecords = activeGroup?.records.filter(record => !rejectedPageIds.has(String(record.engagementPageId))) ?? []
+                      // Hide Not Sup. column for 2-doc groups (use the whole-group button instead)
+                      const showNotSupColumn = tableRecords.length > 2
                       // Compute changed rows
                       const changedRows = tableRecords.filter(r => {
                         const cur = docRoles.get(String(r.engagementPageId))
@@ -956,7 +958,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                                       <th className="px-3 py-2 text-left font-bold text-muted-foreground">Page</th>
                                       <th className="px-3 py-2 text-center font-bold" style={{ color: 'var(--status-success)' }}>Original</th>
                                       <th className="px-3 py-2 text-center font-bold" style={{ color: 'var(--status-info)' }}>Superseded</th>
-                                      <th className="px-3 py-2 text-center font-bold text-muted-foreground">Not Sup.</th>
+                                      {showNotSupColumn && <th className="px-3 py-2 text-center font-bold text-muted-foreground">Not Sup.</th>}
                                       <th className="min-w-[10rem] px-3 py-2 text-left font-bold text-muted-foreground">Reason</th>
                                     </tr>
                                   </thead>
@@ -986,7 +988,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                                               {isNotSup && <span className="rounded px-1.5 py-0.5 text-[0.5625rem] font-bold" style={{ backgroundColor: 'var(--status-error-subtle)', color: 'var(--status-error)' }}>Excluded</span>}
                                             </div>
                                           </td>
-                                          {(['original', 'superseded', 'not-superseded'] as const).map(role => (
+                                          {(['original', 'superseded', ...(showNotSupColumn ? ['not-superseded'] : [])] as const).map(role => (
                                             <td key={role} className="px-3 py-2.5 text-center">
                                               <input
                                                 type="radio"
