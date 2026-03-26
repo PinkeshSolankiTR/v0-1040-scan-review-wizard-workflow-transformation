@@ -476,10 +476,12 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
     const confColor = avgConf >= 90 ? 'var(--confidence-high)' : avgConf >= 70 ? 'var(--confidence-medium)' : 'var(--confidence-low)'
     const panelActionLabel = avgConf >= 90 ? 'High Confidence' : avgConf >= 70 ? 'Moderate Confidence' : 'Low Confidence'
     const panelTooltip = avgConf >= 90 ? 'AI is confident. Reviewer can approve quickly.' : avgConf >= 70 ? 'AI has moderate confidence. Reviewer should verify key fields.' : 'AI is uncertain. Reviewer must examine carefully.'
-    const isGroupOverridden = isActiveFlipped || (activeGroup?.records.some(r => { const ovd = overrides[`sup-pg${r.engagementPageId}`]; return ovd?.userOverrideDecision?.includes('Not Superseded') || (ovd && ovd.userOverrideDecision !== `Page ${r.engagementPageId} = ${r.decisionType}`) }) ?? false)
+    const hasOverrides = activeGroup?.records.some(r => { const ovd = overrides[`sup-pg${r.engagementPageId}`]; return ovd?.userOverrideDecision?.includes('Not Superseded') || (ovd && ovd.userOverrideDecision !== `Page ${r.engagementPageId} = ${r.decisionType}`) }) ?? false
+    const hasPartialRejections = activeGroup ? activeGroup.records.some(r => rejectedDocs.has(String(r.engagementPageId))) && !activeGroup.records.every(r => rejectedDocs.has(String(r.engagementPageId))) : false
+    const isGroupOverridden = isActiveFlipped || hasOverrides || hasPartialRejections
     const panelIdentifier = activeGroup ? extractIdentifier(activeGroup.records) : null
     return { avgConf, confColor, panelActionLabel, panelTooltip, isGroupOverridden, panelIdentifier }
-  }, [activeGroup, isActiveFlipped, overrides])
+  }, [activeGroup, isActiveFlipped, overrides, rejectedDocs])
 
   /* ──────────────────────────────────────────────────────────────────
      RENDER: Teams-style layout
@@ -808,7 +810,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                     <div className="rounded-lg border border-border bg-muted/50 p-4">
                       <span className="block text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">AI Recommended</span>
                       <div className="flex flex-wrap gap-1.5">
-                        {allRecords.map(r => { const isRej = rejectedPageIds.has(String(r.engagementPageId)); return <span key={r.engagementPageId} className={`rounded px-2 py-0.5 text-xs font-semibold ${isRej ? 'bg-muted text-muted-foreground opacity-70' : r.decisionType === 'Original' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-red-500/10 text-red-600'}`}>Pg {r.documentRef?.pageNumber ?? r.engagementPageId}: {isRej ? 'Not Sup.' : r.decisionType}</span> })}
+                        {allRecords.map(r => <span key={r.engagementPageId} className={`rounded px-2 py-0.5 text-xs font-semibold ${r.decisionType === 'Original' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-red-500/10 text-red-600'}`}>Pg {r.documentRef?.pageNumber ?? r.engagementPageId}: {r.decisionType}</span>)}
                       </div>
                     </div>
                     <div className="rounded-lg border p-4" style={{ borderColor: 'var(--status-warning-border)', backgroundColor: 'var(--status-warning-subtle)' }}>
@@ -822,8 +824,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                           else if (sDec?.endsWith('= Original')) newLabel = 'Original'
                           else if (sDec?.endsWith('= Superseded')) newLabel = 'Superseded'
                           else if (overriddenRecord && r.engagementPageId === overriddenRecord.engagementPageId) newLabel = 'Original'
-                          else if (r.decisionType === 'Original') newLabel = 'Superseded'
-                          else newLabel = 'Superseded'
+                          else newLabel = r.decisionType === 'Original' ? 'Original' : 'Superseded'
                           const isExcluded = newLabel === 'Not Sup.'
                           const changed = !isExcluded && ((r.decisionType === 'Original' && newLabel === 'Superseded') || (r.decisionType === 'Superseded' && newLabel === 'Original'))
                           return <span key={r.engagementPageId} className={`rounded px-2 py-0.5 text-xs font-semibold ${isExcluded ? 'bg-muted text-muted-foreground' : newLabel === 'Original' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-red-500/10 text-red-600'}`} style={changed ? { outline: '2px solid var(--status-warning)' } : undefined}>Pg {pgNum}: {newLabel}{changed && ' *'}</span>
@@ -1140,27 +1141,35 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                                       const aiOriginalId = String(activeGroup.originalRecord?.engagementPageId)
                                       const hasSwap = newOriginalPageId && newOriginalPageId !== aiOriginalId
                                       const hasExclusion = Array.from(docRoles.values()).some(v => v === 'not-superseded')
-                                      if (!hasSwap && !hasExclusion) return
+                                      const hasAnyRoleChange = activeGroup.records.some(r => { const cur = docRoles.get(String(r.engagementPageId)); const ai = r.decisionType === 'Original' ? 'original' : 'superseded'; return cur && cur !== ai })
+                                      if (!hasSwap && !hasExclusion && !hasAnyRoleChange) return
                                       if (hasSwap) {
                                         const targetIdx = activeGroup.supersededRecords.findIndex(s => String(s.engagementPageId) === newOriginalPageId)
                                         setFlippedGroups(prev => { const next = new Map(prev); if (targetIdx >= 0) next.set(activeGroup.formType, targetIdx); return next })
                                       }
                                       if (hasExclusion) {
                                         const rejPageIds = Array.from(docRoles.entries()).filter(([, role]) => role === 'not-superseded').map(([pid]) => pid)
-                                        for (const pid of rejPageIds) {
-                                          const rec = activeGroup.records.find(r => String(r.engagementPageId) === pid)
-                                          if (rec) {
-                                            const rr = rowReasons.get(pid)
-                                            const reasonText = rr?.reasonId === 'custom' ? rr.customText.trim() || 'Verifier decision' : rr?.reasonId ? REJECTION_REASONS.find(x => x.id === rr.reasonId)?.label ?? 'Verifier decision' : 'Verifier decision'
-                                            reject(String(rec.engagementPageId), reasonText, 'superseded', rec.confidenceLevel)
+                                        setRejectedDocs(prev => {
+                                          const next = new Map(prev)
+                                          for (const pid of rejPageIds) {
+                                            const rec = activeGroup.records.find(r => String(r.engagementPageId) === pid)
+                                            if (rec) {
+                                              const rr = rowReasons.get(pid)
+                                              const reasonText = rr?.reasonId === 'custom' ? rr.customText.trim() || 'Verifier decision' : rr?.reasonId ? REJECTION_REASONS.find(x => x.id === rr.reasonId)?.label ?? 'Verifier decision' : 'Verifier decision'
+                                              next.set(pid, { reason: reasonText, detail: reasonText, formType: activeGroup.formType })
+                                            }
                                           }
-                                        }
+                                          return next
+                                        })
                                       }
                                       for (const r of activeGroup.records) {
-                                        const key = `sup-pg${r.engagementPageId}`
-                                        const docRole = docRoles.get(String(r.engagementPageId))
-                                        if (docRole === 'not-superseded') continue
                                         const pid = String(r.engagementPageId)
+                                        const docRole = docRoles.get(pid)
+                                        if (docRole === 'not-superseded') continue
+                                        const aiRole = r.decisionType === 'Original' ? 'original' : 'superseded'
+                                        // Only write overrides for docs whose role actually changed
+                                        if (docRole === aiRole && !hasSwap) continue
+                                        const key = `sup-pg${r.engagementPageId}`
                                         const rr = rowReasons.get(pid)
                                         const reasonText = rr?.reasonId === 'custom' ? rr.customText.trim() || 'Verifier decision' : rr?.reasonId ? OVERRIDE_REASONS.find(x => x.id === rr.reasonId)?.label ?? 'Verifier decision' : 'Verifier decision'
                                         let newDecision: string
