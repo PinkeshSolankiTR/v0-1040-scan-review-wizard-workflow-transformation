@@ -519,9 +519,9 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
             let statusDot: string
             let statusLabel: string
             if (isThisGroupRejected) { statusDot = 'bg-muted-foreground'; statusLabel = 'Excluded' }
-            else if (isThisGroupAccepted) { statusDot = 'bg-emerald-500'; statusLabel = 'Accepted' }
-            else if (isThisGroupReclassified) { statusDot = 'bg-amber-500'; statusLabel = 'Reclassified' }
-            else { statusDot = avgConfPct >= 90 ? 'bg-emerald-500' : avgConfPct >= 70 ? 'bg-amber-500' : 'bg-red-500'; statusLabel = 'Pending' }
+  else if (isThisGroupAccepted) { statusDot = 'bg-[#1a7f37]'; statusLabel = 'Accepted' }
+      else if (isThisGroupReclassified) { statusDot = 'bg-[#1B2A4A]'; statusLabel = 'Reclassified' }
+      else { statusDot = avgConfPct >= 90 ? 'bg-[#1a7f37]' : 'bg-[#1B2A4A]'; statusLabel = 'Pending' }
 
             return (
               <button
@@ -551,9 +551,9 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                     </span>
                   </div>
                   <span className={`mt-1 inline-block rounded px-1.5 py-0.5 text-[0.625rem] font-semibold ${
-                    isThisGroupAccepted ? 'bg-emerald-500/10 text-emerald-600' :
+                    isThisGroupAccepted ? 'bg-[#1a7f37]/10 text-[#1a7f37]' :
                     isThisGroupRejected ? 'bg-muted text-muted-foreground' :
-                    isThisGroupReclassified ? 'bg-amber-500/10 text-amber-600' :
+                    isThisGroupReclassified ? 'bg-[#1B2A4A]/10 text-[#1B2A4A]' :
                     'bg-primary/10 text-primary'
                   }`}>
                     {statusLabel}
@@ -569,7 +569,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
           <div className="flex items-center gap-2">
             <div className="h-1 flex-1 overflow-hidden rounded-full bg-muted">
               <div
-                className={`h-full rounded-full transition-all duration-300 ${reviewedCount === groups.length ? 'bg-emerald-500' : 'bg-primary'}`}
+                className={`h-full rounded-full transition-all duration-300 ${reviewedCount === groups.length ? 'bg-[#1a7f37]' : 'bg-primary'}`}
                 style={{ width: `${groups.length > 0 ? (reviewedCount / groups.length) * 100 : 0}%` }}
               />
             </div>
@@ -810,7 +810,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                     <div className="rounded-lg border border-border bg-muted/50 p-4">
                       <span className="block text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">AI Recommended</span>
                       <div className="flex flex-wrap gap-1.5">
-                        {allRecords.map(r => <span key={r.engagementPageId} className={`rounded px-2 py-0.5 text-xs font-semibold ${r.decisionType === 'Original' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-red-500/10 text-red-600'}`}>Pg {r.documentRef?.pageNumber ?? r.engagementPageId}: {r.decisionType}</span>)}
+                        {allRecords.map(r => <span key={r.engagementPageId} className={`rounded px-2 py-0.5 text-xs font-semibold ${r.decisionType === 'Original' ? 'bg-[#1a7f37]/10 text-[#1a7f37]' : 'bg-[#1B2A4A]/10 text-[#1B2A4A]'}`}>Pg {r.documentRef?.pageNumber ?? r.engagementPageId}: {r.decisionType}</span>)}
                       </div>
                     </div>
                     <div className="rounded-lg border p-4" style={{ borderColor: 'var(--status-warning-border)', backgroundColor: 'var(--status-warning-subtle)' }}>
@@ -827,7 +827,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                           else newLabel = r.decisionType === 'Original' ? 'Original' : 'Superseded'
                           const isExcluded = newLabel === 'Not Sup.'
                           const changed = !isExcluded && ((r.decisionType === 'Original' && newLabel === 'Superseded') || (r.decisionType === 'Superseded' && newLabel === 'Original'))
-                          return <span key={r.engagementPageId} className={`rounded px-2 py-0.5 text-xs font-semibold ${isExcluded ? 'bg-muted text-muted-foreground' : newLabel === 'Original' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-red-500/10 text-red-600'}`} style={changed ? { outline: '2px solid var(--status-warning)' } : undefined}>Pg {pgNum}: {newLabel}{changed && ' *'}</span>
+                          return <span key={r.engagementPageId} className={`rounded px-2 py-0.5 text-xs font-semibold ${isExcluded ? 'bg-muted text-muted-foreground line-through' : newLabel === 'Original' ? 'bg-[#1a7f37]/10 text-[#1a7f37]' : 'bg-[#1B2A4A]/10 text-[#1B2A4A]'}`} style={changed ? { outline: '2px dashed var(--primary)' } : undefined}>Pg {pgNum}: {newLabel}{changed && ' *'}</span>
                         })}
                       </div>
                       {/* Show reasons for each changed/excluded record */}
@@ -956,8 +956,8 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                                   <thead>
                                     <tr className="border-b border-border bg-muted/50">
                                       <th className="px-3 py-2 text-left font-bold text-muted-foreground">Page</th>
-                                      <th className="px-3 py-2 text-center font-bold" style={{ color: 'var(--status-success)' }}>Original</th>
-                                      <th className="px-3 py-2 text-center font-bold" style={{ color: 'var(--status-info)' }}>Superseded</th>
+                                      <th className="px-3 py-2 text-center font-bold text-[#1a7f37]">Original</th>
+                                      <th className="px-3 py-2 text-center font-bold text-[#1B2A4A]">Superseded</th>
                                       {showNotSupColumn && <th className="px-3 py-2 text-center font-bold text-muted-foreground">Not Sup.</th>}
                                       <th className="min-w-[10rem] px-3 py-2 text-left font-bold text-muted-foreground">Reason</th>
                                     </tr>
@@ -978,14 +978,14 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                                       const reasonOptions = isNotSup ? REJECTION_REASONS : OVERRIDE_REASONS
 
                                       return (
-                                        <tr key={pageId} className={`border-b border-border last:border-b-0 transition-colors ${isChanged ? (isNotSup ? 'bg-red-500/5' : 'bg-amber-500/5') : ''}`}>
+                                        <tr key={pageId} className={`border-b border-border last:border-b-0 transition-colors ${isChanged ? 'bg-[#1B2A4A]/5' : ''}`}>
                                           <td className="px-3 py-2.5">
                                             <div className="flex items-center gap-2">
                                               <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                                               <span className="font-semibold text-foreground">Pg {record.documentRef?.pageNumber ?? record.engagementPageId}</span>
                                               {!isChanged && <span className="rounded bg-muted px-1.5 py-0.5 text-[0.5625rem] text-muted-foreground">AI</span>}
-                                              {isChanged && !isNotSup && <span className="rounded px-1.5 py-0.5 text-[0.5625rem] font-bold" style={{ backgroundColor: 'var(--status-warning-subtle)', color: 'var(--status-warning)' }}>Changed</span>}
-                                              {isNotSup && <span className="rounded px-1.5 py-0.5 text-[0.5625rem] font-bold" style={{ backgroundColor: 'var(--status-error-subtle)', color: 'var(--status-error)' }}>Excluded</span>}
+                                              {isChanged && !isNotSup && <span className="rounded px-1.5 py-0.5 text-[0.5625rem] font-bold bg-[#1B2A4A]/10 text-[#1B2A4A]">Changed</span>}
+                                              {isNotSup && <span className="rounded border border-dashed border-[#1B2A4A] px-1.5 py-0.5 text-[0.5625rem] font-bold text-[#1B2A4A] line-through">Excluded</span>}
                                             </div>
                                           </td>
                                           {(['original', 'superseded', ...(showNotSupColumn ? ['not-superseded'] : [])] as const).map(role => (
@@ -1034,7 +1034,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                                                   })
                                                 }}
                                                 className="h-3.5 w-3.5 cursor-pointer"
-                                                style={{ accentColor: role === 'original' ? 'var(--status-success)' : role === 'superseded' ? 'var(--status-info)' : 'var(--muted-foreground)' }}
+                                                style={{ accentColor: role === 'original' ? '#1a7f37' : '#1B2A4A' }}
                                               />
                                             </td>
                                           ))}
@@ -1208,30 +1208,30 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                               }}
                               className="flex w-full items-center gap-2 text-left"
                             >
-                              {showRejectPanel ? <ChevronDown className="h-3.5 w-3.5" style={{ color: 'var(--status-error)' }} /> : <ChevronRight className="h-3.5 w-3.5" style={{ color: 'var(--status-error)' }} />}
+                              {showRejectPanel ? <ChevronDown className="h-3.5 w-3.5 text-[#1B2A4A]" /> : <ChevronRight className="h-3.5 w-3.5 text-[#1B2A4A]" />}
                               <div>
-                                <p className="text-xs font-bold" style={{ color: 'var(--status-error)' }}>Not Superseded</p>
+                                <p className="text-xs font-bold text-[#1B2A4A]">Not Superseded</p>
                                 <p className="text-[0.6875rem] text-muted-foreground">Exclude the entire group. Both documents remain as-is in the binder.</p>
                               </div>
                             </button>
                           </div>
 
                           {showRejectPanel && (
-                            <div className="rounded-lg border px-4 py-3" style={{ borderColor: 'var(--status-error-border)', backgroundColor: 'var(--status-error-subtle)' }}>
+                            <div className="rounded-lg border border-dashed px-4 py-3" style={{ borderColor: '#a3b1cc', backgroundColor: '#eef1f6' }}>
                               <p className="mb-2 text-xs font-bold text-foreground">Reason</p>
                               <fieldset className="border-none p-0">
                                 <legend className="sr-only">Select reason for not superseded</legend>
                                 {REJECTION_REASONS.map((reason) => (
-                                  <label key={reason.id} className={`flex cursor-pointer items-start gap-2 rounded-md px-3 py-1.5 ${selectedRejectReasons.has(reason.id) ? 'bg-red-500/10' : ''}`}>
-                                    <input type="checkbox" checked={selectedRejectReasons.has(reason.id)} onChange={() => toggleRejectReason(reason.id)} className="mt-0.5 accent-red-500" />
+                                  <label key={reason.id} className={`flex cursor-pointer items-start gap-2 rounded-md px-3 py-1.5 ${selectedRejectReasons.has(reason.id) ? 'bg-[#1B2A4A]/10' : ''}`}>
+                                    <input type="checkbox" checked={selectedRejectReasons.has(reason.id)} onChange={() => toggleRejectReason(reason.id)} className="mt-0.5 accent-[#1B2A4A]" />
                                     <div>
                                       <span className="block text-xs font-semibold text-foreground">{reason.label}</span>
                                       <span className="text-[0.625rem] text-muted-foreground">{reason.description}</span>
                                     </div>
                                   </label>
                                 ))}
-                                <label className={`flex cursor-pointer items-start gap-2 rounded-md px-3 py-1.5 ${selectedRejectReasons.has('custom') ? 'bg-red-500/10' : ''}`}>
-                                  <input type="checkbox" checked={selectedRejectReasons.has('custom')} onChange={() => toggleRejectReason('custom')} className="mt-0.5 accent-red-500" />
+<label className={`flex cursor-pointer items-start gap-2 rounded-md px-3 py-1.5 ${selectedRejectReasons.has('custom') ? 'bg-[#1B2A4A]/10' : ''}`}>
+                                <input type="checkbox" checked={selectedRejectReasons.has('custom')} onChange={() => toggleRejectReason('custom')} className="mt-0.5 accent-[#1B2A4A]" />
                                   <span className="text-xs font-semibold text-foreground">Other</span>
                                 </label>
                                 {selectedRejectReasons.has('custom') && (
@@ -1251,7 +1251,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                                   onClick={handleRejectDoc}
                                   disabled={!hasRejectSelection}
                                   className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
-                                  style={{ backgroundColor: hasRejectSelection ? 'var(--status-error)' : 'var(--muted)' }}
+                                  style={{ backgroundColor: hasRejectSelection ? '#1B2A4A' : 'var(--muted)' }}
                                 >
                                   <X className="h-3 w-3" /> Confirm Not Superseded
                                 </button>
@@ -1283,8 +1283,8 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                 {unreviewedModLow.map(g => {
                   const avg = Math.round(g.records.reduce((s, r) => s + r.confidenceLevel, 0) / g.records.length * 100)
                   const label = avg >= 70 ? 'Moderate' : 'Low'
-                  const color = avg >= 70 ? 'text-amber-600' : 'text-red-600'
-                  const bg = avg >= 70 ? 'bg-amber-500/10' : 'bg-red-500/10'
+const color = 'text-[#1B2A4A]'
+                      const bg = 'bg-[#1B2A4A]/10'
                   return (
                     <div key={g.formType} className="flex items-center justify-between px-2 py-1">
                       <span className="text-xs font-semibold text-foreground">{g.formType} ({g.formEntity})</span>

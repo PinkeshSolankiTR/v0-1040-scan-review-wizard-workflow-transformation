@@ -10,7 +10,7 @@
   --card-foreground: #37352f;
   --popover: #ffffff;
   --popover-foreground: #37352f;
-  --primary: #1a73e8;
+  --primary: #1B2A4A;
   --primary-foreground: #ffffff;
   --secondary: #f7f7f5;
   --secondary-foreground: #37352f;
@@ -18,50 +18,50 @@
   --muted-foreground: #8e8e93;
   --accent: #f7f7f5;
   --accent-foreground: #37352f;
-  --destructive: #c4163a;
-  --destructive-foreground: #c4163a;
+  --destructive: #1B2A4A;
+  --destructive-foreground: #1B2A4A;
   --border: #e9e9e7;
   --input: #e9e9e7;
-  --ring: #1a73e8;
-  --chart-1: #1a73e8;
+  --ring: #1B2A4A;
+  --chart-1: #1B2A4A;
   --chart-2: #1a7f37;
-  --chart-3: #c4163a;
-  --chart-4: #b45309;
-  --chart-5: #6e56cf;
+  --chart-3: #2d3f63;
+  --chart-4: #27724a;
+  --chart-5: #3a5078;
   --radius: 0.5rem;
-  --sidebar: #37352f;
+  --sidebar: #1B2A4A;
   --sidebar-foreground: #f7f7f5;
-  --sidebar-primary: #1a73e8;
+  --sidebar-primary: #1a7f37;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #4a4840;
+  --sidebar-accent: #243556;
   --sidebar-accent-foreground: #f7f7f5;
-  --sidebar-border: #555249;
-  --sidebar-ring: #1a73e8;
+  --sidebar-border: #2d3f63;
+  --sidebar-ring: #1B2A4A;
 
-  /* Accessible hybrid: WCAG AA compliant on #ffffff */
+  /* Confidence levels -- navy/green only */
   --confidence-high: #1a7f37;
-  --confidence-medium: #b45309;
-  --confidence-low: #c4163a;
-  --ai-accent: #6e56cf;
+  --confidence-medium: #1B2A4A;
+  --confidence-low: #1B2A4A;
+  --ai-accent: #1B2A4A;
 
-  /* Primary action -- blue */
-  --tr-primary: #1a73e8;
-  --tr-primary-hover: #1565c0;
+  /* Primary action -- navy */
+  --tr-primary: #1B2A4A;
+  --tr-primary-hover: #142038;
   --tr-primary-foreground: #ffffff;
 
-  /* Status semantic tokens -- all pass 4.5:1 on white */
+  /* Status semantic tokens -- navy/green/white only */
   --status-success: #1a7f37;
   --status-success-subtle: #f0f9f2;
   --status-success-border: #8ccf9c;
-  --status-warning: #b45309;
-  --status-warning-subtle: #fef6ee;
-  --status-warning-border: #e6b06a;
-  --status-error: #c4163a;
-  --status-error-subtle: #fdf1f3;
-  --status-error-border: #e8a0ad;
-  --status-info: #6e56cf;
-  --status-info-subtle: #f5f3fd;
-  --status-info-border: #b8aee0;
+  --status-warning: #1B2A4A;
+  --status-warning-subtle: #eef1f6;
+  --status-warning-border: #a3b1cc;
+  --status-error: #1B2A4A;
+  --status-error-subtle: #eef1f6;
+  --status-error-border: #a3b1cc;
+  --status-info: #1B2A4A;
+  --status-info-subtle: #eef1f6;
+  --status-info-border: #a3b1cc;
 
   /* Surface tokens -- warm ivory cards on white page */
   --surface-raised: #fdfbf7;
