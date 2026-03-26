@@ -60,18 +60,18 @@ export function FieldComparison({
         }}
         onClick={hasCrops ? () => setSelectedField(isSelected ? null : v.field) : undefined}
       >
-        <td style={{ padding: '0.375rem 0.625rem', fontSize: '0.75rem', fontWeight: 500, color: 'var(--foreground)' }}>
+        <td style={{ padding: '0.5rem 0.75rem', fontSize: '0.8125rem', fontWeight: 500, color: 'var(--foreground)' }}>
           {v.field}
         </td>
         <td style={{
-          padding: '0.375rem 0.625rem', fontSize: '0.75rem',
+          padding: '0.5rem 0.75rem', fontSize: '0.8125rem',
           fontFamily: 'var(--font-mono)', color: 'var(--foreground)',
           borderInlineStart: '0.0625rem solid var(--border)',
         }}>
           {v.valueA}
         </td>
         <td style={{
-          padding: '0.375rem 0.625rem', fontSize: '0.75rem',
+          padding: '0.5rem 0.75rem', fontSize: '0.8125rem',
           fontFamily: 'var(--font-mono)',
           color: v.match ? 'var(--foreground)' : 'var(--status-error)',
           fontWeight: v.match ? 400 : 600,
@@ -80,9 +80,9 @@ export function FieldComparison({
           {v.valueB}
         </td>
         <td style={{
-          padding: '0.375rem 0.25rem', textAlign: 'center',
+          padding: '0.5rem 0.375rem', textAlign: 'center',
           borderInlineStart: '0.0625rem solid var(--border)',
-          inlineSize: '2rem',
+          inlineSize: '2.25rem',
         }}>
           {v.match ? (
             <CheckCircle2 style={{ inlineSize: '0.875rem', blockSize: '0.875rem', color: 'var(--confidence-high)', margin: '0 auto' }} aria-label="Match" />
@@ -92,12 +92,12 @@ export function FieldComparison({
         </td>
         {hasCrops && (
           <td style={{
-            padding: '0.375rem 0.25rem', textAlign: 'center',
+            padding: '0.5rem 0.375rem', textAlign: 'center',
             borderInlineStart: '0.0625rem solid var(--border)',
-            inlineSize: '2rem',
+            inlineSize: '2.25rem',
           }}>
             <ScanSearch style={{
-              inlineSize: '0.8125rem', blockSize: '0.8125rem', margin: '0 auto',
+              inlineSize: '0.875rem', blockSize: '0.875rem', margin: '0 auto',
               color: isSelected ? 'var(--ai-accent)' : 'var(--muted-foreground)',
             }} aria-label="View source" />
           </td>
@@ -108,8 +108,8 @@ export function FieldComparison({
 
   /* ── Shared th style for sticky header ── */
   const thBase: React.CSSProperties = {
-    padding: '0.375rem 0.625rem',
-    fontSize: '0.6875rem',
+    padding: '0.5rem 0.75rem',
+    fontSize: '0.75rem',
     fontWeight: 700,
     color: 'var(--muted-foreground)',
     textAlign: 'start',
@@ -134,11 +134,11 @@ export function FieldComparison({
         <th style={{ ...thBase, borderInlineStart: '0.0625rem solid var(--border)' }}>
           {labelB}
         </th>
-        <th style={{ ...thBase, padding: '0.375rem 0.25rem', textAlign: 'center', inlineSize: '2rem', borderInlineStart: '0.0625rem solid var(--border)' }} aria-label="Status">
+        <th style={{ ...thBase, padding: '0.5rem 0.375rem', textAlign: 'center', inlineSize: '2.25rem', borderInlineStart: '0.0625rem solid var(--border)' }} aria-label="Status">
           {''}
         </th>
         {hasCrops && (
-          <th style={{ ...thBase, padding: '0.375rem 0.25rem', fontSize: '0.5625rem', textAlign: 'center', inlineSize: '2rem', borderInlineStart: '0.0625rem solid var(--border)' }}>
+          <th style={{ ...thBase, padding: '0.5rem 0.375rem', fontSize: '0.625rem', textAlign: 'center', inlineSize: '2.25rem', borderInlineStart: '0.0625rem solid var(--border)' }}>
             Src
           </th>
         )}
@@ -154,12 +154,12 @@ export function FieldComparison({
         <div
           role="status"
           style={{
-            display: 'flex', alignItems: 'center', gap: '0.375rem',
-            padding: '0.3125rem 0.625rem',
-            borderRadius: '0.25rem',
+            display: 'flex', alignItems: 'center', gap: '0.5rem',
+            padding: '0.5rem 0.75rem',
+            borderRadius: '0.375rem',
             backgroundColor: 'var(--status-warning-subtle)',
             border: '0.0625rem solid var(--status-warning-border)',
-            fontSize: '0.6875rem', fontWeight: 600,
+            fontSize: '0.75rem', fontWeight: 600,
             color: 'var(--status-warning)',
           }}
         >
@@ -189,21 +189,21 @@ export function FieldComparison({
             type="button"
             onClick={() => setViewMode('unmatched')}
             style={{
-              display: 'flex', alignItems: 'center', gap: '0.3125rem',
-              padding: '0.3125rem 0.625rem',
+              display: 'flex', alignItems: 'center', gap: '0.375rem',
+              padding: '0.4375rem 0.75rem',
               border: 'none', cursor: 'pointer',
-              fontSize: '0.6875rem', fontWeight: 600,
+              fontSize: '0.75rem', fontWeight: 600,
               backgroundColor: viewMode === 'unmatched' ? 'var(--status-error)' : 'var(--surface-raised)',
               color: viewMode === 'unmatched' ? 'var(--card)' : 'var(--muted-foreground)',
             }}
             aria-pressed={viewMode === 'unmatched'}
           >
-            <XCircle style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} />
+            <XCircle style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem' }} />
             Unmatched
             <span style={{
-              padding: '0.0625rem 0.3125rem',
+              padding: '0.0625rem 0.375rem',
               borderRadius: '0.5rem',
-              fontSize: '0.625rem', fontWeight: 700,
+              fontSize: '0.6875rem', fontWeight: 700,
               backgroundColor: viewMode === 'unmatched' ? 'var(--status-error-subtle)' : 'var(--muted)',
               color: viewMode === 'unmatched' ? 'var(--status-error)' : 'var(--muted-foreground)',
             }}>
@@ -214,22 +214,22 @@ export function FieldComparison({
             type="button"
             onClick={() => setViewMode('matched')}
             style={{
-              display: 'flex', alignItems: 'center', gap: '0.3125rem',
-              padding: '0.3125rem 0.625rem',
+              display: 'flex', alignItems: 'center', gap: '0.375rem',
+              padding: '0.4375rem 0.75rem',
               border: 'none', cursor: 'pointer',
               borderInlineStart: '0.0625rem solid var(--border)',
-              fontSize: '0.6875rem', fontWeight: 600,
+              fontSize: '0.75rem', fontWeight: 600,
               backgroundColor: viewMode === 'matched' ? 'var(--status-success)' : 'var(--surface-raised)',
               color: viewMode === 'matched' ? 'var(--card)' : 'var(--muted-foreground)',
             }}
             aria-pressed={viewMode === 'matched'}
           >
-            <CheckCircle2 style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} />
+            <CheckCircle2 style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem' }} />
             Matched
             <span style={{
-              padding: '0.0625rem 0.3125rem',
+              padding: '0.0625rem 0.375rem',
               borderRadius: '0.5rem',
-              fontSize: '0.625rem', fontWeight: 700,
+              fontSize: '0.6875rem', fontWeight: 700,
               backgroundColor: viewMode === 'matched' ? 'var(--status-success-subtle)' : 'var(--muted)',
               color: viewMode === 'matched' ? 'var(--status-success)' : 'var(--muted-foreground)',
             }}>
@@ -237,7 +237,7 @@ export function FieldComparison({
             </span>
           </button>
         </div>
-        <span style={{ fontSize: '0.6875rem', color: 'var(--muted-foreground)', fontWeight: 400 }}>
+        <span style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', fontWeight: 400 }}>
           of {totalFields} fields
         </span>
       </div>
@@ -328,16 +328,16 @@ export function FieldComparison({
           {/* Strip header */}
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '0.375rem 0.625rem',
+            padding: '0.5rem 0.75rem',
             backgroundColor: 'var(--status-info-subtle)',
             borderBlockEnd: '0.0625rem solid var(--status-info-border)',
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-              <ScanSearch style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem', color: 'var(--ai-accent)' }} />
-              <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--ai-accent)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <ScanSearch style={{ inlineSize: '0.9375rem', blockSize: '0.9375rem', color: 'var(--ai-accent)' }} />
+              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--ai-accent)' }}>
                 Source View
               </span>
-              <span style={{ fontSize: '0.625rem', color: 'var(--muted-foreground)' }}>
+              <span style={{ fontSize: '0.6875rem', color: 'var(--muted-foreground)' }}>
                 {selectedValue.field}
               </span>
             </div>
@@ -365,8 +365,8 @@ export function FieldComparison({
             backgroundColor: 'var(--border)',
           }}>
             {/* Doc A crop */}
-            <div style={{ backgroundColor: 'var(--background)', padding: '0.5rem' }}>
-              <p style={{ margin: '0 0 0.375rem', fontSize: '0.625rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            <div style={{ backgroundColor: 'var(--background)', padding: '0.625rem' }}>
+              <p style={{ margin: '0 0 0.5rem', fontSize: '0.6875rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                 {labelA}
               </p>
               {docRefA ? (
@@ -411,8 +411,8 @@ export function FieldComparison({
             </div>
 
             {/* Doc B crop */}
-            <div style={{ backgroundColor: 'var(--background)', padding: '0.5rem' }}>
-              <p style={{ margin: '0 0 0.375rem', fontSize: '0.625rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            <div style={{ backgroundColor: 'var(--background)', padding: '0.625rem' }}>
+              <p style={{ margin: '0 0 0.5rem', fontSize: '0.6875rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                 {labelB}
               </p>
               {docRefB ? (

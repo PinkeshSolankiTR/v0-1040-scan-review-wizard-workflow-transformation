@@ -512,10 +512,10 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0', border: '0.0625rem solid var(--border)', borderRadius: 'var(--radius)', overflow: 'hidden', backgroundColor: 'var(--card)' }}>
       {/* ── Top header bar ── */}
-      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.625rem 1rem', backgroundColor: 'var(--surface-raised)', borderBlockEnd: '0.0625rem solid var(--border)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <FileText style={{ inlineSize: '1rem', blockSize: '1rem', color: 'var(--muted-foreground)' }} />
-          <h2 style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--foreground)' }}>Verify Superseded</h2>
+      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 1.25rem', backgroundColor: 'var(--surface-raised)', borderBlockEnd: '0.0625rem solid var(--border)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+          <FileText style={{ inlineSize: '1.125rem', blockSize: '1.125rem', color: 'var(--muted-foreground)' }} />
+          <h2 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--foreground)' }}>Verify Superseded</h2>
           <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0.125rem 0.5rem', borderRadius: '624.9375rem', backgroundColor: 'var(--muted)', color: 'var(--muted-foreground)', fontSize: '0.6875rem', fontWeight: 600, fontFamily: 'var(--font-mono)' }}>{data.length}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -537,9 +537,9 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
               disabled={isGroupRejected || allGroupAccepted}
               style={{
                 display: 'flex', alignItems: 'center', gap: '0.375rem',
-                padding: '0.375rem 0.75rem', border: '0.0625rem solid var(--status-warning-border)', borderRadius: '0.25rem',
+                padding: '0.5rem 0.875rem', border: '0.0625rem solid var(--status-warning-border)', borderRadius: '0.375rem',
                 backgroundColor: isActiveFlipped ? 'var(--status-warning-subtle)' : 'var(--card)',
-                fontSize: '0.75rem', fontWeight: 600, color: 'var(--status-warning)',
+                fontSize: '0.8125rem', fontWeight: 600, color: 'var(--status-warning)',
                 cursor: (isGroupRejected || allGroupAccepted) ? 'not-allowed' : 'pointer',
                 opacity: (isGroupRejected || allGroupAccepted) ? 0.5 : 1,
               }}
@@ -708,7 +708,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
 
           {/* Reject Classification */}
           <div style={{ position: 'relative' }}>
-            <button type="button" onClick={() => { if (!showRejectPanel) { setRejectStep('reason'); setRejectTargetPageId(null); setNewOriginalAfterReject(null); setSelectedRejectReasons(new Set()); setCustomRejectReason('') }; setShowRejectPanel(p => !p) }} disabled={isGroupRejected || allGroupAccepted} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', padding: '0.375rem 0.75rem', border: '0.0625rem solid var(--status-error-border)', borderRadius: '0.25rem', backgroundColor: isGroupRejected ? 'var(--status-error-subtle)' : hasPartialRejects ? 'var(--status-error-subtle)' : 'var(--card)', fontSize: '0.75rem', fontWeight: 600, color: (isGroupRejected || allGroupAccepted) ? 'var(--status-error)' : 'var(--status-error)', cursor: (isGroupRejected || allGroupAccepted) ? 'not-allowed' : 'pointer', opacity: (isGroupRejected || allGroupAccepted) ? 0.7 : 1 }} aria-expanded={showRejectPanel}>
+            <button type="button" onClick={() => { if (!showRejectPanel) { setRejectStep('reason'); setRejectTargetPageId(null); setNewOriginalAfterReject(null); setSelectedRejectReasons(new Set()); setCustomRejectReason('') }; setShowRejectPanel(p => !p) }} disabled={isGroupRejected || allGroupAccepted} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', padding: '0.5rem 0.875rem', border: '0.0625rem solid var(--status-error-border)', borderRadius: '0.375rem', backgroundColor: isGroupRejected ? 'var(--status-error-subtle)' : hasPartialRejects ? 'var(--status-error-subtle)' : 'var(--card)', fontSize: '0.8125rem', fontWeight: 600, color: (isGroupRejected || allGroupAccepted) ? 'var(--status-error)' : 'var(--status-error)', cursor: (isGroupRejected || allGroupAccepted) ? 'not-allowed' : 'pointer', opacity: (isGroupRejected || allGroupAccepted) ? 0.7 : 1 }} aria-expanded={showRejectPanel}>
               <X style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem' }} /> Not Superseded
             </button>
             {showRejectPanel && !isGroupRejected && !allGroupAccepted && (() => {
@@ -767,7 +767,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                   <Undo2 style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem' }} /> Undo: {lastUndoEntry.label}
                 </button>
               ) : (
-                <button type="button" onClick={() => { handleAcceptGroup(); setShowAcceptDropdown(false) }} disabled={isGroupRejected || allGroupAccepted} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', padding: '0.375rem 0.75rem', border: 'none', borderRadius: '0.25rem 0 0 0.25rem', backgroundColor: (isGroupRejected || allGroupAccepted) ? 'var(--status-success-border)' : 'var(--status-success)', fontSize: '0.75rem', fontWeight: 600, color: 'var(--card)', cursor: (isGroupRejected || allGroupAccepted) ? 'not-allowed' : 'pointer', opacity: (isGroupRejected || allGroupAccepted) ? 0.6 : 1 }}>
+                <button type="button" onClick={() => { handleAcceptGroup(); setShowAcceptDropdown(false) }} disabled={isGroupRejected || allGroupAccepted} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', padding: '0.5rem 0.875rem', border: 'none', borderRadius: '0.375rem 0 0 0.375rem', backgroundColor: (isGroupRejected || allGroupAccepted) ? 'var(--status-success-border)' : 'var(--status-success)', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--card)', cursor: (isGroupRejected || allGroupAccepted) ? 'not-allowed' : 'pointer', opacity: (isGroupRejected || allGroupAccepted) ? 0.6 : 1 }}>
                   <Check style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem' }} /> Accept
                 </button>
               )}
@@ -798,7 +798,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
             )}
           </div>
 
-          <button type="button" style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', padding: '0.375rem 0.875rem', border: 'none', borderRadius: '0.25rem', backgroundColor: 'var(--tr-primary)', fontSize: '0.75rem', fontWeight: 700, color: 'var(--tr-primary-foreground)', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+          <button type="button" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', border: 'none', borderRadius: '0.375rem', backgroundColor: 'var(--tr-primary)', fontSize: '0.8125rem', fontWeight: 700, color: 'var(--tr-primary-foreground)', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
             Next Step <ArrowRight style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} />
           </button>
         </div>
@@ -876,13 +876,13 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
 
               return (
                 <div key={group.formType} style={{ borderBlockEnd: '0.0625rem solid var(--border)', backgroundColor: rowBg, opacity: isThisGroupRejected ? 0.65 : 1 }}>
-                  <button type="button" onClick={() => toggleGroup(group.formType, gIdx)} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', inlineSize: '100%', padding: '0.625rem 0.75rem', border: 'none', cursor: 'pointer', textAlign: 'start', backgroundColor: 'transparent', borderInlineStart: isActiveGroup ? '0.1875rem solid var(--ai-accent)' : isThisGroupAccepted ? '0.1875rem solid var(--status-success)' : isThisGroupReclassified ? '0.1875rem solid var(--status-warning)' : isThisGroupRejected ? '0.1875rem solid var(--muted-foreground)' : '0.1875rem solid transparent' }}>
+                  <button type="button" onClick={() => toggleGroup(group.formType, gIdx)} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.625rem', inlineSize: '100%', padding: '0.75rem 0.875rem', border: 'none', cursor: 'pointer', textAlign: 'start', backgroundColor: 'transparent', borderInlineStart: isActiveGroup ? '0.1875rem solid var(--ai-accent)' : isThisGroupAccepted ? '0.1875rem solid var(--status-success)' : isThisGroupReclassified ? '0.1875rem solid var(--status-warning)' : isThisGroupRejected ? '0.1875rem solid var(--muted-foreground)' : '0.1875rem solid transparent' }}>
                     <div style={{ flex: '1 1 0', minInlineSize: 0 }}>
                       {(() => {
                         const identifier = extractIdentifier(group.records)
                         return (
                           <div>
-                            <span style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--foreground)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{group.formType}: {group.formEntity.toUpperCase()}</span>
+                            <span style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 700, color: 'var(--foreground)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{group.formType}: {group.formEntity.toUpperCase()}</span>
                             {identifier && <span style={{ display: 'block', fontSize: '0.625rem', fontWeight: 500, color: 'var(--muted-foreground)', fontFamily: 'var(--font-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBlockStart: '0.125rem' }}>{identifier.label}: {identifier.value}</span>}
                           </div>
                         )
@@ -974,25 +974,25 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
 
             return (
               <div style={{ borderBlockEnd: '0.0625rem solid var(--border)' }}>
-                <div style={{ padding: '0.625rem 0.75rem', borderBlockEnd: '0.0625rem solid var(--border)', backgroundColor: 'var(--card)' }}>
+                <div style={{ padding: '0.875rem 1rem', borderBlockEnd: '0.0625rem solid var(--border)', backgroundColor: 'var(--card)' }}>
                   <div>
-                    <span style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 700, color: 'var(--foreground)' }}>{activeGroup?.formType}: {activeGroup?.formEntity.toUpperCase()}</span>
-                    {panelIdentifier && <span style={{ display: 'block', fontSize: '0.6875rem', fontWeight: 500, color: 'var(--muted-foreground)', fontFamily: 'var(--font-mono)', marginBlockStart: '0.125rem' }}>{panelIdentifier.label}: {panelIdentifier.value}</span>}
+                    <span style={{ display: 'block', fontSize: '0.9375rem', fontWeight: 700, color: 'var(--foreground)' }}>{activeGroup?.formType}: {activeGroup?.formEntity.toUpperCase()}</span>
+                    {panelIdentifier && <span style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, color: 'var(--muted-foreground)', fontFamily: 'var(--font-mono)', marginBlockStart: '0.1875rem' }}>{panelIdentifier.label}: {panelIdentifier.value}</span>}
                   </div>
                 </div>
-                <button type="button" onClick={() => togglePanel('aiAnalysis')} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', inlineSize: '100%', padding: '0.375rem 0.75rem', border: 'none', cursor: 'pointer', textAlign: 'start', fontSize: '0.6875rem', fontWeight: 700, backgroundColor: 'var(--surface-raised)', borderBlockEnd: expandedPanels.has('aiAnalysis') ? 'none' : '0.0625rem solid var(--border)', color: 'var(--muted-foreground)' }}>
+                <button type="button" onClick={() => togglePanel('aiAnalysis')} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', inlineSize: '100%', padding: '0.5rem 1rem', border: 'none', cursor: 'pointer', textAlign: 'start', fontSize: '0.75rem', fontWeight: 700, backgroundColor: 'var(--surface-raised)', borderBlockEnd: expandedPanels.has('aiAnalysis') ? 'none' : '0.0625rem solid var(--border)', color: 'var(--muted-foreground)' }}>
                   {expandedPanels.has('aiAnalysis') ? <ChevronDown style={{ inlineSize: '0.625rem', blockSize: '0.625rem', color: 'var(--muted-foreground)' }} /> : <ChevronRight style={{ inlineSize: '0.625rem', blockSize: '0.625rem', color: 'var(--muted-foreground)' }} />}
                   {panelGroupRejected ? (
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.6875rem', fontWeight: 700, fontFamily: 'var(--font-mono)', padding: '0.125rem 0.375rem', borderRadius: '0.1875rem', backgroundColor: 'var(--muted)', color: 'var(--muted-foreground)' }}><X style={{ inlineSize: '0.5625rem', blockSize: '0.5625rem' }} /> Not Superseded</span>
                   ) : isGroupOverridden ? (
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.6875rem', fontWeight: 700, fontFamily: 'var(--font-mono)', padding: '0.125rem 0.375rem', borderRadius: '0.1875rem', backgroundColor: 'var(--status-warning-subtle)', color: 'var(--status-warning)' }}><ArrowLeftRight style={{ inlineSize: '0.5625rem', blockSize: '0.5625rem' }} /> Verifier Decision</span>
                   ) : (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.6875rem', fontWeight: 700, padding: '0.125rem 0.375rem', borderRadius: '0.1875rem', backgroundColor: `${confColor} / 0.12`, color: confColor }} title={panelTooltip}><Sparkles style={{ inlineSize: '0.5625rem', blockSize: '0.5625rem' }} /> {panelActionLabel}</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', fontWeight: 700, padding: '0.1875rem 0.5rem', borderRadius: '0.25rem', backgroundColor: `${confColor} / 0.12`, color: confColor }} title={panelTooltip}><Sparkles style={{ inlineSize: '0.6875rem', blockSize: '0.6875rem' }} /> {panelActionLabel}</span>
                   )}
                 </button>
 
                 {expandedPanels.has('aiAnalysis') && (
-                  <div style={{ padding: '0.625rem 0.75rem', backgroundColor: panelGroupRejected ? 'var(--surface-raised)' : isGroupOverridden ? 'var(--status-warning-subtle)' : 'var(--surface-raised)' }}>
+                  <div style={{ padding: '0.875rem 1rem', backgroundColor: panelGroupRejected ? 'var(--surface-raised)' : isGroupOverridden ? 'var(--status-warning-subtle)' : 'var(--surface-raised)' }}>
                     {panelGroupRejected && (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', padding: '0.625rem 0.75rem', borderRadius: '0.25rem', border: '0.0625rem solid var(--border)', backgroundColor: 'var(--surface-sunken)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
@@ -1020,20 +1020,20 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                       const overriddenRecord = activeFlippedIdx !== undefined ? activeGroup!.supersededRecords[activeFlippedIdx] : null
                       const allRecords = activeGroup!.records
                       return (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.5rem 0.625rem', marginBlockEnd: '0.625rem', borderRadius: '0.25rem', border: '0.0625rem solid var(--status-warning-border)', backgroundColor: 'var(--status-warning-subtle)' }}>
-                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--status-warning)' }}>Verifier Decision</span>
-                        <div style={{ padding: '0.375rem 0.5rem', borderRadius: '0.25rem', backgroundColor: 'var(--card)', border: '0.0625rem solid var(--border)' }}>
-                          <span style={{ fontSize: '0.5625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--muted-foreground)' }}>AI Recommended</span>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem', marginBlockStart: '0.25rem' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem', padding: '0.75rem 0.875rem', marginBlockEnd: '0.75rem', borderRadius: '0.375rem', border: '0.0625rem solid var(--status-warning-border)', backgroundColor: 'var(--status-warning-subtle)' }}>
+                        <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--status-warning)' }}>Verifier Decision</span>
+                        <div style={{ padding: '0.5rem 0.625rem', borderRadius: '0.25rem', backgroundColor: 'var(--card)', border: '0.0625rem solid var(--border)' }}>
+                          <span style={{ fontSize: '0.625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--muted-foreground)' }}>AI Recommended</span>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem', marginBlockStart: '0.375rem' }}>
                             {allRecords.map(r => {
                               const isRej = rejectedPageIds.has(String(r.engagementPageId))
-                              return <span key={r.engagementPageId} style={{ fontSize: '0.625rem', fontWeight: 600, padding: '0.125rem 0.375rem', borderRadius: '0.1875rem', backgroundColor: isRej ? 'var(--muted)' : r.decisionType === 'Original' ? 'var(--status-success-subtle)' : 'var(--status-error-subtle)', color: isRej ? 'var(--muted-foreground)' : r.decisionType === 'Original' ? 'var(--status-success)' : 'var(--status-error)', opacity: isRej ? 0.7 : 1 }}>Pg {r.documentRef?.pageNumber ?? r.engagementPageId}: {isRej ? 'Not Superseded' : r.decisionType}</span>
+                              return <span key={r.engagementPageId} style={{ fontSize: '0.6875rem', fontWeight: 600, padding: '0.1875rem 0.5rem', borderRadius: '0.25rem', backgroundColor: isRej ? 'var(--muted)' : r.decisionType === 'Original' ? 'var(--status-success-subtle)' : 'var(--status-error-subtle)', color: isRej ? 'var(--muted-foreground)' : r.decisionType === 'Original' ? 'var(--status-success)' : 'var(--status-error)', opacity: isRej ? 0.7 : 1 }}>Pg {r.documentRef?.pageNumber ?? r.engagementPageId}: {isRej ? 'Not Superseded' : r.decisionType}</span>
                             })}
                           </div>
                         </div>
-                        <div style={{ padding: '0.375rem 0.5rem', borderRadius: '0.25rem', backgroundColor: 'var(--card)', border: '0.0625rem solid var(--border)' }}>
-                          <span style={{ fontSize: '0.5625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--muted-foreground)' }}>Verifier Changed To</span>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem', marginBlockStart: '0.25rem' }}>
+                        <div style={{ padding: '0.5rem 0.625rem', borderRadius: '0.25rem', backgroundColor: 'var(--card)', border: '0.0625rem solid var(--border)' }}>
+                          <span style={{ fontSize: '0.625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--muted-foreground)' }}>Verifier Changed To</span>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem', marginBlockStart: '0.375rem' }}>
                             {allRecords.map(r => {
                               const isRej = rejectedPageIds.has(String(r.engagementPageId))
                               const sd = overrides[`sup-pg${r.engagementPageId}`]
@@ -1047,7 +1047,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                               else newLabel = 'Superseded'
                               const isExcluded = newLabel === 'Not Superseded'
                               const changed = !isExcluded && ((r.decisionType === 'Original' && newLabel === 'Superseded') || (r.decisionType === 'Superseded' && newLabel === 'Original'))
-                              return <span key={r.engagementPageId} style={{ fontSize: '0.625rem', fontWeight: 600, padding: '0.125rem 0.375rem', borderRadius: '0.1875rem', backgroundColor: isExcluded ? 'var(--muted)' : newLabel === 'Original' ? 'var(--status-success-subtle)' : 'var(--status-error-subtle)', color: isExcluded ? 'var(--muted-foreground)' : newLabel === 'Original' ? 'var(--status-success)' : 'var(--status-error)', outline: changed ? '0.125rem solid var(--status-warning)' : isExcluded ? '0.125rem solid var(--border)' : 'none', opacity: isExcluded ? 0.8 : 1 }}>Pg {r.documentRef?.pageNumber ?? r.engagementPageId}: {newLabel}{changed && ' *'}</span>
+                              return <span key={r.engagementPageId} style={{ fontSize: '0.6875rem', fontWeight: 600, padding: '0.1875rem 0.5rem', borderRadius: '0.25rem', backgroundColor: isExcluded ? 'var(--muted)' : newLabel === 'Original' ? 'var(--status-success-subtle)' : 'var(--status-error-subtle)', color: isExcluded ? 'var(--muted-foreground)' : newLabel === 'Original' ? 'var(--status-success)' : 'var(--status-error)', outline: changed ? '0.125rem solid var(--status-warning)' : isExcluded ? '0.125rem solid var(--border)' : 'none', opacity: isExcluded ? 0.8 : 1 }}>Pg {r.documentRef?.pageNumber ?? r.engagementPageId}: {newLabel}{changed && ' *'}</span>
                             })}
                           </div>
                         </div>
@@ -1105,25 +1105,25 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                       const hasDocNumberDiff = differingFields.some(v => v.field.toLowerCase().includes('document number'))
                       const allIdentifyingMatch = matchingFields.some(v => (v.category ?? '').toLowerCase().includes('recipient')) && matchingFields.some(v => (v.category ?? '').toLowerCase().includes('payer'))
                       return (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1875rem', padding: '0.375rem 0.5rem', borderRadius: '0.25rem', backgroundColor: 'var(--surface-raised)', border: '0.0625rem solid var(--border)' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', padding: '0.5rem 0.625rem', borderRadius: '0.375rem', backgroundColor: 'var(--surface-raised)', border: '0.0625rem solid var(--border)' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}><span style={{ fontSize: '0.5625rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Document Type</span><span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--foreground)' }}>{formType}{entity && entity !== formType ? ` (${entity})` : ''}</span></div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.625rem', color: 'var(--muted-foreground)' }}><span style={{ fontWeight: 600, color: 'var(--status-error)' }}>{supLabel.replace(formType, '').replace(/[-()\s]+/g, ' ').trim() || 'Superseded'}</span><span style={{ color: 'var(--border)' }}>vs</span><span style={{ fontWeight: 600, color: 'var(--status-success)' }}>{origLabel.replace(formType, '').replace(/[-()\s]+/g, ' ').trim() || 'Original'}</span></div>
                           </div>
-                          <p style={{ fontSize: '0.6875rem', lineHeight: 1.6, color: 'var(--foreground)', margin: 0 }}>
+                          <p style={{ fontSize: '0.75rem', lineHeight: 1.7, color: 'var(--foreground)', margin: 0 }}>
                             {allIdentifyingMatch ? `The AI identified these as versions of the same ${formType} filing from ${entity || 'the same payer'}. Core identifying fields (${matchingFields.filter(v => ['Payer Info', 'Recipient Info'].includes(v.category ?? '')).map(v => v.field).join(', ')}) are identical, confirming these forms relate to the same taxpayer and payer.` : `The AI compared these ${formType} documents and found ${matchingFields.length} matching field${matchingFields.length !== 1 ? 's' : ''} out of ${comparedValues.length} total.`}
                             {hasCorrectedField && ' The Corrected indicator changed, consistent with a corrected filing replacing the original.'}
                             {hasAmountDiffs && ` Income-related fields (${differingFields.filter(v => (v.category ?? '').toLowerCase() === 'income').map(v => v.field).join(', ')}) differ between documents, which is expected when a payer issues a corrected form with updated amounts.`}
                             {hasDocNumberDiff && ' The Document Number suffix changed, further confirming this is a revision of the same filing.'}
                             {!hasCorrectedField && !hasAmountDiffs && differingFields.length > 0 && ` The following fields differ: ${differingFields.map(v => v.field).join(', ')}. These differences suggest the documents represent different versions of the same filing.`}
                           </p>
-                          <div style={{ display: 'flex', gap: '0.375rem' }}>
-                            {matchingFields.length > 0 && <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.25rem', padding: '0.375rem 0.5rem', borderRadius: '0.25rem', backgroundColor: 'var(--status-success-subtle)', border: '0.0625rem solid var(--status-success-border)' }}><span style={{ fontSize: '0.5625rem', fontWeight: 700, color: 'var(--status-success)' }}>Matching ({matchingFields.length})</span>{Array.from(matchCategories.entries()).map(([cat, fields]) => <div key={cat} style={{ display: 'flex', flexDirection: 'column', gap: '0.125rem' }}><span style={{ fontSize: '0.5rem', fontWeight: 600, color: 'var(--status-success)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{cat}</span><div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.1875rem' }}>{fields.map(f => <span key={f} style={{ fontSize: '0.5625rem', fontWeight: 500, padding: '0.0625rem 0.25rem', borderRadius: '0.125rem', backgroundColor: 'var(--status-success-subtle)', color: 'var(--status-success)' }}>{f}</span>)}</div></div>)}</div>}
-                            {differingFields.length > 0 && <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.25rem', padding: '0.375rem 0.5rem', borderRadius: '0.25rem', backgroundColor: 'var(--status-warning-subtle)', border: '0.0625rem solid var(--status-warning-border)' }}><span style={{ fontSize: '0.5625rem', fontWeight: 700, color: 'var(--status-warning)' }}>Differing ({differingFields.length})</span>{Array.from(differCategories.entries()).map(([cat, fields]) => <div key={cat} style={{ display: 'flex', flexDirection: 'column', gap: '0.125rem' }}><span style={{ fontSize: '0.5rem', fontWeight: 600, color: 'var(--status-warning)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{cat}</span><div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.1875rem' }}>{fields.map(f => <span key={f} style={{ fontSize: '0.5625rem', fontWeight: 500, padding: '0.0625rem 0.25rem', borderRadius: '0.125rem', backgroundColor: 'var(--status-warning-subtle)', color: 'var(--status-warning)' }}>{f}</span>)}</div></div>)}</div>}
+                          <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            {matchingFields.length > 0 && <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.375rem', padding: '0.5rem 0.625rem', borderRadius: '0.375rem', backgroundColor: 'var(--status-success-subtle)', border: '0.0625rem solid var(--status-success-border)' }}><span style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--status-success)' }}>Matching ({matchingFields.length})</span>{Array.from(matchCategories.entries()).map(([cat, fields]) => <div key={cat} style={{ display: 'flex', flexDirection: 'column', gap: '0.1875rem' }}><span style={{ fontSize: '0.5625rem', fontWeight: 600, color: 'var(--status-success)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{cat}</span><div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>{fields.map(f => <span key={f} style={{ fontSize: '0.625rem', fontWeight: 500, padding: '0.125rem 0.3125rem', borderRadius: '0.1875rem', backgroundColor: 'var(--status-success-subtle)', color: 'var(--status-success)' }}>{f}</span>)}</div></div>)}</div>}
+                            {differingFields.length > 0 && <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.375rem', padding: '0.5rem 0.625rem', borderRadius: '0.375rem', backgroundColor: 'var(--status-warning-subtle)', border: '0.0625rem solid var(--status-warning-border)' }}><span style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--status-warning)' }}>Differing ({differingFields.length})</span>{Array.from(differCategories.entries()).map(([cat, fields]) => <div key={cat} style={{ display: 'flex', flexDirection: 'column', gap: '0.1875rem' }}><span style={{ fontSize: '0.5625rem', fontWeight: 600, color: 'var(--status-warning)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{cat}</span><div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>{fields.map(f => <span key={f} style={{ fontSize: '0.625rem', fontWeight: 500, padding: '0.125rem 0.3125rem', borderRadius: '0.1875rem', backgroundColor: 'var(--status-warning-subtle)', color: 'var(--status-warning)' }}>{f}</span>)}</div></div>)}</div>}
                           </div>
-                          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.375rem', padding: '0.375rem 0.5rem', borderRadius: '0.25rem', backgroundColor: 'var(--status-info-subtle)', border: '0.0625rem solid var(--status-info-border)' }}>
-                            <Info style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'var(--ai-accent)', flexShrink: 0, marginBlockStart: '0.0625rem' }} />
-                            <span style={{ fontSize: '0.625rem', color: 'var(--foreground)', lineHeight: 1.5 }}>
+                          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', padding: '0.5rem 0.625rem', borderRadius: '0.375rem', backgroundColor: 'var(--status-info-subtle)', border: '0.0625rem solid var(--status-info-border)' }}>
+                            <Info style={{ inlineSize: '0.875rem', blockSize: '0.875rem', color: 'var(--ai-accent)', flexShrink: 0, marginBlockStart: '0.0625rem' }} />
+                            <span style={{ fontSize: '0.6875rem', color: 'var(--foreground)', lineHeight: 1.6 }}>
                               {hasCorrectedField ? 'Verify that the Corrected indicator and updated amounts are consistent with a payer-issued correction before accepting.' : hasAmountDiffs ? 'Review the income field differences to confirm they represent an updated filing rather than a separate tax event.' : differingFields.length === 0 ? 'All compared fields match exactly. Verify these are not two distinct filings for different periods.' : `Review the ${differingFields.length} differing field${differingFields.length !== 1 ? 's' : ''} to confirm this represents a superseded version rather than a separate filing.`}
                             </span>
                           </div>
@@ -1139,14 +1139,14 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
           {/* PANEL 2: Field Comparison */}
           {!isGroupRejected && comparedValues.length > 0 && (
             <div style={{ borderBlockEnd: '0.0625rem solid var(--border)' }}>
-              <button type="button" onClick={() => togglePanel('fieldComparison')} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', inlineSize: '100%', padding: '0.5rem 0.75rem', border: 'none', cursor: 'pointer', textAlign: 'start', fontSize: '0.75rem', fontWeight: 700, color: 'var(--foreground)', backgroundColor: 'var(--surface-raised)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                {expandedPanels.has('fieldComparison') ? <ChevronDown style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'var(--muted-foreground)' }} /> : <ChevronRight style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'var(--muted-foreground)' }} />}
-                <Columns2 style={{ inlineSize: '0.875rem', blockSize: '0.875rem', color: 'var(--ai-accent)' }} />
+              <button type="button" onClick={() => togglePanel('fieldComparison')} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', inlineSize: '100%', padding: '0.625rem 1rem', border: 'none', cursor: 'pointer', textAlign: 'start', fontSize: '0.8125rem', fontWeight: 700, color: 'var(--foreground)', backgroundColor: 'var(--surface-raised)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                {expandedPanels.has('fieldComparison') ? <ChevronDown style={{ inlineSize: '0.875rem', blockSize: '0.875rem', color: 'var(--muted-foreground)' }} /> : <ChevronRight style={{ inlineSize: '0.875rem', blockSize: '0.875rem', color: 'var(--muted-foreground)' }} />}
+                <Columns2 style={{ inlineSize: '1rem', blockSize: '1rem', color: 'var(--ai-accent)' }} />
                 Field Comparison
-                <span style={{ fontSize: '0.625rem', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'none', letterSpacing: 'normal' }}>{comparedValues.filter(v => !v.match).length} of {comparedValues.length} differ</span>
+                <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'none', letterSpacing: 'normal' }}>{comparedValues.filter(v => !v.match).length} of {comparedValues.length} differ</span>
               </button>
               {expandedPanels.has('fieldComparison') && (
-                <div style={{ padding: '0.5rem 0.75rem', backgroundColor: 'var(--background)' }}>
+                <div style={{ padding: '0.75rem 1rem', backgroundColor: 'var(--background)' }}>
                   <FieldComparison values={comparedValues} labelA={leftDoc?.documentRef?.formLabel ?? 'Superseded'} labelB={rightDoc?.documentRef?.formLabel ?? 'Original'} docRefA={leftDoc?.documentRef} docRefB={rightDoc?.documentRef} isOverridden={isActiveFlipped} />
                 </div>
               )}
@@ -1156,9 +1156,9 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
           {/* PANEL 3: Document Viewer */}
           {!isGroupRejected && (
           <div style={{ borderBlockEnd: '0.0625rem solid var(--border)' }}>
-            <button type="button" onClick={() => togglePanel('documents')} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', inlineSize: '100%', padding: '0.5rem 0.75rem', border: 'none', cursor: 'pointer', textAlign: 'start', fontSize: '0.75rem', fontWeight: 700, color: 'var(--foreground)', backgroundColor: 'var(--surface-sunken)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              {isDocExpanded ? <ChevronDown style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'var(--muted-foreground)' }} /> : <ChevronRight style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'var(--muted-foreground)' }} />}
-              <Eye style={{ inlineSize: '0.875rem', blockSize: '0.875rem', color: 'var(--ai-accent)' }} /> Document Viewer
+            <button type="button" onClick={() => togglePanel('documents')} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', inlineSize: '100%', padding: '0.625rem 1rem', border: 'none', cursor: 'pointer', textAlign: 'start', fontSize: '0.8125rem', fontWeight: 700, color: 'var(--foreground)', backgroundColor: 'var(--surface-sunken)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              {isDocExpanded ? <ChevronDown style={{ inlineSize: '0.875rem', blockSize: '0.875rem', color: 'var(--muted-foreground)' }} /> : <ChevronRight style={{ inlineSize: '0.875rem', blockSize: '0.875rem', color: 'var(--muted-foreground)' }} />}
+              <Eye style={{ inlineSize: '1rem', blockSize: '1rem', color: 'var(--ai-accent)' }} /> Document Viewer
               {!isDocExpanded && <span style={{ fontSize: '0.625rem', fontWeight: 500, color: 'var(--muted-foreground)', textTransform: 'none', letterSpacing: 'normal' }}>-- Click to expand full view</span>}
               {isDocExpanded && <span style={{ marginInlineStart: 'auto', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.625rem', fontWeight: 500, color: 'var(--muted-foreground)', textTransform: 'none', letterSpacing: 'normal' }}><Minimize2 style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} /> Collapse to thumbnails</span>}
             </button>
