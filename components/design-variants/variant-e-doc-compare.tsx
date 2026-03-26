@@ -446,7 +446,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
     const avgConfRaw = activeGroup ? activeGroup.records.reduce((sum, r) => sum + r.confidenceLevel, 0) / activeGroup.records.length : 0
     const avgConf = Math.round(avgConfRaw * 100)
     const confColor = avgConf >= 90 ? 'var(--confidence-high)' : avgConf >= 70 ? 'var(--confidence-medium)' : 'var(--confidence-low)'
-    const panelActionLabel = avgConf >= 90 ? 'High' : avgConf >= 70 ? 'Moderate' : 'Low'
+    const panelActionLabel = avgConf >= 90 ? 'High Confidence' : avgConf >= 70 ? 'Moderate Confidence' : 'Low Confidence'
     const panelTooltip = avgConf >= 90 ? 'AI is confident. Reviewer can approve quickly.' : avgConf >= 70 ? 'AI has moderate confidence. Reviewer should verify key fields.' : 'AI is uncertain. Reviewer must examine carefully.'
     const isGroupOverridden = isActiveFlipped || (activeGroup?.records.some(r => { const ovd = overrides[`sup-pg${r.engagementPageId}`]; return ovd?.userOverrideDecision?.includes('Not Superseded') || (ovd && ovd.userOverrideDecision !== `Page ${r.engagementPageId} = ${r.decisionType}`) }) ?? false)
     const panelIdentifier = activeGroup ? extractIdentifier(activeGroup.records) : null
@@ -1097,7 +1097,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                     <div className="flex items-start gap-3 rounded-lg border p-4" style={{ backgroundColor: 'var(--status-info-subtle)', borderColor: 'var(--status-info-border)' }}>
                       <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                       <span className="text-sm text-foreground leading-relaxed">
-                        {hasCorrectedField ? 'Verify Corrected indicator and updated amounts before accepting.' : hasAmountDiffs ? 'Review income field differences to confirm updated filing.' : differingFields.length === 0 ? 'All fields match. Verify these are not distinct filings.' : `Review ${differingFields.length} differing field${differingFields.length !== 1 ? 's' : ''} to confirm superseded version.`}
+                        {aiAnalysisData.panelTooltip}
                       </span>
                     </div>
                   </div>
