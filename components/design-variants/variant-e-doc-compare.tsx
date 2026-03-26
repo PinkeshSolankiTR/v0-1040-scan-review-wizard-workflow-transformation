@@ -970,27 +970,16 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                                                       for (const [otherId, otherRole] of next.entries()) {
                                                         if (otherId !== pageId && otherRole === 'original') {
                                                           next.set(otherId, 'superseded')
-                                                          // Auto-fill reason for the auto-demoted row too
-                                                          setRowReasons(rr => {
-                                                            const nrr = new Map(rr)
-                                                            if (!nrr.has(otherId) || !nrr.get(otherId)?.reasonId) {
-                                                              nrr.set(otherId, { reasonId: OVERRIDE_REASONS[0]?.id ?? null, customText: '' })
-                                                            }
-                                                            return nrr
-                                                          })
                                                         }
                                                       }
                                                     }
                                                     return next
                                                   })
-                                                  // Set per-row reason based on role type
+                                                  // Set per-row reason: blank for Original/Superseded, copy from existing Not Sup row if available
                                                   setRowReasons(prev => {
                                                     const next = new Map(prev)
-                                                    if (role === 'original' || role === 'superseded') {
-                                                      // Auto-prepopulate with first override reason
-                                                      next.set(pageId, { reasonId: OVERRIDE_REASONS[0]?.id ?? null, customText: '' })
-                                                    } else if (role === 'not-superseded') {
-                                                      // Check if another Not Superseded row already has a reason -- copy it
+                                                    if (role === 'not-superseded') {
+                                                      // Copy reason from an existing Not Superseded row if one has a reason set
                                                       let prefillReason: { reasonId: string | null; customText: string } | null = null
                                                       for (const [otherId, otherReason] of next.entries()) {
                                                         if (otherId !== pageId && otherReason.reasonId !== null) {
@@ -999,6 +988,11 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                                                         }
                                                       }
                                                       next.set(pageId, prefillReason ? { ...prefillReason } : { reasonId: null, customText: '' })
+                                                    } else {
+                                                      // Original or Superseded: leave blank, user picks first
+                                                      if (!next.has(pageId) || !next.get(pageId)?.reasonId) {
+                                                        next.set(pageId, { reasonId: null, customText: '' })
+                                                      }
                                                     }
                                                     return next
                                                   })
@@ -1015,11 +1009,32 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                                                   value={rowReasonId ?? ''}
                                                   onChange={(e) => {
                                                     const v = e.target.value
+                                                    const newEntry = v === 'custom'
+                                                      ? { reasonId: 'custom' as const, customText: rowCustomText }
+                                                      : v ? { reasonId: v, customText: '' } : { reasonId: null, customText: '' }
                                                     setRowReasons(prev => {
                                                       const next = new Map(prev)
-                                                      if (v === 'custom') { next.set(pageId, { reasonId: 'custom', customText: rowCustomText }) }
-                                                      else if (v) { next.set(pageId, { reasonId: v, customText: '' }) }
-                                                      else { next.set(pageId, { reasonId: null, customText: '' }) }
+                                                      next.set(pageId, newEntry)
+                                                      // Auto-fill other changed rows of the same category that have no reason yet
+                                                      if (v && v !== 'custom') {
+                                                        const thisRole = docRoles.get(pageId)
+                                                        const thisIsNotSup = thisRole === 'not-superseded'
+                                                        for (const rec of tableRecords) {
+                                                          const rid = String(rec.engagementPageId)
+                                                          if (rid === pageId) continue
+                                                          const rRole = docRoles.get(rid)
+                                                          const rAi = rec.decisionType === 'Original' ? 'original' : 'superseded'
+                                                          const rChanged = rRole && rRole !== rAi
+                                                          if (!rChanged) continue
+                                                          const rIsNotSup = rRole === 'not-superseded'
+                                                          // Same category: both Not Sup, or both Original/Superseded
+                                                          if (thisIsNotSup !== rIsNotSup) continue
+                                                          const existing = next.get(rid)
+                                                          if (!existing || !existing.reasonId) {
+                                                            next.set(rid, { reasonId: v, customText: '' })
+                                                          }
+                                                        }
+                                                      }
                                                       return next
                                                     })
                                                   }}
