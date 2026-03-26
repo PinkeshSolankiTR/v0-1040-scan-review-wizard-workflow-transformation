@@ -7,7 +7,7 @@
  * Matches the existing Superseded UI pattern from the production app.
  */
 
-import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
+import { useState, useMemo, useRef, useEffect } from 'react'
 import { PdfPageViewer } from '@/components/pdf-page-viewer'
 import { FieldComparison } from '@/components/field-comparison'
 import { useDecisions } from '@/contexts/decision-context'
@@ -29,21 +29,13 @@ import {
   FlipHorizontal,
   FlipVertical,
   Maximize,
-  Minimize2,
   Eye,
-  RefreshCw,
-  User,
-  FileEdit,
   Info,
   Columns2,
   X,
   CheckCircle,
-  GripVertical,
 } from 'lucide-react'
 import type { SupersededRecord, OverrideDetail } from '@/lib/types'
-
-/* ── Panel visibility state ── */
-type PanelId = 'documents' | 'aiAnalysis' | 'fieldComparison'
 
 /* ── Predefined override reasons based on Superseded Decision Spec ── */
 const OVERRIDE_REASONS = [
@@ -192,54 +184,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
   }
   const hasRejectSelection = selectedRejectReasons.size > 0 || customRejectReason.trim().length > 0
 
-  const [expandedPanels, setExpandedPanels] = useState<Set<PanelId>>(
-    () => new Set<PanelId>(['aiAnalysis', 'fieldComparison'])
-  )
-  const togglePanel = useCallback((panel: PanelId) => {
-    setExpandedPanels(prev => {
-      if (prev.has(panel)) {
-        const next = new Set(prev)
-        next.delete(panel)
-        return next
-      }
-      if (panel === 'documents') return new Set<PanelId>(['documents'])
-      const next = new Set(prev)
-      next.add(panel)
-      next.delete('documents')
-      return next
-    })
-  }, [])
-  const isDocExpanded = expandedPanels.has('documents')
-
-  const [sidebarWidth, setSidebarWidth] = useState(270)
-  const isDragging = useRef(false)
   const containerRef = useRef<HTMLDivElement>(null)
-
-  const handleDragStart = useCallback((e: React.MouseEvent) => {
-    e.preventDefault()
-    isDragging.current = true
-    const onMove = (ev: MouseEvent) => {
-      if (!isDragging.current || !containerRef.current) return
-      const containerLeft = containerRef.current.getBoundingClientRect().left
-      const newWidth = Math.min(Math.max(ev.clientX - containerLeft, 200), 480)
-      setSidebarWidth(newWidth)
-    }
-    const onUp = () => {
-      isDragging.current = false
-      document.removeEventListener('mousemove', onMove)
-      document.removeEventListener('mouseup', onUp)
-      document.body.style.cursor = ''
-      document.body.style.userSelect = ''
-    }
-    document.body.style.cursor = 'col-resize'
-    document.body.style.userSelect = 'none'
-    document.addEventListener('mousemove', onMove)
-    document.addEventListener('mouseup', onUp)
-  }, [])
-
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
-    () => new Set(groups.map(g => g.formType))
-  )
   const [selectedGroupIdx, setSelectedGroupIdx] = useState(0)
   const activeGroup = groups[selectedGroupIdx] ?? groups[0]
 
@@ -260,27 +205,8 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
   const isGroupRejected = activeGroup ? effectiveRecords.length === 0 : false
   const hasPartialRejects = rejectedPageIds.size > 0 && !isGroupRejected
 
-  const toggleGroup = (formType: string, gIdx: number) => {
-    setSelectedGroupIdx(gIdx)
-    setExpandedGroups(prev => {
-      const next = new Set(prev)
-      if (next.has(formType)) next.delete(formType)
-      else next.add(formType)
-      return next
-    })
-  }
-
   const selectGroup = (idx: number) => {
     setSelectedGroupIdx(idx)
-    const ft = groups[idx]?.formType
-    if (ft) {
-      setExpandedGroups(prev => {
-        if (prev.has(ft)) return prev
-        const next = new Set(prev)
-        next.add(ft)
-        return next
-      })
-    }
   }
 
   const allGroupAccepted = activeGroup
@@ -509,55 +435,70 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
     return leftDoc.comparedValues ?? []
   }, [leftDoc])
 
+  /* ── Derived: active tab for right evidence panel ── */
+  const [activeTab, setActiveTab] = useState<'fields' | 'documents'>('fields')
+
+  /* ── Derived: progress tracking ── */
+  const reviewedCount = useMemo(() => {
+    return groups.filter(g => {
+      const isAccepted = g.records.every(r => decisions[`sup-pg${r.engagementPageId}`] === 'accepted')
+      const isRejected = g.records.every(r => rejectedDocs.has(String(r.engagementPageId)))
+      const isReclassified = flippedGroups.has(g.formType)
+      return isAccepted || isRejected || isReclassified
+    }).length
+  }, [groups, decisions, rejectedDocs, flippedGroups])
+
+  /* ── Derived: AI analysis values for the context panel ── */
+  const aiAnalysisData = useMemo(() => {
+    const avgConfRaw = activeGroup ? activeGroup.records.reduce((sum, r) => sum + r.confidenceLevel, 0) / activeGroup.records.length : 0
+    const avgConf = Math.round(avgConfRaw * 100)
+    const confColor = avgConf >= 90 ? 'var(--confidence-high)' : avgConf >= 70 ? 'var(--confidence-medium)' : 'var(--confidence-low)'
+    const panelActionLabel = avgConf >= 90 ? 'High' : avgConf >= 70 ? 'Moderate' : 'Low'
+    const panelTooltip = avgConf >= 90 ? 'AI is confident. Reviewer can approve quickly.' : avgConf >= 70 ? 'AI has moderate confidence. Reviewer should verify key fields.' : 'AI is uncertain. Reviewer must examine carefully.'
+    const isGroupOverridden = isActiveFlipped || (activeGroup?.records.some(r => { const ovd = overrides[`sup-pg${r.engagementPageId}`]; return ovd?.userOverrideDecision?.includes('Not Superseded') || (ovd && ovd.userOverrideDecision !== `Page ${r.engagementPageId} = ${r.decisionType}`) }) ?? false)
+    const panelIdentifier = activeGroup ? extractIdentifier(activeGroup.records) : null
+    return { avgConf, confColor, panelActionLabel, panelTooltip, isGroupOverridden, panelIdentifier }
+  }, [activeGroup, isActiveFlipped, overrides])
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0', border: '0.0625rem solid var(--border)', borderRadius: 'var(--radius)', overflow: 'hidden', backgroundColor: 'var(--card)' }}>
-      {/* ── Top header bar ── */}
-      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 1.25rem', backgroundColor: 'var(--surface-raised)', borderBlockEnd: '0.0625rem solid var(--border)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
-          <FileText style={{ inlineSize: '1.125rem', blockSize: '1.125rem', color: 'var(--muted-foreground)' }} />
-          <h2 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--foreground)' }}>Verify Superseded</h2>
-          <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0.125rem 0.5rem', borderRadius: '624.9375rem', backgroundColor: 'var(--muted)', color: 'var(--muted-foreground)', fontSize: '0.6875rem', fontWeight: 600, fontFamily: 'var(--font-mono)' }}>{data.length}</span>
+    <div style={{ display: 'flex', flexDirection: 'column', border: '0.0625rem solid var(--border)', borderRadius: 'var(--radius)', overflow: 'hidden', backgroundColor: 'var(--card)', blockSize: '100vh', maxBlockSize: '56rem' }}>
+
+      {/* ══════════════════════════════════════════════════════════
+          STICKY HEADER BAR: Title + Confidence + All Actions
+          ══════════════════════════════════════════════════════════ */}
+      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem 1rem', backgroundColor: 'var(--surface-raised)', borderBlockEnd: '0.0625rem solid var(--border)', flexShrink: 0 }}>
+        {/* Left: Form title + confidence */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minInlineSize: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minInlineSize: 0 }}>
+            <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--foreground)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{activeGroup?.formType}: {activeGroup?.formEntity.toUpperCase()}</span>
+            {aiAnalysisData.panelIdentifier && <span style={{ fontSize: '0.6875rem', fontWeight: 500, color: 'var(--muted-foreground)', fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }}>{aiAnalysisData.panelIdentifier.label}: {aiAnalysisData.panelIdentifier.value}</span>}
+          </div>
+          {/* Confidence badge */}
+          {!isGroupRejected && !aiAnalysisData.isGroupOverridden && (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.6875rem', fontWeight: 700, padding: '0.1875rem 0.5rem', borderRadius: '0.25rem', backgroundColor: `${aiAnalysisData.confColor} / 0.12`, color: aiAnalysisData.confColor, whiteSpace: 'nowrap', flexShrink: 0 }} title={aiAnalysisData.panelTooltip}>
+              <Sparkles style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} /> {aiAnalysisData.panelActionLabel}
+            </span>
+          )}
+          {isGroupRejected && (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.6875rem', fontWeight: 700, fontFamily: 'var(--font-mono)', padding: '0.125rem 0.375rem', borderRadius: '0.1875rem', backgroundColor: 'var(--muted)', color: 'var(--muted-foreground)', flexShrink: 0 }}><X style={{ inlineSize: '0.5rem', blockSize: '0.5rem' }} /> Not Superseded</span>
+          )}
+          {!isGroupRejected && aiAnalysisData.isGroupOverridden && (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.6875rem', fontWeight: 700, fontFamily: 'var(--font-mono)', padding: '0.125rem 0.375rem', borderRadius: '0.1875rem', backgroundColor: 'var(--status-warning-subtle)', color: 'var(--status-warning)', flexShrink: 0 }}><ArrowLeftRight style={{ inlineSize: '0.5rem', blockSize: '0.5rem' }} /> Reclassified</span>
+          )}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          {/* Reclassify Dropdown */}
+
+        {/* Right: Action buttons */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', flexShrink: 0 }}>
+          {/* Reclassify */}
           <div style={{ position: 'relative' }}>
-            <button
-              type="button"
-              onClick={() => {
-                if (!showOverridePanel && activeGroup) {
-                  const restored = restoreReclassifyState(activeGroup, overrides, isActiveFlipped, activeFlippedIdx)
-                  setDocRoles(restored.roles)
-                  setSelectedReason(restored.reasonId)
-                  setCustomReason(restored.reasonCustom)
-                  setNotSupersededReason(restored.exclIds)
-                  setNotSupersededCustom(restored.exclCustom)
-                }
-                setShowOverridePanel(p => !p)
-              }}
-              disabled={isGroupRejected || allGroupAccepted}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '0.375rem',
-                padding: '0.5rem 0.875rem', border: '0.0625rem solid var(--status-warning-border)', borderRadius: '0.375rem',
-                backgroundColor: isActiveFlipped ? 'var(--status-warning-subtle)' : 'var(--card)',
-                fontSize: '0.8125rem', fontWeight: 600, color: 'var(--status-warning)',
-                cursor: (isGroupRejected || allGroupAccepted) ? 'not-allowed' : 'pointer',
-                opacity: (isGroupRejected || allGroupAccepted) ? 0.5 : 1,
-              }}
-              aria-expanded={showOverridePanel}
-            >
-              <ArrowLeftRight style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem' }} />
+            <button type="button" onClick={() => { if (!showOverridePanel && activeGroup) { const restored = restoreReclassifyState(activeGroup, overrides, isActiveFlipped, activeFlippedIdx); setDocRoles(restored.roles); setSelectedReason(restored.reasonId); setCustomReason(restored.reasonCustom); setNotSupersededReason(restored.exclIds); setNotSupersededCustom(restored.exclCustom) }; setShowOverridePanel(p => !p) }} disabled={isGroupRejected || allGroupAccepted} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.375rem 0.625rem', border: '0.0625rem solid var(--status-warning-border)', borderRadius: '0.25rem', backgroundColor: isActiveFlipped ? 'var(--status-warning-subtle)' : 'var(--card)', fontSize: '0.75rem', fontWeight: 600, color: 'var(--status-warning)', cursor: (isGroupRejected || allGroupAccepted) ? 'not-allowed' : 'pointer', opacity: (isGroupRejected || allGroupAccepted) ? 0.5 : 1 }} aria-expanded={showOverridePanel}>
+              <ArrowLeftRight style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} />
               Reclassify
-              <ChevronDown style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} />
+              <ChevronDown style={{ inlineSize: '0.5rem', blockSize: '0.5rem' }} />
             </button>
-            
             {/* Reclassify Panel Popover */}
             {showOverridePanel && !allGroupAccepted && (() => {
-              const _hasRoleSwap = activeGroup?.records.some(r => {
-                const _pid = String(r.engagementPageId)
-                const _cur = docRoles.get(_pid)
-                const _ai = r.decisionType === 'Original' ? 'original' : 'superseded'
-                return _cur && _cur !== _ai && _cur !== 'not-superseded'
-              }) ?? false
+              const _hasRoleSwap = activeGroup?.records.some(r => { const _pid = String(r.engagementPageId); const _cur = docRoles.get(_pid); const _ai = r.decisionType === 'Original' ? 'original' : 'superseded'; return _cur && _cur !== _ai && _cur !== 'not-superseded' }) ?? false
               const _hasNotSup = Array.from(docRoles.values()).some(v => v === 'not-superseded')
               const _hasAnyChange = _hasRoleSwap || _hasNotSup
               const _origCount = Array.from(docRoles.values()).filter(v => v === 'original').length
@@ -571,8 +512,6 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                 <div onClick={() => { setShowOverridePanel(false) }} style={{ position: 'fixed', inset: 0, zIndex: 49 }} aria-hidden="true" />
                 <div style={{ position: 'absolute', insetBlockStart: '100%', insetInlineEnd: 0, marginBlockStart: '0.25rem', zIndex: 50, inlineSize: 'max-content', minInlineSize: '22rem', maxBlockSize: '28rem', overflowY: 'auto', padding: '0.75rem', borderRadius: '0.375rem', border: '0.0625rem solid var(--border)', backgroundColor: 'var(--card)', boxShadow: '0 0.25rem 0.75rem rgba(0,0,0,0.15)' }}>
                   <p style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--foreground)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBlockEnd: '0.5rem' }}>Reclassify Documents</p>
-
-                  {/* Per-document role dropdowns */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginBlockEnd: '0.75rem' }}>
                     {activeGroup?.records.filter(record => !rejectedPageIds.has(String(record.engagementPageId))).map((record) => {
                       const pageId = String(record.engagementPageId)
@@ -583,27 +522,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                         <div key={pageId} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.375rem 0.5rem', borderRadius: '0.25rem', backgroundColor: isChanged ? currentRole === 'not-superseded' ? 'var(--surface-raised)' : 'var(--status-warning-subtle)' : 'transparent' }}>
                           <FileText style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'var(--muted-foreground)', flexShrink: 0 }} />
                           <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--foreground)', flex: 1, whiteSpace: 'nowrap' }}>Pg {record.documentRef?.pageNumber ?? record.engagementPageId}</span>
-                          <select
-                            value={currentRole}
-                            onChange={(e) => {
-                              const newRole = e.target.value as 'original' | 'superseded' | 'not-superseded'
-                              setDocRoles(prev => {
-                                const next = new Map(prev)
-                                next.set(pageId, newRole)
-                                const eligibleRecords = activeGroup?.records.filter(rec => !rejectedPageIds.has(String(rec.engagementPageId))) ?? []
-                                if (eligibleRecords.length === 2) {
-                                  const otherRecord = eligibleRecords.find(rec => String(rec.engagementPageId) !== pageId)
-                                  if (otherRecord) {
-                                    const otherId = String(otherRecord.engagementPageId)
-                                    if (newRole === 'original') next.set(otherId, 'superseded')
-                                    else if (newRole === 'superseded') next.set(otherId, 'original')
-                                  }
-                                }
-                                return next
-                              })
-                            }}
-                            style={{ fontSize: '0.625rem', fontWeight: 600, padding: '0.1875rem 0.375rem', border: '0.0625rem solid var(--border)', borderRadius: '0.1875rem', backgroundColor: 'var(--card)', color: currentRole === 'original' ? 'var(--status-success)' : currentRole === 'superseded' ? 'var(--status-info)' : 'var(--muted-foreground)', cursor: 'pointer' }}
-                          >
+                          <select value={currentRole} onChange={(e) => { const newRole = e.target.value as 'original' | 'superseded' | 'not-superseded'; setDocRoles(prev => { const next = new Map(prev); next.set(pageId, newRole); const eligibleRecords = activeGroup?.records.filter(rec => !rejectedPageIds.has(String(rec.engagementPageId))) ?? []; if (eligibleRecords.length === 2) { const otherRecord = eligibleRecords.find(rec => String(rec.engagementPageId) !== pageId); if (otherRecord) { const otherId = String(otherRecord.engagementPageId); if (newRole === 'original') next.set(otherId, 'superseded'); else if (newRole === 'superseded') next.set(otherId, 'original') } }; return next }) }} style={{ fontSize: '0.625rem', fontWeight: 600, padding: '0.1875rem 0.375rem', border: '0.0625rem solid var(--border)', borderRadius: '0.1875rem', backgroundColor: 'var(--card)', color: currentRole === 'original' ? 'var(--status-success)' : currentRole === 'superseded' ? 'var(--status-info)' : 'var(--muted-foreground)', cursor: 'pointer' }}>
                             <option value="original">Original</option>
                             <option value="superseded">Superseded</option>
                             <option value="not-superseded">Not Superseded</option>
@@ -613,92 +532,31 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                       )
                     })}
                   </div>
-
-                  {_valError && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.375rem 0.5rem', marginBlockEnd: '0.5rem', borderRadius: '0.25rem', backgroundColor: 'var(--status-error-subtle)', border: '0.0625rem solid var(--status-error-border)' }}>
-                      <AlertTriangle style={{ inlineSize: '0.625rem', blockSize: '0.625rem', color: 'var(--status-error)', flexShrink: 0 }} />
-                      <span style={{ fontSize: '0.625rem', color: 'var(--status-error)' }}>{_valError}</span>
-                    </div>
-                  )}
-
+                  {_valError && (<div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.375rem 0.5rem', marginBlockEnd: '0.5rem', borderRadius: '0.25rem', backgroundColor: 'var(--status-error-subtle)', border: '0.0625rem solid var(--status-error-border)' }}><AlertTriangle style={{ inlineSize: '0.625rem', blockSize: '0.625rem', color: 'var(--status-error)', flexShrink: 0 }} /><span style={{ fontSize: '0.625rem', color: 'var(--status-error)' }}>{_valError}</span></div>)}
                   {_hasRoleSwap && (
                     <div style={{ marginBlockEnd: '0.625rem' }}>
                       <p style={{ fontSize: '0.625rem', fontWeight: 700, color: 'var(--foreground)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBlockEnd: '0.375rem' }}>Reason for reclassification</p>
                       <fieldset style={{ border: 'none', padding: 0, margin: 0 }}>
                         <legend className="sr-only">Select reclassification reason</legend>
-                        {OVERRIDE_REASONS.map(reason => (
-                          <label key={reason.id} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', padding: '0.375rem 0.5rem', borderRadius: '0.25rem', cursor: 'pointer', backgroundColor: selectedReason === reason.id ? 'var(--status-success-subtle)' : 'transparent' }}>
-                            <input type="radio" name="reclassify-reason" checked={selectedReason === reason.id} onChange={() => { setSelectedReason(reason.id); setCustomReason('') }} style={{ accentColor: 'var(--status-success)', flexShrink: 0 }} />
-                            <span style={{ fontSize: '0.625rem', fontWeight: 600, color: 'var(--foreground)' }}>{reason.label}</span>
-                          </label>
-                        ))}
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', padding: '0.375rem 0.5rem', borderRadius: '0.25rem', cursor: 'pointer', backgroundColor: selectedReason === 'custom' ? 'var(--status-success-subtle)' : 'transparent' }}>
-                          <input type="radio" name="reclassify-reason" checked={selectedReason === 'custom'} onChange={() => setSelectedReason('custom')} style={{ accentColor: 'var(--status-success)', flexShrink: 0 }} />
-                          <span style={{ fontSize: '0.625rem', fontWeight: 600, color: 'var(--foreground)' }}>Other</span>
-                        </label>
-                        {selectedReason === 'custom' && (
-                          <textarea value={customReason} onChange={(e) => setCustomReason(e.target.value)} placeholder="Enter your reason..." style={{ marginBlockStart: '0.375rem', inlineSize: '100%', minBlockSize: '2.5rem', padding: '0.375rem', border: '0.0625rem solid var(--border)', borderRadius: '0.25rem', fontSize: '0.625rem', resize: 'vertical' }} />
-                        )}
+                        {OVERRIDE_REASONS.map(reason => (<label key={reason.id} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', padding: '0.375rem 0.5rem', borderRadius: '0.25rem', cursor: 'pointer', backgroundColor: selectedReason === reason.id ? 'var(--status-success-subtle)' : 'transparent' }}><input type="radio" name="reclassify-reason" checked={selectedReason === reason.id} onChange={() => { setSelectedReason(reason.id); setCustomReason('') }} style={{ accentColor: 'var(--status-success)', flexShrink: 0 }} /><span style={{ fontSize: '0.625rem', fontWeight: 600, color: 'var(--foreground)' }}>{reason.label}</span></label>))}
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', padding: '0.375rem 0.5rem', borderRadius: '0.25rem', cursor: 'pointer', backgroundColor: selectedReason === 'custom' ? 'var(--status-success-subtle)' : 'transparent' }}><input type="radio" name="reclassify-reason" checked={selectedReason === 'custom'} onChange={() => setSelectedReason('custom')} style={{ accentColor: 'var(--status-success)', flexShrink: 0 }} /><span style={{ fontSize: '0.625rem', fontWeight: 600, color: 'var(--foreground)' }}>Other</span></label>
+                        {selectedReason === 'custom' && (<textarea value={customReason} onChange={(e) => setCustomReason(e.target.value)} placeholder="Enter your reason..." style={{ marginBlockStart: '0.375rem', inlineSize: '100%', minBlockSize: '2.5rem', padding: '0.375rem', border: '0.0625rem solid var(--border)', borderRadius: '0.25rem', fontSize: '0.625rem', resize: 'vertical' }} />)}
                       </fieldset>
                     </div>
                   )}
-
                   {_hasNotSup && (
                     <div style={{ marginBlockEnd: '0.625rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.375rem', padding: '0.375rem 0.5rem', borderRadius: '0.25rem', marginBlockEnd: '0.5rem', backgroundColor: 'var(--status-warning-subtle)', border: '0.0625rem solid var(--status-warning-border)' }}>
-                        <AlertTriangle style={{ inlineSize: '0.625rem', blockSize: '0.625rem', color: 'var(--status-warning)', flexShrink: 0, marginBlockStart: '0.0625rem' }} />
-                        <p style={{ fontSize: '0.5625rem', color: 'var(--status-warning)', lineHeight: '1.5', margin: 0 }}>{"You're confirming these documents do not replace each other. Both will remain as-is in the binder."}</p>
-                      </div>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.375rem', padding: '0.375rem 0.5rem', borderRadius: '0.25rem', marginBlockEnd: '0.5rem', backgroundColor: 'var(--status-warning-subtle)', border: '0.0625rem solid var(--status-warning-border)' }}><AlertTriangle style={{ inlineSize: '0.625rem', blockSize: '0.625rem', color: 'var(--status-warning)', flexShrink: 0, marginBlockStart: '0.0625rem' }} /><p style={{ fontSize: '0.5625rem', color: 'var(--status-warning)', lineHeight: '1.5', margin: 0 }}>{"You're confirming these documents do not replace each other. Both will remain as-is in the binder."}</p></div>
                       <p style={{ fontSize: '0.625rem', fontWeight: 700, color: 'var(--foreground)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBlockEnd: '0.375rem' }}>Reason for exclusion</p>
                       <fieldset style={{ border: 'none', padding: 0, margin: 0 }}>
                         <legend className="sr-only">Select exclusion reason</legend>
-                        {REJECTION_REASONS.map(reason => (
-                          <label key={reason.id} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', padding: '0.375rem 0.5rem', borderRadius: '0.25rem', cursor: 'pointer', backgroundColor: notSupersededReason.has(reason.id) ? 'var(--status-success-subtle)' : 'transparent' }}>
-                            <input type="checkbox" checked={notSupersededReason.has(reason.id)} onChange={() => { setNotSupersededReason(prev => { const next = new Set(prev); if (next.has(reason.id)) next.delete(reason.id); else next.add(reason.id); return next }) }} style={{ accentColor: 'var(--status-success)', flexShrink: 0 }} />
-                            <span style={{ fontSize: '0.625rem', fontWeight: 600, color: 'var(--foreground)' }}>{reason.label}</span>
-                          </label>
-                        ))}
+                        {REJECTION_REASONS.map(reason => (<label key={reason.id} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', padding: '0.375rem 0.5rem', borderRadius: '0.25rem', cursor: 'pointer', backgroundColor: notSupersededReason.has(reason.id) ? 'var(--status-success-subtle)' : 'transparent' }}><input type="checkbox" checked={notSupersededReason.has(reason.id)} onChange={() => { setNotSupersededReason(prev => { const next = new Set(prev); if (next.has(reason.id)) next.delete(reason.id); else next.add(reason.id); return next }) }} style={{ accentColor: 'var(--status-success)', flexShrink: 0 }} /><span style={{ fontSize: '0.625rem', fontWeight: 600, color: 'var(--foreground)' }}>{reason.label}</span></label>))}
                       </fieldset>
                     </div>
                   )}
-
                   <div style={{ display: 'flex', gap: '0.5rem', marginBlockStart: '0.5rem' }}>
-                    {isActiveFlipped && (
-                      <button type="button" onClick={handleUndoOverride} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem', padding: '0.375rem 0.5rem', border: '0.0625rem solid var(--border)', borderRadius: '0.25rem', backgroundColor: 'var(--card)', fontSize: '0.6875rem', fontWeight: 600, color: 'var(--muted-foreground)', cursor: 'pointer' }}>
-                        <Undo2 style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} /> Reset
-                      </button>
-                    )}
-                    <button type="button" disabled={!_canApply}
-                      onClick={() => {
-                        if (!activeGroup) return
-                        const reclassifyReasonText = selectedReason === 'custom' ? customReason.trim() || '' : selectedReason ? OVERRIDE_REASONS.find(r => r.id === selectedReason)?.label ?? '' : customReason.trim() || ''
-                        const exclusionReasonText = notSupersededReason.size > 0 ? Array.from(notSupersededReason).map(id => REJECTION_REASONS.find(r => r.id === id)?.label ?? id).join(', ') : notSupersededCustom.trim() || ''
-                        const newOriginalPageId = Array.from(docRoles.entries()).find(([, role]) => role === 'original')?.[0]
-                        const aiOriginalId = String(activeGroup.originalRecord?.engagementPageId)
-                        const hasSwap = newOriginalPageId && newOriginalPageId !== aiOriginalId
-                        const hasExclusion = Array.from(docRoles.values()).some(v => v === 'not-superseded')
-                        if (!hasSwap && !hasExclusion) { setShowOverridePanel(false); return }
-                        if (hasSwap) {
-                          const targetIdx = activeGroup.supersededRecords.findIndex(s => String(s.engagementPageId) === newOriginalPageId)
-                          setFlippedGroups(prev => { const next = new Map(prev); if (targetIdx >= 0) next.set(activeGroup.formType, targetIdx); return next })
-                        }
-                        for (const r of activeGroup.records) {
-                          const key = `sup-pg${r.engagementPageId}`
-                          const docRole = docRoles.get(String(r.engagementPageId))
-                          let newDecision: string
-                          if (docRole === 'original') newDecision = 'Original'
-                          else if (docRole === 'not-superseded') newDecision = 'Not Superseded'
-                          else newDecision = 'Superseded'
-                          const docReasonText = docRole === 'not-superseded' ? exclusionReasonText || reclassifyReasonText || 'Verifier decision' : reclassifyReasonText || 'Verifier decision'
-                          const detail: OverrideDetail = { originalAIDecision: `Page ${r.engagementPageId} = ${r.decisionType}`, userOverrideDecision: `Page ${r.engagementPageId} = ${newDecision}`, overrideReason: docReasonText, formType: r.documentRef?.formType ?? 'Unknown', fieldContext: r.comparedValues ?? [] }
-                          override(key, 'superseded', r.confidenceLevel, detail)
-                        }
-                        setSelectedSupersededIdx(0)
-                        setShowOverridePanel(false)
-                      }}
-                      style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem', padding: '0.375rem 0.5rem', border: 'none', borderRadius: '0.25rem', backgroundColor: !_canApply ? 'var(--muted)' : 'var(--status-success)', fontSize: '0.6875rem', fontWeight: 600, color: !_canApply ? 'var(--muted-foreground)' : 'var(--card)', cursor: !_canApply ? 'not-allowed' : 'pointer' }}>
-                      <Check style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} /> Apply
-                    </button>
+                    {isActiveFlipped && (<button type="button" onClick={handleUndoOverride} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem', padding: '0.375rem 0.5rem', border: '0.0625rem solid var(--border)', borderRadius: '0.25rem', backgroundColor: 'var(--card)', fontSize: '0.6875rem', fontWeight: 600, color: 'var(--muted-foreground)', cursor: 'pointer' }}><Undo2 style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} /> Reset</button>)}
+                    <button type="button" disabled={!_canApply} onClick={() => { if (!activeGroup) return; const reclassifyReasonText = selectedReason === 'custom' ? customReason.trim() || '' : selectedReason ? OVERRIDE_REASONS.find(r => r.id === selectedReason)?.label ?? '' : customReason.trim() || ''; const exclusionReasonText = notSupersededReason.size > 0 ? Array.from(notSupersededReason).map(id => REJECTION_REASONS.find(r => r.id === id)?.label ?? id).join(', ') : notSupersededCustom.trim() || ''; const newOriginalPageId = Array.from(docRoles.entries()).find(([, role]) => role === 'original')?.[0]; const aiOriginalId = String(activeGroup.originalRecord?.engagementPageId); const hasSwap = newOriginalPageId && newOriginalPageId !== aiOriginalId; const hasExclusion = Array.from(docRoles.values()).some(v => v === 'not-superseded'); if (!hasSwap && !hasExclusion) { setShowOverridePanel(false); return }; if (hasSwap) { const targetIdx = activeGroup.supersededRecords.findIndex(s => String(s.engagementPageId) === newOriginalPageId); setFlippedGroups(prev => { const next = new Map(prev); if (targetIdx >= 0) next.set(activeGroup.formType, targetIdx); return next }) }; for (const r of activeGroup.records) { const key = `sup-pg${r.engagementPageId}`; const docRole = docRoles.get(String(r.engagementPageId)); let newDecision: string; if (docRole === 'original') newDecision = 'Original'; else if (docRole === 'not-superseded') newDecision = 'Not Superseded'; else newDecision = 'Superseded'; const docReasonText = docRole === 'not-superseded' ? exclusionReasonText || reclassifyReasonText || 'Verifier decision' : reclassifyReasonText || 'Verifier decision'; const detail: OverrideDetail = { originalAIDecision: `Page ${r.engagementPageId} = ${r.decisionType}`, userOverrideDecision: `Page ${r.engagementPageId} = ${newDecision}`, overrideReason: docReasonText, formType: r.documentRef?.formType ?? 'Unknown', fieldContext: r.comparedValues ?? [] }; override(key, 'superseded', r.confidenceLevel, detail) }; setSelectedSupersededIdx(0); setShowOverridePanel(false) }} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem', padding: '0.375rem 0.5rem', border: 'none', borderRadius: '0.25rem', backgroundColor: !_canApply ? 'var(--muted)' : 'var(--status-success)', fontSize: '0.6875rem', fontWeight: 600, color: !_canApply ? 'var(--muted-foreground)' : 'var(--card)', cursor: !_canApply ? 'not-allowed' : 'pointer' }}><Check style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} /> Apply</button>
                   </div>
                 </div>
               </div>
@@ -706,10 +564,10 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
             })()}
           </div>
 
-          {/* Reject Classification */}
+          {/* Not Superseded */}
           <div style={{ position: 'relative' }}>
-            <button type="button" onClick={() => { if (!showRejectPanel) { setRejectStep('reason'); setRejectTargetPageId(null); setNewOriginalAfterReject(null); setSelectedRejectReasons(new Set()); setCustomRejectReason('') }; setShowRejectPanel(p => !p) }} disabled={isGroupRejected || allGroupAccepted} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', padding: '0.5rem 0.875rem', border: '0.0625rem solid var(--status-error-border)', borderRadius: '0.375rem', backgroundColor: isGroupRejected ? 'var(--status-error-subtle)' : hasPartialRejects ? 'var(--status-error-subtle)' : 'var(--card)', fontSize: '0.8125rem', fontWeight: 600, color: (isGroupRejected || allGroupAccepted) ? 'var(--status-error)' : 'var(--status-error)', cursor: (isGroupRejected || allGroupAccepted) ? 'not-allowed' : 'pointer', opacity: (isGroupRejected || allGroupAccepted) ? 0.7 : 1 }} aria-expanded={showRejectPanel}>
-              <X style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem' }} /> Not Superseded
+            <button type="button" onClick={() => { if (!showRejectPanel) { setRejectStep('reason'); setRejectTargetPageId(null); setNewOriginalAfterReject(null); setSelectedRejectReasons(new Set()); setCustomRejectReason('') }; setShowRejectPanel(p => !p) }} disabled={isGroupRejected || allGroupAccepted} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.375rem 0.625rem', border: '0.0625rem solid var(--status-error-border)', borderRadius: '0.25rem', backgroundColor: isGroupRejected ? 'var(--status-error-subtle)' : hasPartialRejects ? 'var(--status-error-subtle)' : 'var(--card)', fontSize: '0.75rem', fontWeight: 600, color: 'var(--status-error)', cursor: (isGroupRejected || allGroupAccepted) ? 'not-allowed' : 'pointer', opacity: (isGroupRejected || allGroupAccepted) ? 0.7 : 1 }} aria-expanded={showRejectPanel}>
+              <X style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} /> Not Superseded
             </button>
             {showRejectPanel && !isGroupRejected && !allGroupAccepted && (() => {
               return (
@@ -718,33 +576,15 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                 <div style={{ position: 'absolute', insetBlockStart: '100%', insetInlineEnd: 0, marginBlockStart: '0.25rem', zIndex: 50, inlineSize: 'max-content', minInlineSize: '20rem', padding: '0.75rem', borderRadius: '0.375rem', border: '0.0625rem solid var(--border)', backgroundColor: 'var(--card)', boxShadow: '0 0.25rem 0.75rem rgba(0,0,0,0.15)' }}>
                   <div>
                     <p style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--foreground)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBlockEnd: '0.5rem' }}>Not Superseded</p>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.375rem', padding: '0.5rem 0.625rem', borderRadius: '0.25rem', backgroundColor: 'var(--status-warning-subtle)', border: '0.0625rem solid var(--status-warning-border)', marginBlockEnd: '0.625rem' }}>
-                      <AlertTriangle style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'var(--status-warning)', flexShrink: 0, marginBlockStart: '0.0625rem' }} />
-                      <p style={{ fontSize: '0.625rem', color: 'var(--status-warning)', lineHeight: '1.5', margin: 0 }}>{"You're confirming these documents do not replace each other. Both will remain as-is in the binder."}</p>
-                    </div>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.375rem', padding: '0.5rem 0.625rem', borderRadius: '0.25rem', backgroundColor: 'var(--status-warning-subtle)', border: '0.0625rem solid var(--status-warning-border)', marginBlockEnd: '0.625rem' }}><AlertTriangle style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'var(--status-warning)', flexShrink: 0, marginBlockStart: '0.0625rem' }} /><p style={{ fontSize: '0.625rem', color: 'var(--status-warning)', lineHeight: '1.5', margin: 0 }}>{"You're confirming these documents do not replace each other. Both will remain as-is in the binder."}</p></div>
                     <fieldset style={{ border: 'none', padding: 0, margin: 0 }}>
                       <legend className="sr-only">Select reason for not superseded</legend>
-                      {REJECTION_REASONS.map((reason) => (
-                        <label key={reason.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', padding: '0.5rem', borderRadius: '0.25rem', cursor: 'pointer', backgroundColor: selectedRejectReasons.has(reason.id) ? 'var(--status-error-subtle)' : 'transparent' }}>
-                          <input type="checkbox" checked={selectedRejectReasons.has(reason.id)} onChange={() => toggleRejectReason(reason.id)} style={{ accentColor: 'var(--status-error)', flexShrink: 0, marginTop: '0.125rem' }} />
-                          <div>
-                            <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--foreground)', display: 'block' }}>{reason.label}</span>
-                            <span style={{ fontSize: '0.5625rem', color: 'var(--muted-foreground)' }}>{reason.description}</span>
-                          </div>
-                        </label>
-                      ))}
-                      <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', padding: '0.5rem', borderRadius: '0.25rem', cursor: 'pointer', backgroundColor: selectedRejectReasons.has('custom') ? 'var(--status-error-subtle)' : 'transparent' }}>
-                        <input type="checkbox" checked={selectedRejectReasons.has('custom')} onChange={() => toggleRejectReason('custom')} style={{ accentColor: 'var(--status-error)', flexShrink: 0, marginTop: '0.125rem' }} />
-                        <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--foreground)' }}>Other (specify below)</span>
-                      </label>
-                      {selectedRejectReasons.has('custom') && (
-                        <textarea value={customRejectReason} onChange={(e) => setCustomRejectReason(e.target.value)} placeholder="Describe why this group is not superseded..." style={{ marginBlockStart: '0.5rem', inlineSize: '100%', minBlockSize: '3.5rem', padding: '0.5rem', border: '0.0625rem solid var(--border)', borderRadius: '0.25rem', fontSize: '0.6875rem', resize: 'vertical' }} />
-                      )}
+                      {REJECTION_REASONS.map((reason) => (<label key={reason.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', padding: '0.5rem', borderRadius: '0.25rem', cursor: 'pointer', backgroundColor: selectedRejectReasons.has(reason.id) ? 'var(--status-error-subtle)' : 'transparent' }}><input type="checkbox" checked={selectedRejectReasons.has(reason.id)} onChange={() => toggleRejectReason(reason.id)} style={{ accentColor: 'var(--status-error)', flexShrink: 0, marginTop: '0.125rem' }} /><div><span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--foreground)', display: 'block' }}>{reason.label}</span><span style={{ fontSize: '0.5625rem', color: 'var(--muted-foreground)' }}>{reason.description}</span></div></label>))}
+                      <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', padding: '0.5rem', borderRadius: '0.25rem', cursor: 'pointer', backgroundColor: selectedRejectReasons.has('custom') ? 'var(--status-error-subtle)' : 'transparent' }}><input type="checkbox" checked={selectedRejectReasons.has('custom')} onChange={() => toggleRejectReason('custom')} style={{ accentColor: 'var(--status-error)', flexShrink: 0, marginTop: '0.125rem' }} /><span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--foreground)' }}>Other (specify below)</span></label>
+                      {selectedRejectReasons.has('custom') && (<textarea value={customRejectReason} onChange={(e) => setCustomRejectReason(e.target.value)} placeholder="Describe why this group is not superseded..." style={{ marginBlockStart: '0.5rem', inlineSize: '100%', minBlockSize: '3.5rem', padding: '0.5rem', border: '0.0625rem solid var(--border)', borderRadius: '0.25rem', fontSize: '0.6875rem', resize: 'vertical' }} />)}
                     </fieldset>
                     <div style={{ display: 'flex', gap: '0.5rem', marginBlockStart: '0.75rem' }}>
-                      <button type="button" onClick={handleRejectDoc} disabled={!hasRejectSelection} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem', padding: '0.375rem 0.5rem', border: 'none', borderRadius: '0.25rem', backgroundColor: !hasRejectSelection ? 'var(--muted)' : 'var(--status-error)', fontSize: '0.6875rem', fontWeight: 600, color: !hasRejectSelection ? 'var(--muted-foreground)' : 'var(--card)', cursor: !hasRejectSelection ? 'not-allowed' : 'pointer' }}>
-                        <X style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} /> Confirm Not Superseded
-                      </button>
+                      <button type="button" onClick={handleRejectDoc} disabled={!hasRejectSelection} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem', padding: '0.375rem 0.5rem', border: 'none', borderRadius: '0.25rem', backgroundColor: !hasRejectSelection ? 'var(--muted)' : 'var(--status-error)', fontSize: '0.6875rem', fontWeight: 600, color: !hasRejectSelection ? 'var(--muted-foreground)' : 'var(--card)', cursor: !hasRejectSelection ? 'not-allowed' : 'pointer' }}><X style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} /> Confirm Not Superseded</button>
                     </div>
                   </div>
                 </div>
@@ -753,53 +593,42 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
             })()}
           </div>
 
-          {(isGroupRejected || hasPartialRejects) ? (
-            <button type="button" onClick={handleUndoRejectAll} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', padding: '0.375rem 0.75rem', border: '0.0625rem solid var(--status-error-border)', borderRadius: '0.25rem', backgroundColor: 'var(--card)', fontSize: '0.75rem', fontWeight: 600, color: 'var(--status-error)', cursor: 'pointer' }}>
-              <Undo2 style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem' }} /> Undo Exclusion
-            </button>
-          ) : null}
+          {/* Undo exclusion */}
+          {(isGroupRejected || hasPartialRejects) && (
+            <button type="button" onClick={handleUndoRejectAll} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.375rem 0.5rem', border: '0.0625rem solid var(--status-error-border)', borderRadius: '0.25rem', backgroundColor: 'var(--card)', fontSize: '0.6875rem', fontWeight: 600, color: 'var(--status-error)', cursor: 'pointer' }}><Undo2 style={{ inlineSize: '0.6875rem', blockSize: '0.6875rem' }} /> Undo</button>
+          )}
+
+          {/* Separator */}
+          <div style={{ inlineSize: '0.0625rem', blockSize: '1.5rem', backgroundColor: 'var(--border)', flexShrink: 0 }} />
 
           {/* Accept split button */}
           <div ref={acceptDropdownRef} style={{ position: 'relative' }}>
             <div style={{ display: 'flex', borderRadius: '0.25rem', overflow: 'hidden' }}>
               {lastUndoEntry ? (
-                <button type="button" onClick={handleUndoLastAction} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', padding: '0.375rem 0.75rem', border: 'none', borderRadius: '0.25rem 0 0 0.25rem', backgroundColor: 'var(--status-success-subtle)', fontSize: '0.75rem', fontWeight: 600, color: 'var(--status-success)', cursor: 'pointer', borderInlineEnd: '0.0625rem solid var(--status-success-border)' }} title={`Undo: ${lastUndoEntry.label}`}>
-                  <Undo2 style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem' }} /> Undo: {lastUndoEntry.label}
-                </button>
+                <button type="button" onClick={handleUndoLastAction} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.375rem 0.625rem', border: 'none', borderRadius: '0.25rem 0 0 0.25rem', backgroundColor: 'var(--status-success-subtle)', fontSize: '0.6875rem', fontWeight: 600, color: 'var(--status-success)', cursor: 'pointer', borderInlineEnd: '0.0625rem solid var(--status-success-border)' }} title={`Undo: ${lastUndoEntry.label}`}><Undo2 style={{ inlineSize: '0.6875rem', blockSize: '0.6875rem' }} /> Undo: {lastUndoEntry.label}</button>
               ) : (
-                <button type="button" onClick={() => { handleAcceptGroup(); setShowAcceptDropdown(false) }} disabled={isGroupRejected || allGroupAccepted} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', padding: '0.5rem 0.875rem', border: 'none', borderRadius: '0.375rem 0 0 0.375rem', backgroundColor: (isGroupRejected || allGroupAccepted) ? 'var(--status-success-border)' : 'var(--status-success)', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--card)', cursor: (isGroupRejected || allGroupAccepted) ? 'not-allowed' : 'pointer', opacity: (isGroupRejected || allGroupAccepted) ? 0.6 : 1 }}>
-                  <Check style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem' }} /> Accept
-                </button>
+                <button type="button" onClick={() => { handleAcceptGroup(); setShowAcceptDropdown(false) }} disabled={isGroupRejected || allGroupAccepted} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.375rem 0.625rem', border: 'none', borderRadius: '0.25rem 0 0 0.25rem', backgroundColor: (isGroupRejected || allGroupAccepted) ? 'var(--status-success-border)' : 'var(--status-success)', fontSize: '0.75rem', fontWeight: 600, color: 'var(--card)', cursor: (isGroupRejected || allGroupAccepted) ? 'not-allowed' : 'pointer', opacity: (isGroupRejected || allGroupAccepted) ? 0.6 : 1 }}><Check style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} /> Accept</button>
               )}
-              <button type="button" onClick={() => setShowAcceptDropdown(!showAcceptDropdown)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0.375rem 0.5rem', border: 'none', borderRadius: '0 0.25rem 0.25rem 0', backgroundColor: lastUndoEntry ? 'var(--status-success-subtle)' : 'var(--status-success)', cursor: 'pointer' }} aria-label="More accept options">
-                <ChevronDown style={{ inlineSize: '0.625rem', blockSize: '0.625rem', color: lastUndoEntry ? 'var(--status-success)' : 'var(--card)' }} />
-              </button>
+              <button type="button" onClick={() => setShowAcceptDropdown(!showAcceptDropdown)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0.375rem 0.375rem', border: 'none', borderRadius: '0 0.25rem 0.25rem 0', backgroundColor: lastUndoEntry ? 'var(--status-success-subtle)' : 'var(--status-success)', cursor: 'pointer' }} aria-label="More accept options"><ChevronDown style={{ inlineSize: '0.5rem', blockSize: '0.5rem', color: lastUndoEntry ? 'var(--status-success)' : 'var(--card)' }} /></button>
             </div>
             {showAcceptDropdown && (
               <div style={{ position: 'absolute', insetBlockStart: '100%', insetInlineEnd: 0, marginBlockStart: '0.25rem', zIndex: 50, inlineSize: '16rem', backgroundColor: 'var(--card)', borderRadius: '0.375rem', border: '0.0625rem solid var(--border)', boxShadow: '0 0.25rem 0.75rem rgba(0,0,0,0.15)', overflow: 'hidden' }}>
                 <button type="button" onClick={handleAcceptHighConfidence} disabled={highConfidenceUnreviewed.length === 0} style={{ display: 'flex', flexDirection: 'column', gap: '0.125rem', inlineSize: '100%', padding: '0.5rem 0.75rem', border: 'none', backgroundColor: 'transparent', cursor: highConfidenceUnreviewed.length === 0 ? 'not-allowed' : 'pointer', opacity: highConfidenceUnreviewed.length === 0 ? 0.4 : 1, textAlign: 'start' }} onMouseEnter={e => { if (highConfidenceUnreviewed.length > 0) (e.currentTarget.style.backgroundColor = 'var(--surface-raised)') }} onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                    <Sparkles style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'var(--confidence-high)' }} />
-                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--foreground)' }}>Accept High Confidence</span>
-                    {highConfidenceUnreviewed.length > 0 && <span style={{ fontSize: '0.5625rem', fontWeight: 700, fontFamily: 'var(--font-mono)', padding: '0.0625rem 0.25rem', borderRadius: '0.625rem', backgroundColor: 'var(--status-success-subtle)', color: 'var(--status-success)' }}>{highConfidenceUnreviewed.length}</span>}
-                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}><Sparkles style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'var(--confidence-high)' }} /><span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--foreground)' }}>Accept High Confidence</span>{highConfidenceUnreviewed.length > 0 && <span style={{ fontSize: '0.5625rem', fontWeight: 700, fontFamily: 'var(--font-mono)', padding: '0.0625rem 0.25rem', borderRadius: '0.625rem', backgroundColor: 'var(--status-success-subtle)', color: 'var(--status-success)' }}>{highConfidenceUnreviewed.length}</span>}</div>
                   <span style={{ fontSize: '0.625rem', color: 'var(--muted-foreground)', paddingInlineStart: '1.125rem' }}>Bulk accept all pairs with High confidence</span>
                 </button>
                 <div style={{ blockSize: '0.0625rem', backgroundColor: 'var(--border)' }} />
                 <button type="button" onClick={handleBulkAcceptRemaining} disabled={allUnreviewed.length === 0} style={{ display: 'flex', flexDirection: 'column', gap: '0.125rem', inlineSize: '100%', padding: '0.5rem 0.75rem', border: 'none', backgroundColor: 'transparent', cursor: allUnreviewed.length === 0 ? 'not-allowed' : 'pointer', opacity: allUnreviewed.length === 0 ? 0.4 : 1, textAlign: 'start' }} onMouseEnter={e => { if (allUnreviewed.length > 0) (e.currentTarget.style.backgroundColor = 'var(--surface-raised)') }} onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                    <CheckCircle style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'var(--ai-accent)' }} />
-                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--foreground)' }}>Accept Remaining</span>
-                    {allUnreviewed.length > 0 && <span style={{ fontSize: '0.5625rem', fontWeight: 700, fontFamily: 'var(--font-mono)', padding: '0.0625rem 0.25rem', borderRadius: '0.625rem', backgroundColor: 'var(--muted)', color: 'var(--muted-foreground)' }}>{allUnreviewed.length}</span>}
-                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}><CheckCircle style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'var(--ai-accent)' }} /><span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--foreground)' }}>Accept Remaining</span>{allUnreviewed.length > 0 && <span style={{ fontSize: '0.5625rem', fontWeight: 700, fontFamily: 'var(--font-mono)', padding: '0.0625rem 0.25rem', borderRadius: '0.625rem', backgroundColor: 'var(--muted)', color: 'var(--muted-foreground)' }}>{allUnreviewed.length}</span>}</div>
                   <span style={{ fontSize: '0.625rem', color: 'var(--muted-foreground)', paddingInlineStart: '1.125rem' }}>Accept all unreviewed pairs (warns if Moderate/Low exist)</span>
                 </button>
               </div>
             )}
           </div>
 
-          <button type="button" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', border: 'none', borderRadius: '0.375rem', backgroundColor: 'var(--tr-primary)', fontSize: '0.8125rem', fontWeight: 700, color: 'var(--tr-primary-foreground)', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
-            Next Step <ArrowRight style={{ inlineSize: '0.75rem', blockSize: '0.75rem' }} />
+          {/* Next Step */}
+          <button type="button" onClick={() => { if (selectedGroupIdx < groups.length - 1) selectGroup(selectedGroupIdx + 1) }} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', padding: '0.375rem 0.75rem', border: 'none', borderRadius: '0.25rem', backgroundColor: 'var(--tr-primary)', fontSize: '0.75rem', fontWeight: 700, color: 'var(--tr-primary-foreground)', cursor: selectedGroupIdx < groups.length - 1 ? 'pointer' : 'not-allowed', opacity: selectedGroupIdx < groups.length - 1 ? 1 : 0.5, textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+            Next <ArrowRight style={{ inlineSize: '0.6875rem', blockSize: '0.6875rem' }} />
           </button>
         </div>
       </header>
@@ -808,24 +637,11 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
       {showBulkWarning && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
           <div style={{ inlineSize: '28rem', backgroundColor: 'var(--card)', borderRadius: '0.5rem', boxShadow: '0 0.5rem 2rem rgba(0,0,0,0.25)', overflow: 'hidden' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.875rem 1rem', backgroundColor: 'var(--status-warning-subtle)', borderBlockEnd: '0.0625rem solid var(--status-warning-border)' }}>
-              <AlertTriangle style={{ inlineSize: '1rem', blockSize: '1rem', color: 'var(--status-warning)' }} />
-              <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--foreground)' }}>Unreviewed Pairs Need Attention</span>
-            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.875rem 1rem', backgroundColor: 'var(--status-warning-subtle)', borderBlockEnd: '0.0625rem solid var(--status-warning-border)' }}><AlertTriangle style={{ inlineSize: '1rem', blockSize: '1rem', color: 'var(--status-warning)' }} /><span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--foreground)' }}>Unreviewed Pairs Need Attention</span></div>
             <div style={{ padding: '0.875rem 1rem' }}>
               <p style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', margin: '0 0 0.625rem 0' }}>{unreviewedModLow.length} pair{unreviewedModLow.length > 1 ? 's' : ''} with Moderate or Low confidence {unreviewedModLow.length > 1 ? 'have' : 'has'} not been individually reviewed:</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', maxBlockSize: '8rem', overflowY: 'auto', padding: '0.5rem', borderRadius: '0.25rem', backgroundColor: 'var(--surface-raised)', border: '0.0625rem solid var(--border)' }}>
-                {unreviewedModLow.map(g => {
-                  const avg = Math.round(g.records.reduce((s, r) => s + r.confidenceLevel, 0) / g.records.length * 100)
-                  const label = avg >= 70 ? 'Moderate' : 'Low'
-                  const color = avg >= 70 ? 'var(--status-warning)' : 'var(--status-error)'
-                  return (
-                    <div key={g.formType} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.25rem 0.375rem' }}>
-                      <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--foreground)' }}>{g.formType} ({g.formEntity})</span>
-                      <span style={{ fontSize: '0.5625rem', fontWeight: 700, fontFamily: 'var(--font-mono)', padding: '0.0625rem 0.25rem', borderRadius: '0.1875rem', backgroundColor: `${color} / 0.12`, color }}>{label}</span>
-                    </div>
-                  )
-                })}
+                {unreviewedModLow.map(g => { const avg = Math.round(g.records.reduce((s, r) => s + r.confidenceLevel, 0) / g.records.length * 100); const label = avg >= 70 ? 'Moderate' : 'Low'; const color = avg >= 70 ? 'var(--status-warning)' : 'var(--status-error)'; return (<div key={g.formType} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.25rem 0.375rem' }}><span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--foreground)' }}>{g.formType} ({g.formEntity})</span><span style={{ fontSize: '0.5625rem', fontWeight: 700, fontFamily: 'var(--font-mono)', padding: '0.0625rem 0.25rem', borderRadius: '0.1875rem', backgroundColor: `${color} / 0.12`, color }}>{label}</span></div>) })}
               </div>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', padding: '0.75rem 1rem', borderBlockStart: '0.0625rem solid var(--border)', backgroundColor: 'var(--background)' }}>
@@ -836,375 +652,213 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
         </div>
       )}
 
-      {/* ── Main 3-panel layout ── */}
-      <div ref={containerRef} style={{ display: 'grid', gridTemplateColumns: `${sidebarWidth}px auto 1fr`, minBlockSize: '38rem' }}>
-        {/* ── LEFT SIDEBAR ── */}
-        <aside aria-label="Superseded document sidebar" style={{ backgroundColor: 'var(--surface-raised)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          <details style={{ borderBlockEnd: '0.0625rem solid var(--border)' }}>
-            <summary style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.625rem 0.75rem', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--foreground)', cursor: 'pointer', listStyle: 'none' }}>
-              <ChevronRight style={{ inlineSize: '0.875rem', blockSize: '0.875rem', color: 'var(--muted-foreground)' }} /> Instructions
-            </summary>
-            <div style={{ padding: '0.5rem 0.75rem 0.75rem 2rem', fontSize: '0.75rem', lineHeight: '1.5', color: 'var(--muted-foreground)' }}>
-              <p>Review each form group below. Expand a group to see its pages, AI analysis, and field comparisons. The selected group drives the side-by-side PDF viewers.</p>
+      {/* ══════════════════════════════════════════════════════════
+          MAIN CONTENT: Left Context + Right Evidence (horizontal split)
+          ══════════════════════════════════════════════════════════ */}
+      <div ref={containerRef} style={{ display: 'grid', gridTemplateColumns: '22rem 1fr', flex: '1 1 0', minBlockSize: 0, overflow: 'hidden' }}>
+
+        {/* ── LEFT: Context Panel ── */}
+        <aside aria-label="Review context" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', borderInlineEnd: '0.0625rem solid var(--border)', backgroundColor: 'var(--surface-raised)' }}>
+
+          {/* AI Summary (always visible, not collapsible) */}
+          <div style={{ flexShrink: 0, overflowY: 'auto', maxBlockSize: '50%', borderBlockEnd: '0.0625rem solid var(--border)' }}>
+            <div style={{ padding: '0.75rem 0.875rem' }}>
+              {/* AI Analysis heading */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginBlockEnd: '0.625rem' }}>
+                <Sparkles style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'var(--ai-accent)' }} />
+                <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--foreground)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>AI Analysis</span>
+              </div>
+
+              {/* Rejected state */}
+              {isGroupRejected && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', padding: '0.5rem 0.625rem', borderRadius: '0.25rem', border: '0.0625rem solid var(--border)', backgroundColor: 'var(--surface-sunken)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}><AlertTriangle style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'var(--muted-foreground)' }} /><span style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--foreground)' }}>Not Superseded -- Excluded by Verifier</span></div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1875rem', paddingInlineStart: '1.125rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}><span style={{ inlineSize: '0.1875rem', blockSize: '0.1875rem', borderRadius: '50%', backgroundColor: 'var(--muted-foreground)', flexShrink: 0 }} /><span style={{ fontSize: '0.625rem', color: 'var(--foreground)' }}>Documents available in SPBinder as independent records</span></div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}><span style={{ inlineSize: '0.1875rem', blockSize: '0.1875rem', borderRadius: '50%', backgroundColor: 'var(--muted-foreground)', flexShrink: 0 }} /><span style={{ fontSize: '0.625rem', color: 'var(--foreground)' }}>No superseded classification applied</span></div>
+                  </div>
+                  {(() => { const rejRecs = activeGroup?.records.filter(r => rejectedDocs.has(String(r.engagementPageId))) ?? []; const firstReason = rejRecs.length > 0 ? rejectedDocs.get(String(rejRecs[0].engagementPageId)) : null; return firstReason ? (<div style={{ marginBlockStart: '0.375rem', padding: '0.375rem 0.5rem', borderRadius: '0.25rem', backgroundColor: 'var(--card)', border: '0.0625rem solid var(--border)' }}><span style={{ fontSize: '0.5625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--muted-foreground)' }}>Reason</span><p style={{ margin: '0.125rem 0 0', fontSize: '0.625rem', fontWeight: 600, color: 'var(--foreground)', lineHeight: 1.4 }}>{firstReason.reason}</p></div>) : null })()}
+                </div>
+              )}
+
+              {/* Overridden / Verifier Decision state */}
+              {!isGroupRejected && aiAnalysisData.isGroupOverridden && (() => {
+                const overriddenRecord = activeFlippedIdx !== undefined ? activeGroup!.supersededRecords[activeFlippedIdx] : null
+                const allRecords = activeGroup!.records
+                return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.625rem 0.75rem', borderRadius: '0.25rem', border: '0.0625rem solid var(--status-warning-border)', backgroundColor: 'var(--status-warning-subtle)' }}>
+                  <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--status-warning)' }}>Verifier Decision</span>
+                  <div style={{ padding: '0.375rem 0.5rem', borderRadius: '0.25rem', backgroundColor: 'var(--card)', border: '0.0625rem solid var(--border)' }}>
+                    <span style={{ fontSize: '0.5625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--muted-foreground)' }}>AI Recommended</span>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem', marginBlockStart: '0.25rem' }}>
+                      {allRecords.map(r => { const isRej = rejectedPageIds.has(String(r.engagementPageId)); return <span key={r.engagementPageId} style={{ fontSize: '0.625rem', fontWeight: 600, padding: '0.125rem 0.375rem', borderRadius: '0.1875rem', backgroundColor: isRej ? 'var(--muted)' : r.decisionType === 'Original' ? 'var(--status-success-subtle)' : 'var(--status-error-subtle)', color: isRej ? 'var(--muted-foreground)' : r.decisionType === 'Original' ? 'var(--status-success)' : 'var(--status-error)', opacity: isRej ? 0.7 : 1 }}>Pg {r.documentRef?.pageNumber ?? r.engagementPageId}: {isRej ? 'Not Sup.' : r.decisionType}</span> })}
+                    </div>
+                  </div>
+                  <div style={{ padding: '0.375rem 0.5rem', borderRadius: '0.25rem', backgroundColor: 'var(--card)', border: '0.0625rem solid var(--border)' }}>
+                    <span style={{ fontSize: '0.5625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--muted-foreground)' }}>Verifier Changed To</span>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem', marginBlockStart: '0.25rem' }}>
+                      {allRecords.map(r => { const isRej = rejectedPageIds.has(String(r.engagementPageId)); const sd = overrides[`sup-pg${r.engagementPageId}`]; const sDec = sd?.userOverrideDecision; let newLabel: string; if (isRej || sDec?.includes('Not Superseded')) newLabel = 'Not Sup.'; else if (sDec?.endsWith('= Original')) newLabel = 'Original'; else if (sDec?.endsWith('= Superseded')) newLabel = 'Superseded'; else if (overriddenRecord && r.engagementPageId === overriddenRecord.engagementPageId) newLabel = 'Original'; else if (r.decisionType === 'Original') newLabel = 'Superseded'; else newLabel = 'Superseded'; const isExcluded = newLabel === 'Not Sup.'; const changed = !isExcluded && ((r.decisionType === 'Original' && newLabel === 'Superseded') || (r.decisionType === 'Superseded' && newLabel === 'Original')); return <span key={r.engagementPageId} style={{ fontSize: '0.625rem', fontWeight: 600, padding: '0.125rem 0.375rem', borderRadius: '0.1875rem', backgroundColor: isExcluded ? 'var(--muted)' : newLabel === 'Original' ? 'var(--status-success-subtle)' : 'var(--status-error-subtle)', color: isExcluded ? 'var(--muted-foreground)' : newLabel === 'Original' ? 'var(--status-success)' : 'var(--status-error)', outline: changed ? '0.125rem solid var(--status-warning)' : isExcluded ? '0.125rem solid var(--border)' : 'none', opacity: isExcluded ? 0.8 : 1 }}>{newLabel}{changed && ' *'}</span> })}
+                    </div>
+                  </div>
+                  {(() => { const changedRec = allRecords.find(r => { const d = overrides[`sup-pg${r.engagementPageId}`]; if (!d) return false; if (d.userOverrideDecision?.includes('Not Superseded')) return false; return d.userOverrideDecision !== d.originalAIDecision }); const reason = changedRec ? overrides[`sup-pg${changedRec.engagementPageId}`]?.overrideReason : null; const displayReason = reason && reason !== 'Verifier decision' ? reason : null; return displayReason ? (<div style={{ padding: '0.25rem 0.375rem', borderRadius: '0.1875rem', backgroundColor: 'var(--card)', border: '0.0625rem solid var(--border)' }}><span style={{ fontSize: '0.5rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--muted-foreground)' }}>Reason</span><p style={{ margin: '0.0625rem 0 0', fontSize: '0.625rem', fontWeight: 600, color: 'var(--foreground)', lineHeight: 1.4 }}>{displayReason}</p></div>) : null })()}
+                  {(() => { const excludedRecs = allRecords.filter(r => { const d = overrides[`sup-pg${r.engagementPageId}`]; return d?.userOverrideDecision?.includes('Not Superseded') }); if (excludedRecs.length === 0) return null; const exclReason = overrides[`sup-pg${excludedRecs[0].engagementPageId}`]?.overrideReason; const displayExclR = exclReason && exclReason !== 'Verifier decision' ? exclReason : null; return displayExclR ? (<div style={{ padding: '0.25rem 0.375rem', borderRadius: '0.1875rem', backgroundColor: 'var(--surface-raised)', border: '0.0625rem solid var(--border)' }}><span style={{ fontSize: '0.5rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--muted-foreground)' }}>Exclusion Reason</span><p style={{ margin: '0.0625rem 0 0', fontSize: '0.625rem', fontWeight: 600, color: 'var(--foreground)', lineHeight: 1.4 }}>{displayExclR}</p></div>) : null })()}
+                </div>
+                )
+              })()}
+
+              {/* Normal AI reasoning */}
+              {!isGroupRejected && !aiAnalysisData.isGroupOverridden && (() => {
+                const formType = activeGroup?.formType ?? 'Unknown'
+                const entity = activeGroup?.formEntity ?? ''
+                const matchingFields = comparedValues.filter(v => v.match)
+                const differingFields = comparedValues.filter(v => !v.match)
+                const matchCategories = new Map<string, string[]>()
+                matchingFields.forEach(v => { const cat = v.category ?? 'Other'; if (!matchCategories.has(cat)) matchCategories.set(cat, []); matchCategories.get(cat)!.push(v.field) })
+                const differCategories = new Map<string, string[]>()
+                differingFields.forEach(v => { const cat = v.category ?? 'Other'; if (!differCategories.has(cat)) differCategories.set(cat, []); differCategories.get(cat)!.push(v.field) })
+                const supDoc = leftDoc, origDoc = rightDoc
+                const supLabel = supDoc?.documentRef?.formLabel ?? `${formType} (Superseded)`
+                const origLabel = origDoc?.documentRef?.formLabel ?? `${formType} (Original)`
+                const hasCorrectedField = differingFields.some(v => v.field.toLowerCase().includes('corrected'))
+                const hasAmountDiffs = differingFields.some(v => (v.category ?? '').toLowerCase() === 'income')
+                const hasDocNumberDiff = differingFields.some(v => v.field.toLowerCase().includes('document number'))
+                const allIdentifyingMatch = matchingFields.some(v => (v.category ?? '').toLowerCase().includes('recipient')) && matchingFields.some(v => (v.category ?? '').toLowerCase().includes('payer'))
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.5625rem', color: 'var(--muted-foreground)' }}><span style={{ fontWeight: 600, color: 'var(--status-error)' }}>{supLabel.replace(formType, '').replace(/[-()\s]+/g, ' ').trim() || 'Superseded'}</span><span style={{ color: 'var(--border)' }}>vs</span><span style={{ fontWeight: 600, color: 'var(--status-success)' }}>{origLabel.replace(formType, '').replace(/[-()\s]+/g, ' ').trim() || 'Original'}</span></div>
+                    <p style={{ fontSize: '0.6875rem', lineHeight: 1.6, color: 'var(--foreground)', margin: 0 }}>
+                      {allIdentifyingMatch ? `AI identified these as versions of the same ${formType} filing from ${entity || 'the same payer'}. Core identifying fields match, confirming same taxpayer and payer.` : `AI compared these ${formType} documents: ${matchingFields.length} matching, ${differingFields.length} differing out of ${comparedValues.length} total.`}
+                      {hasCorrectedField && ' Corrected indicator changed, consistent with a corrected filing.'}
+                      {hasAmountDiffs && ' Income fields differ, expected for a corrected form.'}
+                      {hasDocNumberDiff && ' Document Number changed, confirming a revision.'}
+                      {!hasCorrectedField && !hasAmountDiffs && differingFields.length > 0 && ` Differences: ${differingFields.map(v => v.field).join(', ')}.`}
+                    </p>
+                    <div style={{ display: 'flex', gap: '0.375rem' }}>
+                      {matchingFields.length > 0 && <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.25rem', padding: '0.375rem 0.5rem', borderRadius: '0.25rem', backgroundColor: 'var(--status-success-subtle)', border: '0.0625rem solid var(--status-success-border)' }}><span style={{ fontSize: '0.625rem', fontWeight: 700, color: 'var(--status-success)' }}>Match ({matchingFields.length})</span>{Array.from(matchCategories.entries()).map(([cat, fields]) => <div key={cat} style={{ display: 'flex', flexWrap: 'wrap', gap: '0.1875rem' }}>{fields.map(f => <span key={f} style={{ fontSize: '0.5625rem', fontWeight: 500, padding: '0.0625rem 0.25rem', borderRadius: '0.125rem', backgroundColor: 'var(--status-success-subtle)', color: 'var(--status-success)' }}>{f}</span>)}</div>)}</div>}
+                      {differingFields.length > 0 && <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.25rem', padding: '0.375rem 0.5rem', borderRadius: '0.25rem', backgroundColor: 'var(--status-warning-subtle)', border: '0.0625rem solid var(--status-warning-border)' }}><span style={{ fontSize: '0.625rem', fontWeight: 700, color: 'var(--status-warning)' }}>Differ ({differingFields.length})</span>{Array.from(differCategories.entries()).map(([cat, fields]) => <div key={cat} style={{ display: 'flex', flexWrap: 'wrap', gap: '0.1875rem' }}>{fields.map(f => <span key={f} style={{ fontSize: '0.5625rem', fontWeight: 500, padding: '0.0625rem 0.25rem', borderRadius: '0.125rem', backgroundColor: 'var(--status-warning-subtle)', color: 'var(--status-warning)' }}>{f}</span>)}</div>)}</div>}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.375rem', padding: '0.375rem 0.5rem', borderRadius: '0.25rem', backgroundColor: 'var(--status-info-subtle)', border: '0.0625rem solid var(--status-info-border)' }}>
+                      <Info style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'var(--ai-accent)', flexShrink: 0, marginBlockStart: '0.0625rem' }} />
+                      <span style={{ fontSize: '0.625rem', color: 'var(--foreground)', lineHeight: 1.5 }}>
+                        {hasCorrectedField ? 'Verify Corrected indicator and updated amounts before accepting.' : hasAmountDiffs ? 'Review income field differences to confirm updated filing.' : differingFields.length === 0 ? 'All fields match. Verify these are not distinct filings.' : `Review ${differingFields.length} differing field${differingFields.length !== 1 ? 's' : ''} to confirm superseded version.`}
+                      </span>
+                    </div>
+                  </div>
+                )
+              })()}
             </div>
-          </details>
-          <div style={{ flex: '1 1 auto', overflowY: 'auto' }}>
+          </div>
+
+          {/* Document Queue (compact list) */}
+          <div style={{ flex: '1 1 0', overflowY: 'auto', minBlockSize: 0 }}>
+            <div style={{ padding: '0.5rem 0.875rem 0.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '0.625rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Document Queue</span>
+              <span style={{ fontSize: '0.5625rem', fontWeight: 600, color: 'var(--muted-foreground)', fontFamily: 'var(--font-mono)' }}>{groups.length} groups</span>
+            </div>
             {groups.map((group, gIdx) => {
-              const isExpanded = expandedGroups.has(group.formType)
               const isActiveGroup = gIdx === selectedGroupIdx
               const avgConfidence = group.records.reduce((sum, r) => sum + r.confidenceLevel, 0) / group.records.length
               const avgConfPct = Math.round(avgConfidence * 100)
               const confColor = avgConfPct >= 90 ? 'var(--confidence-high)' : avgConfPct >= 70 ? 'var(--confidence-medium)' : 'var(--confidence-low)'
-              const actionLabel = avgConfPct >= 90 ? 'High' : avgConfPct >= 70 ? 'Moderate' : 'Low'
-              const actionTooltip = avgConfPct >= 90 ? 'AI is confident. Reviewer can approve quickly.' : avgConfPct >= 70 ? 'AI has moderate confidence. Reviewer should verify key fields.' : 'AI is uncertain. Reviewer must examine carefully.'
               const groupRejectedCount = group.records.filter(r => rejectedDocs.has(String(r.engagementPageId))).length
               const isThisGroupRejected = groupRejectedCount === group.records.length
-              const hasThisGroupPartialRejects = groupRejectedCount > 0 && !isThisGroupRejected
               const isThisGroupAccepted = group.records.every(r => decisions[`sup-pg${r.engagementPageId}`] === 'accepted')
               const isThisGroupReclassified = flippedGroups.has(group.formType)
-
-              // Row background: rejected = muted strikethrough, reclassified = light warning, accepted = light success, active = light info
-              const rowBg = isThisGroupRejected
-                ? '#f5f5f5'
-                : isThisGroupReclassified
-                ? 'var(--status-warning-subtle)'
-                : isThisGroupAccepted
-                ? 'var(--status-success-subtle)'
-                : isActiveGroup
-                ? 'var(--status-info-subtle)'
-                : 'transparent'
+              let statusLabel: string, statusBg: string, statusColor: string
+              if (isThisGroupRejected) { statusLabel = 'Excluded'; statusBg = 'var(--muted)'; statusColor = 'var(--muted-foreground)' }
+              else if (isThisGroupAccepted) { statusLabel = 'Accepted'; statusBg = 'var(--status-success-subtle)'; statusColor = 'var(--status-success)' }
+              else if (isThisGroupReclassified) { statusLabel = 'Reclassified'; statusBg = 'var(--status-warning-subtle)'; statusColor = 'var(--status-warning)' }
+              else { statusLabel = 'Pending'; statusBg = `${confColor} / 0.12`; statusColor = confColor }
 
               return (
-                <div key={group.formType} style={{ borderBlockEnd: '0.0625rem solid var(--border)', backgroundColor: rowBg, opacity: isThisGroupRejected ? 0.65 : 1 }}>
-                  <button type="button" onClick={() => toggleGroup(group.formType, gIdx)} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.625rem', inlineSize: '100%', padding: '0.75rem 0.875rem', border: 'none', cursor: 'pointer', textAlign: 'start', backgroundColor: 'transparent', borderInlineStart: isActiveGroup ? '0.1875rem solid var(--ai-accent)' : isThisGroupAccepted ? '0.1875rem solid var(--status-success)' : isThisGroupReclassified ? '0.1875rem solid var(--status-warning)' : isThisGroupRejected ? '0.1875rem solid var(--muted-foreground)' : '0.1875rem solid transparent' }}>
-                    <div style={{ flex: '1 1 0', minInlineSize: 0 }}>
-                      {(() => {
-                        const identifier = extractIdentifier(group.records)
-                        return (
-                          <div>
-                            <span style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 700, color: 'var(--foreground)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{group.formType}: {group.formEntity.toUpperCase()}</span>
-                            {identifier && <span style={{ display: 'block', fontSize: '0.625rem', fontWeight: 500, color: 'var(--muted-foreground)', fontFamily: 'var(--font-mono)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBlockStart: '0.125rem' }}>{identifier.label}: {identifier.value}</span>}
-                          </div>
-                        )
-                      })()}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginBlockStart: '0.25rem', flexWrap: 'wrap' }}>
-                        {isThisGroupRejected ? (
-                          <span style={{ fontSize: '0.625rem', fontWeight: 700, fontFamily: 'var(--font-mono)', padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem', backgroundColor: '#e5e7eb', color: '#6b7280', textDecoration: 'line-through' }} title="All documents in this group were marked as not superseded">Not Superseded</span>
-                        ) : isThisGroupAccepted ? (
-                          <span style={{ fontSize: '0.625rem', fontWeight: 700, fontFamily: 'var(--font-mono)', padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem', backgroundColor: 'var(--status-success-subtle)', color: 'var(--status-success)', border: '0.0625rem solid var(--status-success-border)' }} title="Accepted by reviewer">Accepted</span>
-                        ) : isThisGroupReclassified ? (
-                          <span style={{ fontSize: '0.625rem', fontWeight: 700, fontFamily: 'var(--font-mono)', padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem', backgroundColor: 'var(--status-warning-subtle)', color: 'var(--status-warning)', border: '0.0625rem solid var(--status-warning-border)' }} title="Roles reclassified by reviewer">Reclassified</span>
-                        ) : hasThisGroupPartialRejects ? (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                            <span style={{ fontSize: '0.625rem', fontWeight: 700, padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem', backgroundColor: `${confColor} / 0.12`, color: confColor }} title={actionTooltip}>{actionLabel}</span>
-                            <span style={{ fontSize: '0.5625rem', fontWeight: 600, padding: '0.0625rem 0.25rem', borderRadius: '0.1875rem', backgroundColor: 'var(--status-error-subtle)', color: 'var(--status-error)' }}>Not Superseded</span>
-                          </div>
-                        ) : (
-                          <span style={{ fontSize: '0.625rem', fontWeight: 700, padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem', backgroundColor: `${confColor} / 0.12`, color: confColor }} title={actionTooltip}>{actionLabel}</span>
-                        )}
-                        <span style={{ fontSize: '0.625rem', fontWeight: 600, color: 'var(--muted-foreground)' }}>
-                          {hasThisGroupPartialRejects ? `${group.records.length - groupRejectedCount} of ${group.records.length} pages` : `${group.records.length} ${group.records.length === 1 ? 'page' : 'pages'}`}
-                        </span>
-                      </div>
-                    </div>
-                    {isExpanded ? <ChevronDown style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'var(--muted-foreground)', flexShrink: 0 }} /> : <ChevronRight style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'var(--muted-foreground)', flexShrink: 0 }} />}
-                  </button>
-                  {isExpanded && (
-                    <div style={{ paddingInlineStart: '0.1875rem' }}>
-                      {group.records.map((r) => {
-                        const supIdx = group.supersededRecords.findIndex(s => s.engagementPageId === r.engagementPageId)
-                        const rawFlippedIdx = flippedGroups.get(group.formType)
-                        const flippedDocValid = rawFlippedIdx !== undefined ? !rejectedDocs.has(String(group.supersededRecords[rawFlippedIdx]?.engagementPageId)) : false
-                        const flippedIdx = flippedDocValid ? rawFlippedIdx : undefined
-                        const isFlipped = flippedIdx !== undefined
-                        let isSup: boolean
-                        if (!isFlipped) isSup = r.decisionType === 'Superseded'
-                        else if (r.decisionType === 'Original') isSup = true
-                        else if (supIdx === flippedIdx) isSup = false
-                        else isSup = true
-                        const effectiveSupIdx = isSup ? supersededList.findIndex(s => s.engagementPageId === r.engagementPageId) : -1
-                        const isSelectedSup = gIdx === selectedGroupIdx && effectiveSupIdx >= 0 && effectiveSupIdx === safeIdx
-                        const isSelectedOrig = gIdx === selectedGroupIdx && !isSup && !rejectedPageIds.has(String(r.engagementPageId))
-                        const isHighlighted = isSelectedSup || isSelectedOrig
-                        // Determine sidebar label from stored overrides
-                        const sPageId = String(r.engagementPageId)
-                        const sDetail = overrides[`sup-pg${sPageId}`]
-                        const sRejected = rejectedPageIds.has(sPageId)
-                        const sExcluded = sDetail?.userOverrideDecision?.includes('Not Superseded')
-                        let sLabel: string, sBg: string, sColor: string
-                        if (sRejected || sExcluded) { sLabel = 'Not Superseded'; sBg = 'var(--muted)'; sColor = 'var(--muted-foreground)' }
-                        else if (sDetail?.userOverrideDecision?.endsWith('= Original')) { sLabel = 'Original'; sBg = 'var(--status-success-subtle)'; sColor = 'var(--status-success)' }
-                        else if (sDetail?.userOverrideDecision?.endsWith('= Superseded') && sDetail.userOverrideDecision !== sDetail.originalAIDecision) { sLabel = 'Superseded'; sBg = 'var(--status-error-subtle)'; sColor = 'var(--status-error)' }
-                        else { sLabel = isSup ? 'Superseded' : 'Original'; sBg = isSup ? 'var(--status-error-subtle)' : 'var(--status-success-subtle)'; sColor = isSup ? 'var(--status-error)' : 'var(--status-success)' }
-                        return (
-                          <button key={r.engagementPageId} type="button" onClick={() => { selectGroup(gIdx); if (effectiveSupIdx >= 0) setSelectedSupersededIdx(effectiveSupIdx) }} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', inlineSize: '100%', padding: '0.375rem 0.75rem 0.375rem 2rem', border: 'none', cursor: 'pointer', textAlign: 'start', backgroundColor: isHighlighted ? 'var(--status-info-subtle)' : 'transparent', borderInlineStart: isHighlighted ? '0.125rem solid var(--ai-accent)' : '0.125rem solid transparent' }}>
-                            <FileText style={{ inlineSize: '0.8125rem', blockSize: '0.8125rem', color: 'var(--muted-foreground)', flexShrink: 0 }} />
-                            <span style={{ fontSize: '0.75rem', fontWeight: isHighlighted ? 600 : 500, color: 'var(--foreground)' }}>Pg {r.documentRef?.pageNumber ?? r.engagementPageId}</span>
-                            {r.documentRef?.formLabel && <span style={{ fontSize: '0.5625rem', color: 'var(--muted-foreground)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxInlineSize: '6rem' }}>{r.documentRef.formLabel.replace(group.formType, '').replace(/[()]/g, '').trim() || ''}</span>}
-                            <span style={{ marginInlineStart: 'auto', flexShrink: 0, fontSize: '0.5625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem', backgroundColor: sBg, color: sColor }}>{sLabel}</span>
-                          </button>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
+                <button key={group.formType} type="button" onClick={() => selectGroup(gIdx)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', inlineSize: '100%', padding: '0.5rem 0.875rem', border: 'none', cursor: 'pointer', textAlign: 'start', backgroundColor: isActiveGroup ? 'var(--status-info-subtle)' : 'transparent', borderInlineStart: isActiveGroup ? '0.1875rem solid var(--ai-accent)' : '0.1875rem solid transparent', opacity: isThisGroupRejected ? 0.6 : 1 }}>
+                  <div style={{ flex: '1 1 0', minInlineSize: 0 }}>
+                    <span style={{ display: 'block', fontSize: '0.75rem', fontWeight: isActiveGroup ? 700 : 600, color: 'var(--foreground)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: isThisGroupRejected ? 'line-through' : 'none' }}>{group.formType}: {group.formEntity.toUpperCase()}</span>
+                    <span style={{ fontSize: '0.5625rem', fontWeight: 500, color: 'var(--muted-foreground)' }}>{group.records.length} {group.records.length === 1 ? 'page' : 'pages'}</span>
+                  </div>
+                  <span style={{ flexShrink: 0, fontSize: '0.5625rem', fontWeight: 700, padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem', backgroundColor: statusBg, color: statusColor }}>{statusLabel}</span>
+                </button>
               )
             })}
           </div>
         </aside>
 
-        {/* ── Resizable divider handle ── */}
-        <div role="separator" aria-orientation="vertical" aria-label="Resize sidebar" onMouseDown={handleDragStart} style={{ inlineSize: '0.375rem', cursor: 'col-resize', backgroundColor: 'var(--muted)', borderInline: '0.0625rem solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background-color 0.15s', flexShrink: 0 }} onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--border)' }} onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--muted)' }}>
-          <GripVertical style={{ inlineSize: '0.625rem', blockSize: '0.625rem', color: 'var(--muted-foreground)', opacity: 0.6 }} />
-        </div>
+        {/* ── RIGHT: Evidence Panel (Tabbed) ── */}
+        <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          {/* Tab bar */}
+          <div role="tablist" aria-label="Evidence tabs" style={{ display: 'flex', borderBlockEnd: '0.0625rem solid var(--border)', backgroundColor: 'var(--surface-raised)', flexShrink: 0 }}>
+            <button type="button" role="tab" aria-selected={activeTab === 'fields'} onClick={() => setActiveTab('fields')} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', padding: '0.625rem 1rem', border: 'none', borderBlockEnd: activeTab === 'fields' ? '0.125rem solid var(--ai-accent)' : '0.125rem solid transparent', cursor: 'pointer', fontSize: '0.75rem', fontWeight: activeTab === 'fields' ? 700 : 500, color: activeTab === 'fields' ? 'var(--foreground)' : 'var(--muted-foreground)', backgroundColor: 'transparent' }}>
+              <Columns2 style={{ inlineSize: '0.875rem', blockSize: '0.875rem', color: activeTab === 'fields' ? 'var(--ai-accent)' : 'var(--muted-foreground)' }} />
+              Fields
+              {comparedValues.length > 0 && <span style={{ fontSize: '0.5625rem', fontWeight: 700, fontFamily: 'var(--font-mono)', padding: '0.0625rem 0.25rem', borderRadius: '0.625rem', backgroundColor: activeTab === 'fields' ? 'var(--status-error-subtle)' : 'var(--muted)', color: activeTab === 'fields' ? 'var(--status-error)' : 'var(--muted-foreground)' }}>{comparedValues.filter(v => !v.match).length}/{comparedValues.length}</span>}
+            </button>
+            <button type="button" role="tab" aria-selected={activeTab === 'documents'} onClick={() => setActiveTab('documents')} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', padding: '0.625rem 1rem', border: 'none', borderBlockEnd: activeTab === 'documents' ? '0.125rem solid var(--ai-accent)' : '0.125rem solid transparent', cursor: 'pointer', fontSize: '0.75rem', fontWeight: activeTab === 'documents' ? 700 : 500, color: activeTab === 'documents' ? 'var(--foreground)' : 'var(--muted-foreground)', backgroundColor: 'transparent' }}>
+              <Eye style={{ inlineSize: '0.875rem', blockSize: '0.875rem', color: activeTab === 'documents' ? 'var(--ai-accent)' : 'var(--muted-foreground)' }} />
+              Documents
+            </button>
+          </div>
 
-        {/* ── RIGHT PANEL ── */}
-        <div style={{ display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
-          {/* PANEL 1: AI Analysis */}
-          {(() => {
-            const groupCompared = (activeGroup?.records ?? []).flatMap(r => r.comparedValues ?? []).filter((v, i, arr) => arr.findIndex(x => x.field === v.field) === i)
-            const avgConfRaw = activeGroup ? activeGroup.records.reduce((sum, r) => sum + r.confidenceLevel, 0) / activeGroup.records.length : 0
-            const avgConf = Math.round(avgConfRaw * 100)
-            const confColor = avgConf >= 90 ? 'var(--confidence-high)' : avgConf >= 70 ? 'var(--confidence-medium)' : 'var(--confidence-low)'
-            const panelActionLabel = avgConf >= 90 ? 'High Confidence' : avgConf >= 70 ? 'Moderate Confidence' : 'Low Confidence'
-            const panelTooltip = avgConf >= 90 ? 'AI is confident. Reviewer can approve quickly.' : avgConf >= 70 ? 'AI has moderate confidence. Reviewer should verify key fields.' : 'AI is uncertain. Reviewer must examine carefully.'
-            const isGroupOverridden = isActiveFlipped || (activeGroup?.records.some(r => { const ovd = overrides[`sup-pg${r.engagementPageId}`]; return ovd?.userOverrideDecision?.includes('Not Superseded') || (ovd && ovd.userOverrideDecision !== `Page ${r.engagementPageId} = ${r.decisionType}`) }) ?? false)
-            const panelGroupRejected = isGroupRejected
-            const panelIdentifier = activeGroup ? extractIdentifier(activeGroup.records) : null
-
-            return (
-              <div style={{ borderBlockEnd: '0.0625rem solid var(--border)' }}>
-                <div style={{ padding: '0.875rem 1rem', borderBlockEnd: '0.0625rem solid var(--border)', backgroundColor: 'var(--card)' }}>
-                  <div>
-                    <span style={{ display: 'block', fontSize: '0.9375rem', fontWeight: 700, color: 'var(--foreground)' }}>{activeGroup?.formType}: {activeGroup?.formEntity.toUpperCase()}</span>
-                    {panelIdentifier && <span style={{ display: 'block', fontSize: '0.75rem', fontWeight: 500, color: 'var(--muted-foreground)', fontFamily: 'var(--font-mono)', marginBlockStart: '0.1875rem' }}>{panelIdentifier.label}: {panelIdentifier.value}</span>}
-                  </div>
-                </div>
-                <button type="button" onClick={() => togglePanel('aiAnalysis')} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', inlineSize: '100%', padding: '0.5rem 1rem', border: 'none', cursor: 'pointer', textAlign: 'start', fontSize: '0.75rem', fontWeight: 700, backgroundColor: 'var(--surface-raised)', borderBlockEnd: expandedPanels.has('aiAnalysis') ? 'none' : '0.0625rem solid var(--border)', color: 'var(--muted-foreground)' }}>
-                  {expandedPanels.has('aiAnalysis') ? <ChevronDown style={{ inlineSize: '0.625rem', blockSize: '0.625rem', color: 'var(--muted-foreground)' }} /> : <ChevronRight style={{ inlineSize: '0.625rem', blockSize: '0.625rem', color: 'var(--muted-foreground)' }} />}
-                  {panelGroupRejected ? (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.6875rem', fontWeight: 700, fontFamily: 'var(--font-mono)', padding: '0.125rem 0.375rem', borderRadius: '0.1875rem', backgroundColor: 'var(--muted)', color: 'var(--muted-foreground)' }}><X style={{ inlineSize: '0.5625rem', blockSize: '0.5625rem' }} /> Not Superseded</span>
-                  ) : isGroupOverridden ? (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.6875rem', fontWeight: 700, fontFamily: 'var(--font-mono)', padding: '0.125rem 0.375rem', borderRadius: '0.1875rem', backgroundColor: 'var(--status-warning-subtle)', color: 'var(--status-warning)' }}><ArrowLeftRight style={{ inlineSize: '0.5625rem', blockSize: '0.5625rem' }} /> Verifier Decision</span>
-                  ) : (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', fontWeight: 700, padding: '0.1875rem 0.5rem', borderRadius: '0.25rem', backgroundColor: `${confColor} / 0.12`, color: confColor }} title={panelTooltip}><Sparkles style={{ inlineSize: '0.6875rem', blockSize: '0.6875rem' }} /> {panelActionLabel}</span>
-                  )}
-                </button>
-
-                {expandedPanels.has('aiAnalysis') && (
-                  <div style={{ padding: '0.875rem 1rem', backgroundColor: panelGroupRejected ? 'var(--surface-raised)' : isGroupOverridden ? 'var(--status-warning-subtle)' : 'var(--surface-raised)' }}>
-                    {panelGroupRejected && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', padding: '0.625rem 0.75rem', borderRadius: '0.25rem', border: '0.0625rem solid var(--border)', backgroundColor: 'var(--surface-sunken)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                          <AlertTriangle style={{ inlineSize: '0.875rem', blockSize: '0.875rem', color: 'var(--muted-foreground)' }} />
-                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--foreground)' }}>Not Superseded -- Excluded by Verifier</span>
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', paddingInlineStart: '1.25rem' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}><span style={{ inlineSize: '0.25rem', blockSize: '0.25rem', borderRadius: '50%', backgroundColor: 'var(--muted-foreground)', flexShrink: 0 }} /><span style={{ fontSize: '0.6875rem', color: 'var(--foreground)' }}>Documents excluded from this group will be available in SPBinder as independent records once the review is complete</span></div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}><span style={{ inlineSize: '0.25rem', blockSize: '0.25rem', borderRadius: '50%', backgroundColor: 'var(--muted-foreground)', flexShrink: 0 }} /><span style={{ fontSize: '0.6875rem', color: 'var(--foreground)' }}>No superseded classification will be applied</span></div>
-                        </div>
-                        {(() => {
-                          const rejRecs = activeGroup?.records.filter(r => rejectedDocs.has(String(r.engagementPageId))) ?? []
-                          const firstReason = rejRecs.length > 0 ? rejectedDocs.get(String(rejRecs[0].engagementPageId)) : null
-                          return firstReason ? (
-                            <div style={{ marginBlockStart: '0.5rem', padding: '0.5rem 0.625rem', borderRadius: '0.25rem', backgroundColor: 'var(--card)', border: '0.0625rem solid var(--border)' }}>
-                              <span style={{ fontSize: '0.5625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--muted-foreground)' }}>Reason</span>
-                              <p style={{ margin: '0.125rem 0 0', fontSize: '0.6875rem', fontWeight: 600, color: 'var(--foreground)', lineHeight: 1.4 }}>{firstReason.reason}</p>
-                            </div>
-                          ) : null
-                        })()}
-                      </div>
-                    )}
-
-                    {!panelGroupRejected && isGroupOverridden && (() => {
-                      const overriddenRecord = activeFlippedIdx !== undefined ? activeGroup!.supersededRecords[activeFlippedIdx] : null
-                      const allRecords = activeGroup!.records
-                      return (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem', padding: '0.75rem 0.875rem', marginBlockEnd: '0.75rem', borderRadius: '0.375rem', border: '0.0625rem solid var(--status-warning-border)', backgroundColor: 'var(--status-warning-subtle)' }}>
-                        <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--status-warning)' }}>Verifier Decision</span>
-                        <div style={{ padding: '0.5rem 0.625rem', borderRadius: '0.25rem', backgroundColor: 'var(--card)', border: '0.0625rem solid var(--border)' }}>
-                          <span style={{ fontSize: '0.625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--muted-foreground)' }}>AI Recommended</span>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem', marginBlockStart: '0.375rem' }}>
-                            {allRecords.map(r => {
-                              const isRej = rejectedPageIds.has(String(r.engagementPageId))
-                              return <span key={r.engagementPageId} style={{ fontSize: '0.6875rem', fontWeight: 600, padding: '0.1875rem 0.5rem', borderRadius: '0.25rem', backgroundColor: isRej ? 'var(--muted)' : r.decisionType === 'Original' ? 'var(--status-success-subtle)' : 'var(--status-error-subtle)', color: isRej ? 'var(--muted-foreground)' : r.decisionType === 'Original' ? 'var(--status-success)' : 'var(--status-error)', opacity: isRej ? 0.7 : 1 }}>Pg {r.documentRef?.pageNumber ?? r.engagementPageId}: {isRej ? 'Not Superseded' : r.decisionType}</span>
-                            })}
-                          </div>
-                        </div>
-                        <div style={{ padding: '0.5rem 0.625rem', borderRadius: '0.25rem', backgroundColor: 'var(--card)', border: '0.0625rem solid var(--border)' }}>
-                          <span style={{ fontSize: '0.625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--muted-foreground)' }}>Verifier Changed To</span>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.375rem', marginBlockStart: '0.375rem' }}>
-                            {allRecords.map(r => {
-                              const isRej = rejectedPageIds.has(String(r.engagementPageId))
-                              const sd = overrides[`sup-pg${r.engagementPageId}`]
-                              const sDec = sd?.userOverrideDecision
-                              let newLabel: string
-                              if (isRej || sDec?.includes('Not Superseded')) newLabel = 'Not Superseded'
-                              else if (sDec?.endsWith('= Original')) newLabel = 'Original'
-                              else if (sDec?.endsWith('= Superseded')) newLabel = 'Superseded'
-                              else if (overriddenRecord && r.engagementPageId === overriddenRecord.engagementPageId) newLabel = 'Original'
-                              else if (r.decisionType === 'Original') newLabel = 'Superseded'
-                              else newLabel = 'Superseded'
-                              const isExcluded = newLabel === 'Not Superseded'
-                              const changed = !isExcluded && ((r.decisionType === 'Original' && newLabel === 'Superseded') || (r.decisionType === 'Superseded' && newLabel === 'Original'))
-                              return <span key={r.engagementPageId} style={{ fontSize: '0.6875rem', fontWeight: 600, padding: '0.1875rem 0.5rem', borderRadius: '0.25rem', backgroundColor: isExcluded ? 'var(--muted)' : newLabel === 'Original' ? 'var(--status-success-subtle)' : 'var(--status-error-subtle)', color: isExcluded ? 'var(--muted-foreground)' : newLabel === 'Original' ? 'var(--status-success)' : 'var(--status-error)', outline: changed ? '0.125rem solid var(--status-warning)' : isExcluded ? '0.125rem solid var(--border)' : 'none', opacity: isExcluded ? 0.8 : 1 }}>Pg {r.documentRef?.pageNumber ?? r.engagementPageId}: {newLabel}{changed && ' *'}</span>
-                            })}
-                          </div>
-                        </div>
-                        {/* Reclassification reason */}
-                        {(() => {
-                          const changedRec = allRecords.find(r => { const d = overrides[`sup-pg${r.engagementPageId}`]; if (!d) return false; if (d.userOverrideDecision?.includes('Not Superseded')) return false; return d.userOverrideDecision !== d.originalAIDecision })
-                          const reason = changedRec ? overrides[`sup-pg${changedRec.engagementPageId}`]?.overrideReason : null
-                          const displayReason = reason && reason !== 'Verifier decision' ? reason : null
-                          return displayReason ? (
-                            <div style={{ padding: '0.375rem 0.5rem', borderRadius: '0.25rem', backgroundColor: 'var(--card)', border: '0.0625rem solid var(--border)' }}>
-                              <span style={{ fontSize: '0.5625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--muted-foreground)' }}>Reason for Reclassification</span>
-                              <p style={{ margin: '0.125rem 0 0', fontSize: '0.6875rem', fontWeight: 600, color: 'var(--foreground)', lineHeight: 1.4 }}>{displayReason}</p>
-                            </div>
-                          ) : null
-                        })()}
-                        {/* Exclusion reason */}
-                        {(() => {
-                          const excludedRecs = allRecords.filter(r => { const d = overrides[`sup-pg${r.engagementPageId}`]; return d?.userOverrideDecision?.includes('Not Superseded') })
-                          if (excludedRecs.length === 0) return null
-                          const exclReason = overrides[`sup-pg${excludedRecs[0].engagementPageId}`]?.overrideReason
-                          const displayExclR = exclReason && exclReason !== 'Verifier decision' ? exclReason : null
-                          return (
-                            <div style={{ padding: '0.5rem 0.625rem', borderRadius: '0.25rem', backgroundColor: 'var(--surface-raised)', border: '0.0625rem solid var(--border)' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginBlockEnd: '0.25rem' }}><AlertTriangle style={{ inlineSize: '0.75rem', blockSize: '0.75rem', color: 'var(--muted-foreground)' }} /><span style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--foreground)' }}>Not Superseded</span></div>
-                              <div style={{ paddingInlineStart: '1.125rem' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginBlockEnd: '0.25rem' }}><span style={{ inlineSize: '0.25rem', blockSize: '0.25rem', borderRadius: '50%', backgroundColor: 'var(--muted-foreground)', flexShrink: 0 }} /><span style={{ fontSize: '0.625rem', color: 'var(--foreground)' }}>Documents excluded from this group will be available in SPBinder as independent records once the review is complete</span></div>
-                                {displayExclR && (
-                                  <div style={{ marginBlockStart: '0.375rem', padding: '0.375rem 0.5rem', borderRadius: '0.25rem', backgroundColor: 'var(--card)', border: '0.0625rem solid var(--border)' }}>
-                                    <span style={{ fontSize: '0.5625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--muted-foreground)' }}>Reason for Exclusion</span>
-                                    <p style={{ margin: '0.125rem 0 0', fontSize: '0.6875rem', fontWeight: 600, color: 'var(--foreground)', lineHeight: 1.4 }}>{displayExclR}</p>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          )
-                        })()}
-                      </div>
-                      )
-                    })()}
-
-                    {!panelGroupRejected && !isGroupOverridden && (() => {
-                      const formType = activeGroup?.formType ?? 'Unknown'
-                      const entity = activeGroup?.formEntity ?? ''
-                      const matchingFields = comparedValues.filter(v => v.match)
-                      const differingFields = comparedValues.filter(v => !v.match)
-                      const matchCategories = new Map<string, string[]>()
-                      matchingFields.forEach(v => { const cat = v.category ?? 'Other'; if (!matchCategories.has(cat)) matchCategories.set(cat, []); matchCategories.get(cat)!.push(v.field) })
-                      const differCategories = new Map<string, string[]>()
-                      differingFields.forEach(v => { const cat = v.category ?? 'Other'; if (!differCategories.has(cat)) differCategories.set(cat, []); differCategories.get(cat)!.push(v.field) })
-                      const supDoc = leftDoc, origDoc = rightDoc
-                      const supLabel = supDoc?.documentRef?.formLabel ?? `${formType} (Superseded)`
-                      const origLabel = origDoc?.documentRef?.formLabel ?? `${formType} (Original)`
-                      const hasCorrectedField = differingFields.some(v => v.field.toLowerCase().includes('corrected'))
-                      const hasAmountDiffs = differingFields.some(v => (v.category ?? '').toLowerCase() === 'income')
-                      const hasDocNumberDiff = differingFields.some(v => v.field.toLowerCase().includes('document number'))
-                      const allIdentifyingMatch = matchingFields.some(v => (v.category ?? '').toLowerCase().includes('recipient')) && matchingFields.some(v => (v.category ?? '').toLowerCase().includes('payer'))
-                      return (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', padding: '0.5rem 0.625rem', borderRadius: '0.375rem', backgroundColor: 'var(--surface-raised)', border: '0.0625rem solid var(--border)' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}><span style={{ fontSize: '0.5625rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Document Type</span><span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--foreground)' }}>{formType}{entity && entity !== formType ? ` (${entity})` : ''}</span></div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.625rem', color: 'var(--muted-foreground)' }}><span style={{ fontWeight: 600, color: 'var(--status-error)' }}>{supLabel.replace(formType, '').replace(/[-()\s]+/g, ' ').trim() || 'Superseded'}</span><span style={{ color: 'var(--border)' }}>vs</span><span style={{ fontWeight: 600, color: 'var(--status-success)' }}>{origLabel.replace(formType, '').replace(/[-()\s]+/g, ' ').trim() || 'Original'}</span></div>
-                          </div>
-                          <p style={{ fontSize: '0.75rem', lineHeight: 1.7, color: 'var(--foreground)', margin: 0 }}>
-                            {allIdentifyingMatch ? `The AI identified these as versions of the same ${formType} filing from ${entity || 'the same payer'}. Core identifying fields (${matchingFields.filter(v => ['Payer Info', 'Recipient Info'].includes(v.category ?? '')).map(v => v.field).join(', ')}) are identical, confirming these forms relate to the same taxpayer and payer.` : `The AI compared these ${formType} documents and found ${matchingFields.length} matching field${matchingFields.length !== 1 ? 's' : ''} out of ${comparedValues.length} total.`}
-                            {hasCorrectedField && ' The Corrected indicator changed, consistent with a corrected filing replacing the original.'}
-                            {hasAmountDiffs && ` Income-related fields (${differingFields.filter(v => (v.category ?? '').toLowerCase() === 'income').map(v => v.field).join(', ')}) differ between documents, which is expected when a payer issues a corrected form with updated amounts.`}
-                            {hasDocNumberDiff && ' The Document Number suffix changed, further confirming this is a revision of the same filing.'}
-                            {!hasCorrectedField && !hasAmountDiffs && differingFields.length > 0 && ` The following fields differ: ${differingFields.map(v => v.field).join(', ')}. These differences suggest the documents represent different versions of the same filing.`}
-                          </p>
-                          <div style={{ display: 'flex', gap: '0.5rem' }}>
-                            {matchingFields.length > 0 && <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.375rem', padding: '0.5rem 0.625rem', borderRadius: '0.375rem', backgroundColor: 'var(--status-success-subtle)', border: '0.0625rem solid var(--status-success-border)' }}><span style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--status-success)' }}>Matching ({matchingFields.length})</span>{Array.from(matchCategories.entries()).map(([cat, fields]) => <div key={cat} style={{ display: 'flex', flexDirection: 'column', gap: '0.1875rem' }}><span style={{ fontSize: '0.5625rem', fontWeight: 600, color: 'var(--status-success)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{cat}</span><div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>{fields.map(f => <span key={f} style={{ fontSize: '0.625rem', fontWeight: 500, padding: '0.125rem 0.3125rem', borderRadius: '0.1875rem', backgroundColor: 'var(--status-success-subtle)', color: 'var(--status-success)' }}>{f}</span>)}</div></div>)}</div>}
-                            {differingFields.length > 0 && <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.375rem', padding: '0.5rem 0.625rem', borderRadius: '0.375rem', backgroundColor: 'var(--status-warning-subtle)', border: '0.0625rem solid var(--status-warning-border)' }}><span style={{ fontSize: '0.6875rem', fontWeight: 700, color: 'var(--status-warning)' }}>Differing ({differingFields.length})</span>{Array.from(differCategories.entries()).map(([cat, fields]) => <div key={cat} style={{ display: 'flex', flexDirection: 'column', gap: '0.1875rem' }}><span style={{ fontSize: '0.5625rem', fontWeight: 600, color: 'var(--status-warning)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{cat}</span><div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>{fields.map(f => <span key={f} style={{ fontSize: '0.625rem', fontWeight: 500, padding: '0.125rem 0.3125rem', borderRadius: '0.1875rem', backgroundColor: 'var(--status-warning-subtle)', color: 'var(--status-warning)' }}>{f}</span>)}</div></div>)}</div>}
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', padding: '0.5rem 0.625rem', borderRadius: '0.375rem', backgroundColor: 'var(--status-info-subtle)', border: '0.0625rem solid var(--status-info-border)' }}>
-                            <Info style={{ inlineSize: '0.875rem', blockSize: '0.875rem', color: 'var(--ai-accent)', flexShrink: 0, marginBlockStart: '0.0625rem' }} />
-                            <span style={{ fontSize: '0.6875rem', color: 'var(--foreground)', lineHeight: 1.6 }}>
-                              {hasCorrectedField ? 'Verify that the Corrected indicator and updated amounts are consistent with a payer-issued correction before accepting.' : hasAmountDiffs ? 'Review the income field differences to confirm they represent an updated filing rather than a separate tax event.' : differingFields.length === 0 ? 'All compared fields match exactly. Verify these are not two distinct filings for different periods.' : `Review the ${differingFields.length} differing field${differingFields.length !== 1 ? 's' : ''} to confirm this represents a superseded version rather than a separate filing.`}
-                            </span>
-                          </div>
-                        </div>
-                      )
-                    })()}
-                  </div>
+          {/* Tab content */}
+          <div style={{ flex: '1 1 0', overflow: 'auto', minBlockSize: 0 }}>
+            {/* Fields tab */}
+            {activeTab === 'fields' && (
+              <div style={{ padding: '0.75rem 1rem' }}>
+                {isGroupRejected ? (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '3rem 1rem', color: 'var(--muted-foreground)', fontSize: '0.8125rem' }}>Group excluded -- no field comparison available</div>
+                ) : comparedValues.length > 0 ? (
+                  <FieldComparison values={comparedValues} labelA={leftDoc?.documentRef?.formLabel ?? 'Superseded'} labelB={rightDoc?.documentRef?.formLabel ?? 'Original'} docRefA={leftDoc?.documentRef} docRefB={rightDoc?.documentRef} isOverridden={isActiveFlipped} />
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '3rem 1rem', color: 'var(--muted-foreground)', fontSize: '0.8125rem' }}>No field comparison data</div>
                 )}
               </div>
-            )
-          })()}
-
-          {/* PANEL 2: Field Comparison */}
-          {!isGroupRejected && comparedValues.length > 0 && (
-            <div style={{ borderBlockEnd: '0.0625rem solid var(--border)' }}>
-              <button type="button" onClick={() => togglePanel('fieldComparison')} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', inlineSize: '100%', padding: '0.625rem 1rem', border: 'none', cursor: 'pointer', textAlign: 'start', fontSize: '0.8125rem', fontWeight: 700, color: 'var(--foreground)', backgroundColor: 'var(--surface-raised)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                {expandedPanels.has('fieldComparison') ? <ChevronDown style={{ inlineSize: '0.875rem', blockSize: '0.875rem', color: 'var(--muted-foreground)' }} /> : <ChevronRight style={{ inlineSize: '0.875rem', blockSize: '0.875rem', color: 'var(--muted-foreground)' }} />}
-                <Columns2 style={{ inlineSize: '1rem', blockSize: '1rem', color: 'var(--ai-accent)' }} />
-                Field Comparison
-                <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'none', letterSpacing: 'normal' }}>{comparedValues.filter(v => !v.match).length} of {comparedValues.length} differ</span>
-              </button>
-              {expandedPanels.has('fieldComparison') && (
-                <div style={{ padding: '0.75rem 1rem', backgroundColor: 'var(--background)' }}>
-                  <FieldComparison values={comparedValues} labelA={leftDoc?.documentRef?.formLabel ?? 'Superseded'} labelB={rightDoc?.documentRef?.formLabel ?? 'Original'} docRefA={leftDoc?.documentRef} docRefB={rightDoc?.documentRef} isOverridden={isActiveFlipped} />
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* PANEL 3: Document Viewer */}
-          {!isGroupRejected && (
-          <div style={{ borderBlockEnd: '0.0625rem solid var(--border)' }}>
-            <button type="button" onClick={() => togglePanel('documents')} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', inlineSize: '100%', padding: '0.625rem 1rem', border: 'none', cursor: 'pointer', textAlign: 'start', fontSize: '0.8125rem', fontWeight: 700, color: 'var(--foreground)', backgroundColor: 'var(--surface-sunken)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              {isDocExpanded ? <ChevronDown style={{ inlineSize: '0.875rem', blockSize: '0.875rem', color: 'var(--muted-foreground)' }} /> : <ChevronRight style={{ inlineSize: '0.875rem', blockSize: '0.875rem', color: 'var(--muted-foreground)' }} />}
-              <Eye style={{ inlineSize: '1rem', blockSize: '1rem', color: 'var(--ai-accent)' }} /> Document Viewer
-              {!isDocExpanded && <span style={{ fontSize: '0.625rem', fontWeight: 500, color: 'var(--muted-foreground)', textTransform: 'none', letterSpacing: 'normal' }}>-- Click to expand full view</span>}
-              {isDocExpanded && <span style={{ marginInlineStart: 'auto', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.625rem', fontWeight: 500, color: 'var(--muted-foreground)', textTransform: 'none', letterSpacing: 'normal' }}><Minimize2 style={{ inlineSize: '0.625rem', blockSize: '0.625rem' }} /> Collapse to thumbnails</span>}
-            </button>
-            {!isDocExpanded && (
-              <div role="button" tabIndex={0} onClick={() => togglePanel('documents')} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') togglePanel('documents') }} style={{ display: 'flex', gap: '0.5rem', padding: '0.5rem 0.75rem', cursor: 'pointer', backgroundColor: 'var(--surface-raised)' }} aria-label="Click to expand document viewer">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', flex: '1 1 0', padding: '0.375rem 0.5rem', borderRadius: '0.25rem', border: '0.0625rem solid var(--border)', backgroundColor: 'var(--surface-raised)' }}>
-                  <FileText style={{ inlineSize: '0.875rem', blockSize: '0.875rem', flexShrink: 0, color: 'var(--muted-foreground)' }} />
-                  <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--foreground)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{leftDoc?.documentRef?.formLabel ?? 'Document A'}{supersededList.length > 1 ? ` (${safeIdx + 1}/${supersededList.length})` : ''}</span>
-                  <span style={{ marginInlineStart: 'auto', flexShrink: 0, padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem', fontSize: '0.5625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.03em', backgroundColor: 'var(--status-error-subtle)', color: 'var(--status-error)' }}>Superseded</span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', flex: '1 1 0', padding: '0.375rem 0.5rem', borderRadius: '0.25rem', border: '0.0625rem solid var(--border)', backgroundColor: 'var(--surface-raised)' }}>
-                  <FileText style={{ inlineSize: '0.875rem', blockSize: '0.875rem', flexShrink: 0, color: 'var(--muted-foreground)' }} />
-                  <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--foreground)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{rightDoc?.documentRef?.formLabel ?? 'Document B'}</span>
-                  <span style={{ marginInlineStart: 'auto', flexShrink: 0, padding: '0.0625rem 0.3125rem', borderRadius: '0.1875rem', fontSize: '0.5625rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.03em', backgroundColor: 'var(--status-success-subtle)', color: 'var(--status-success)' }}>Original</span>
-                </div>
-              </div>
             )}
-            {isDocExpanded && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', minBlockSize: '32rem' }}>
-                <div style={{ overflow: 'auto', padding: '0.5rem' }}>
-                  {supersededList.length > 1 && (
-                    <div style={{ display: 'flex', gap: '0.25rem', marginBlockEnd: '0.375rem', padding: '0.25rem', backgroundColor: 'var(--surface-sunken)', borderRadius: '0.25rem', border: '0.0625rem solid var(--border)' }}>
-                      {supersededList.map((sr, sIdx) => (
-                        <button key={sr.engagementPageId} type="button" onClick={() => setSelectedSupersededIdx(sIdx)} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.0625rem', padding: '0.3125rem 0.5rem', border: sIdx === safeIdx ? '0.0625rem solid var(--ai-accent)' : '0.0625rem solid transparent', borderRadius: '0.1875rem', backgroundColor: sIdx === safeIdx ? 'var(--card)' : 'transparent', boxShadow: sIdx === safeIdx ? '0 0.0625rem 0.1875rem rgba(0,0,0,0.12)' : 'none', cursor: 'pointer', transition: 'all 0.15s ease' }}>
-                          <span style={{ fontSize: '0.6875rem', fontWeight: sIdx === safeIdx ? 700 : 500, color: sIdx === safeIdx ? 'var(--ai-accent)' : 'var(--muted-foreground)' }}>Pg {sr.documentRef?.pageNumber ?? sr.engagementPageId}</span>
-                          <span style={{ fontSize: '0.5625rem', fontWeight: 500, color: sIdx === safeIdx ? 'var(--ai-accent)' : 'var(--muted-foreground)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxInlineSize: '8rem' }}>{sr.documentRef?.formLabel?.replace(activeGroup?.formType ?? '', '').replace(/[()]/g, '').trim() || 'Superseded'}</span>
-                        </button>
+
+            {/* Documents tab */}
+            {activeTab === 'documents' && (
+              <>
+                {isGroupRejected ? (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '3rem 1rem', color: 'var(--muted-foreground)', fontSize: '0.8125rem' }}>Group excluded -- no documents to display</div>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', blockSize: '100%', minBlockSize: '28rem' }}>
+                    <div style={{ overflow: 'auto', padding: '0.5rem' }}>
+                      {supersededList.length > 1 && (
+                        <div style={{ display: 'flex', gap: '0.25rem', marginBlockEnd: '0.375rem', padding: '0.25rem', backgroundColor: 'var(--surface-sunken)', borderRadius: '0.25rem', border: '0.0625rem solid var(--border)' }}>
+                          {supersededList.map((sr, sIdx) => (
+                            <button key={sr.engagementPageId} type="button" onClick={() => setSelectedSupersededIdx(sIdx)} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.0625rem', padding: '0.3125rem 0.5rem', border: sIdx === safeIdx ? '0.0625rem solid var(--ai-accent)' : '0.0625rem solid transparent', borderRadius: '0.1875rem', backgroundColor: sIdx === safeIdx ? 'var(--card)' : 'transparent', boxShadow: sIdx === safeIdx ? '0 0.0625rem 0.1875rem rgba(0,0,0,0.12)' : 'none', cursor: 'pointer', transition: 'all 0.15s ease' }}>
+                              <span style={{ fontSize: '0.6875rem', fontWeight: sIdx === safeIdx ? 700 : 500, color: sIdx === safeIdx ? 'var(--ai-accent)' : 'var(--muted-foreground)' }}>Pg {sr.documentRef?.pageNumber ?? sr.engagementPageId}</span>
+                              <span style={{ fontSize: '0.5625rem', fontWeight: 500, color: sIdx === safeIdx ? 'var(--ai-accent)' : 'var(--muted-foreground)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxInlineSize: '8rem' }}>{sr.documentRef?.formLabel?.replace(activeGroup?.formType ?? '', '').replace(/[()]/g, '').trim() || 'Superseded'}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {leftDoc?.documentRef ? <PdfPageViewer documentRef={leftDoc.documentRef} stamp="SUPERSEDED" height="30rem" /> : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', blockSize: '100%', color: 'var(--muted-foreground)', fontSize: '0.8125rem' }}>No superseded document</div>}
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem', padding: '0.5rem 0.25rem', borderInlineStart: '0.0625rem solid var(--border)', borderInlineEnd: '0.0625rem solid var(--border)', backgroundColor: 'var(--surface-raised)' }}>
+                      {[{ icon: ZoomIn, label: 'Zoom in' }, { icon: ZoomOut, label: 'Zoom out' }, { icon: Maximize, label: 'Fit to view' }, { icon: RotateCw, label: 'Rotate' }, { icon: FlipHorizontal, label: 'Flip horizontal' }, { icon: FlipVertical, label: 'Flip vertical' }].map(({ icon: Icon, label }) => (
+                        <button key={label} type="button" aria-label={label} title={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', inlineSize: '2rem', blockSize: '2rem', border: '0.0625rem solid var(--border)', borderRadius: '0.25rem', backgroundColor: 'var(--card)', color: 'var(--foreground)', cursor: 'pointer' }}><Icon style={{ inlineSize: '0.875rem', blockSize: '0.875rem' }} /></button>
                       ))}
                     </div>
-                  )}
-                  {leftDoc?.documentRef ? <PdfPageViewer documentRef={leftDoc.documentRef} stamp="SUPERSEDED" height="30rem" /> : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', blockSize: '100%', color: 'var(--muted-foreground)', fontSize: '0.8125rem' }}>No superseded document</div>}
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem', padding: '0.5rem 0.25rem', borderInlineStart: '0.0625rem solid var(--border)', borderInlineEnd: '0.0625rem solid var(--border)', backgroundColor: 'var(--surface-raised)' }}>
-                  {[{ icon: ZoomIn, label: 'Zoom in' }, { icon: ZoomOut, label: 'Zoom out' }, { icon: Maximize, label: 'Fit to view' }, { icon: RotateCw, label: 'Rotate' }, { icon: FlipHorizontal, label: 'Flip horizontal' }, { icon: FlipVertical, label: 'Flip vertical' }].map(({ icon: Icon, label }) => (
-                    <button key={label} type="button" aria-label={label} title={label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', inlineSize: '2rem', blockSize: '2rem', border: '0.0625rem solid var(--border)', borderRadius: '0.25rem', backgroundColor: 'var(--card)', color: 'var(--foreground)', cursor: 'pointer' }}><Icon style={{ inlineSize: '0.875rem', blockSize: '0.875rem' }} /></button>
-                  ))}
-                </div>
-                <div style={{ overflow: 'auto', padding: '0.5rem' }}>
-                  {rightDoc?.documentRef ? <PdfPageViewer documentRef={rightDoc.documentRef} stamp="ORIGINAL" height="30rem" /> : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', blockSize: '100%', color: 'var(--muted-foreground)', fontSize: '0.8125rem' }}>No original document</div>}
-                </div>
-              </div>
+                    <div style={{ overflow: 'auto', padding: '0.5rem' }}>
+                      {rightDoc?.documentRef ? <PdfPageViewer documentRef={rightDoc.documentRef} stamp="ORIGINAL" height="30rem" /> : <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', blockSize: '100%', color: 'var(--muted-foreground)', fontSize: '0.8125rem' }}>No original document</div>}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
-          )}
         </div>
       </div>
+
+      {/* ══════════════════════════════════════════════════════════
+          PROGRESS FOOTER
+          ══════════════════════════════════════════════════════════ */}
+      <footer style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.375rem 1rem', borderBlockStart: '0.0625rem solid var(--border)', backgroundColor: 'var(--surface-raised)', flexShrink: 0 }}>
+        <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--muted-foreground)' }}>{reviewedCount} of {groups.length} reviewed</span>
+        <div style={{ flex: '1 1 0', blockSize: '0.25rem', borderRadius: '0.125rem', backgroundColor: 'var(--muted)', overflow: 'hidden' }}>
+          <div style={{ blockSize: '100%', inlineSize: `${groups.length > 0 ? (reviewedCount / groups.length) * 100 : 0}%`, backgroundColor: reviewedCount === groups.length ? 'var(--status-success)' : 'var(--ai-accent)', borderRadius: '0.125rem', transition: 'inline-size 0.3s ease' }} />
+        </div>
+        {reviewedCount === groups.length && <span style={{ fontSize: '0.625rem', fontWeight: 700, color: 'var(--status-success)' }}>Complete</span>}
+      </footer>
     </div>
   )
 }
