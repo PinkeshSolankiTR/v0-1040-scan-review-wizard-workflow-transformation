@@ -662,7 +662,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
         </div>
 
         {/* ── Tab content ── */}
-        <div className="flex-1 overflow-auto">
+        <div className={`flex-1 overflow-auto ${activeTab === 'analysis' ? 'flex flex-col' : ''}`}>
           {/* Fields tab */}
           {activeTab === 'fields' && (
             <div className="p-5">
@@ -714,10 +714,10 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
 
           {/* AI Analysis tab -- Option C: Split layout (Summary left, Actions right) */}
           {activeTab === 'analysis' && (
-            <div className="flex flex-1 overflow-hidden">
+            <div className="flex min-h-0 flex-1 overflow-hidden">
 
               {/* ── LEFT COLUMN: AI Analysis ── */}
-              <div className="flex-1 overflow-y-auto border-r border-border p-6">
+              <div className="flex-1 overflow-y-auto p-6">
                 <div className="mx-auto max-w-xl space-y-5">
                   {/* Confidence badge */}
                   <div className="flex items-center gap-3">
@@ -832,7 +832,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
               </div>
 
               {/* ── RIGHT COLUMN: Review Decision ── */}
-              <div className="flex w-80 shrink-0 flex-col overflow-y-auto bg-muted/20 p-5">
+              <div className="flex w-80 shrink-0 flex-col overflow-y-auto border-l border-border bg-muted/30 p-5">
                 <p className="mb-4 text-xs font-bold uppercase tracking-widest text-muted-foreground">Review Decision</p>
 
                 {/* Accept card -- primary / recommended */}
