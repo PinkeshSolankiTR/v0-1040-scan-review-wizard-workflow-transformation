@@ -906,7 +906,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                       {/* Document labels */}
                       <div className="mb-3 flex items-center gap-2 text-xs text-muted-foreground">
                         <span className="font-semibold" style={{ color: 'var(--status-error)' }}>{supLabel.replace(formType, '').replace(/[-()\s]+/g, ' ').trim() || 'Superseded'}</span>
-                        <span className="text-border">vs</span>
+                        <span className="rounded-full bg-muted px-2 py-0.5 text-[0.625rem] font-bold uppercase tracking-wide text-muted-foreground">vs</span>
                         <span className="font-semibold" style={{ color: 'var(--status-success)' }}>{origLabel.replace(formType, '').replace(/[-()\s]+/g, ' ').trim() || 'Original'}</span>
                       </div>
 
