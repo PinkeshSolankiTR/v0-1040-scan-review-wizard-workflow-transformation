@@ -1,8 +1,7 @@
 'use client'
 
 import { useRouter, useParams, usePathname } from 'next/navigation'
-import Link from 'next/link'
-import { Upload, LayoutDashboard } from 'lucide-react'
+import { Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -91,12 +90,7 @@ export function TopBar({ binder }: { binder: Binder }) {
           <span className="hidden sm:inline">Upload</span>
         </Button>
 
-        <Button variant="ghost" size="sm" asChild>
-          <Link href="/">
-            <LayoutDashboard className="size-4" />
-            <span className="hidden sm:inline">Presentation Hub</span>
-          </Link>
-        </Button>
+
       </div>
 
       <DocumentUploadDialog open={uploadOpen} onOpenChange={setUploadOpen} />

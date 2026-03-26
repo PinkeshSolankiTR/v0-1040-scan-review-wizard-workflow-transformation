@@ -520,9 +520,6 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                       {group.records.length}p
                     </span>
                   </div>
-                  <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                    {group.formEntity}
-                  </p>
                   <span className={`mt-1 inline-block rounded px-1.5 py-0.5 text-[0.625rem] font-semibold ${
                     isThisGroupAccepted ? 'bg-emerald-500/10 text-emerald-600' :
                     isThisGroupRejected ? 'bg-muted text-muted-foreground' :
@@ -570,27 +567,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                 {aiAnalysisData.panelIdentifier.label}: {aiAnalysisData.panelIdentifier.value}
               </span>
             )}
-            {/* Confidence / status badge */}
-            {!isGroupRejected && !aiAnalysisData.isGroupOverridden && (
-              <span
-                className="inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold"
-                style={{ backgroundColor: `color-mix(in srgb, ${aiAnalysisData.confColor} 12%, transparent)`, color: aiAnalysisData.confColor }}
-                title={aiAnalysisData.panelTooltip}
-              >
-                <Sparkles className="h-3 w-3" />
-                {aiAnalysisData.panelActionLabel}
-              </span>
-            )}
-            {isGroupRejected && (
-              <span className="inline-flex shrink-0 items-center gap-1 rounded bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">
-                <X className="h-3 w-3" /> Not Superseded
-              </span>
-            )}
-            {!isGroupRejected && aiAnalysisData.isGroupOverridden && (
-              <span className="inline-flex shrink-0 items-center gap-1 rounded px-2 py-0.5 text-xs font-semibold" style={{ backgroundColor: 'var(--status-warning-subtle)', color: 'var(--status-warning)' }}>
-                <ArrowLeftRight className="h-3 w-3" /> Reclassified
-              </span>
-            )}
+
           </div>
 
           {/* Right: action buttons */}
@@ -915,10 +892,45 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
 
         {/* ── Tab bar (like Teams: Chat | Shared | Recap) ── */}
         <div role="tablist" aria-label="Evidence tabs" className="flex shrink-0 border-b border-border bg-card px-5">
+          {/* Confidence / AI Analysis tab -- first position */}
+          {(() => {
+            const confidenceLabel = isGroupRejected
+              ? 'Not Superseded'
+              : aiAnalysisData.isGroupOverridden
+                ? 'Reclassified'
+                : aiAnalysisData.panelActionLabel
+            const confidenceColor = isGroupRejected
+              ? 'var(--muted-foreground)'
+              : aiAnalysisData.isGroupOverridden
+                ? 'var(--status-warning)'
+                : aiAnalysisData.confColor
+            return (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'analysis'}
+                onClick={() => setActiveTab('analysis')}
+                className={`relative inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+                  activeTab === 'analysis' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Sparkles className="h-4 w-4" />
+                <span
+                  className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold"
+                  style={{ backgroundColor: `color-mix(in srgb, ${confidenceColor} 12%, transparent)`, color: confidenceColor }}
+                >
+                  {confidenceLabel}
+                </span>
+                {activeTab === 'analysis' && (
+                  <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-primary" />
+                )}
+              </button>
+            )
+          })()}
+          {/* Fields + Documents tabs */}
           {[
             { id: 'fields' as const, label: 'Fields', icon: Columns2, badge: comparedValues.length > 0 ? `${comparedValues.filter(v => !v.match).length}/${comparedValues.length}` : null },
             { id: 'documents' as const, label: 'Documents', icon: Eye, badge: null },
-            { id: 'analysis' as const, label: 'AI Analysis', icon: Sparkles, badge: null },
           ].map(tab => (
             <button
               key={tab.id}
@@ -941,7 +953,6 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                   {tab.badge}
                 </span>
               )}
-              {/* Active indicator line */}
               {activeTab === tab.id && (
                 <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-primary" />
               )}
@@ -1082,24 +1093,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                       {hasDocNumberDiff && ' Document Number changed, confirming a revision.'}
                       {!hasCorrectedField && !hasAmountDiffs && differingFields.length > 0 && ` Differences: ${differingFields.map(v => v.field).join(', ')}.`}
                     </p>
-                    <div className="grid grid-cols-2 gap-3">
-                      {matchingFields.length > 0 && (
-                        <div className="space-y-2 rounded-lg border p-4" style={{ backgroundColor: 'var(--status-success-subtle)', borderColor: 'var(--status-success-border)' }}>
-                          <span className="text-xs font-bold" style={{ color: 'var(--status-success)' }}>Match ({matchingFields.length})</span>
-                          <div className="flex flex-wrap gap-1.5">
-                            {matchingFields.map(f => <span key={f.field} className="rounded px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: 'var(--status-success-subtle)', color: 'var(--status-success)' }}>{f.field}</span>)}
-                          </div>
-                        </div>
-                      )}
-                      {differingFields.length > 0 && (
-                        <div className="space-y-2 rounded-lg border p-4" style={{ backgroundColor: 'var(--status-warning-subtle)', borderColor: 'var(--status-warning-border)' }}>
-                          <span className="text-xs font-bold" style={{ color: 'var(--status-warning)' }}>Differ ({differingFields.length})</span>
-                          <div className="flex flex-wrap gap-1.5">
-                            {differingFields.map(f => <span key={f.field} className="rounded px-2 py-0.5 text-xs font-medium" style={{ backgroundColor: 'var(--status-warning-subtle)', color: 'var(--status-warning)' }}>{f.field}</span>)}
-                          </div>
-                        </div>
-                      )}
-                    </div>
+
                     <div className="flex items-start gap-3 rounded-lg border p-4" style={{ backgroundColor: 'var(--status-info-subtle)', borderColor: 'var(--status-info-border)' }}>
                       <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                       <span className="text-sm text-foreground leading-relaxed">
