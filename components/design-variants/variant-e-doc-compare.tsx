@@ -18,7 +18,6 @@ import {
   FileText,
   Sparkles,
   Check,
-  CheckCircle2,
   Undo2,
   AlertTriangle,
   ArrowRight,
@@ -851,7 +850,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
         </div>
       </div>
 
-      {/* ══════════════════════════════════════════════════════════
+      {/* ══════════════════════════════════════════════���═══════════
           PROGRESS FOOTER
           ══════════════���═══════════════════════════════════════════ */}
       <footer style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.375rem 1rem', borderBlockStart: '0.0625rem solid var(--border)', backgroundColor: 'var(--surface-raised)', flexShrink: 0 }}>

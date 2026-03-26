@@ -50,5 +50,5 @@ export default async function SupersededPage({
     )
   }
 
-  return <VariantEDocCompare data={data} />
+  return <VariantEDocCompare key="teams-layout-v2" data={data} />
 }
