@@ -815,6 +815,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                       <span className="block text-xs font-bold uppercase tracking-wide mb-2" style={{ color: 'var(--status-warning)' }}>Verifier Changed To</span>
                       <div className="flex flex-wrap gap-1.5">
                         {allRecords.map(r => {
+                          const pgNum = r.documentRef?.pageNumber ?? r.engagementPageId
                           const isRej = rejectedPageIds.has(String(r.engagementPageId)); const sd = overrides[`sup-pg${r.engagementPageId}`]; const sDec = sd?.userOverrideDecision
                           let newLabel: string
                           if (isRej || sDec?.includes('Not Superseded')) newLabel = 'Not Sup.'
@@ -825,10 +826,42 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                           else newLabel = 'Superseded'
                           const isExcluded = newLabel === 'Not Sup.'
                           const changed = !isExcluded && ((r.decisionType === 'Original' && newLabel === 'Superseded') || (r.decisionType === 'Superseded' && newLabel === 'Original'))
-                          return <span key={r.engagementPageId} className={`rounded px-2 py-0.5 text-xs font-semibold ${isExcluded ? 'bg-muted text-muted-foreground' : newLabel === 'Original' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-red-500/10 text-red-600'}`} style={changed ? { outline: '2px solid var(--status-warning)' } : undefined}>{newLabel}{changed && ' *'}</span>
+                          return <span key={r.engagementPageId} className={`rounded px-2 py-0.5 text-xs font-semibold ${isExcluded ? 'bg-muted text-muted-foreground' : newLabel === 'Original' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-red-500/10 text-red-600'}`} style={changed ? { outline: '2px solid var(--status-warning)' } : undefined}>Pg {pgNum}: {newLabel}{changed && ' *'}</span>
                         })}
                       </div>
-                      {(() => { const changedRec = allRecords.find(r => { const d = overrides[`sup-pg${r.engagementPageId}`]; if (!d) return false; if (d.userOverrideDecision?.includes('Not Superseded')) return false; return d.userOverrideDecision !== d.originalAIDecision }); const reason = changedRec ? overrides[`sup-pg${changedRec.engagementPageId}`]?.overrideReason : null; const displayReason = reason && reason !== 'Verifier decision' ? reason : null; return displayReason ? (<p className="mt-2 text-xs text-foreground"><span className="font-bold text-muted-foreground">Reason:</span> {displayReason}</p>) : null })()}
+                      {/* Show reasons for each changed/excluded record */}
+                      {(() => {
+                        const reasons: { pageId: number; label: string; reason: string }[] = []
+                        for (const r of allRecords) {
+                          const pid = String(r.engagementPageId)
+                          const pgNum = r.documentRef?.pageNumber ?? r.engagementPageId
+                          const isRej = rejectedPageIds.has(pid)
+                          if (isRej) {
+                            const rejData = rejectedDocs.get(pid)
+                            if (rejData?.reason && rejData.reason !== 'Verifier decision') {
+                              reasons.push({ pageId: pgNum, label: 'Not Sup.', reason: rejData.reason })
+                            }
+                          } else {
+                            const sd = overrides[`sup-pg${r.engagementPageId}`]
+                            if (sd && sd.overrideReason && sd.overrideReason !== 'Verifier decision' && sd.userOverrideDecision !== sd.originalAIDecision) {
+                              const dec = sd.userOverrideDecision?.endsWith('= Original') ? 'Original' : 'Superseded'
+                              reasons.push({ pageId: pgNum, label: dec, reason: sd.overrideReason })
+                            }
+                          }
+                        }
+                        // Deduplicate if all reasons are the same
+                        const uniqueReasons = [...new Set(reasons.map(r => r.reason))]
+                        if (uniqueReasons.length === 1) {
+                          return <p className="mt-2 text-xs text-foreground"><span className="font-bold text-muted-foreground">Reason:</span> {uniqueReasons[0]}</p>
+                        }
+                        return reasons.length > 0 ? (
+                          <div className="mt-2 space-y-1">
+                            {reasons.map(r => (
+                              <p key={r.pageId} className="text-xs text-foreground"><span className="font-bold text-muted-foreground">Pg {r.pageId} ({r.label}):</span> {r.reason}</p>
+                            ))}
+                          </div>
+                        ) : null
+                      })()}
                     </div>
                   </div>
                 )
