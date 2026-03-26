@@ -577,13 +577,8 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
 
           </div>
 
-          {/* Right: status indicators only (actions moved to confidence tab) */}
+          {/* Right: status badges + Accept/Undo + Next (persistent across all tabs) */}
           <div className="flex shrink-0 items-center gap-2">
-            {allGroupAccepted && (
-              <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold" style={{ backgroundColor: 'var(--status-success-subtle)', color: 'var(--status-success)' }}>
-                <Check className="h-3.5 w-3.5" /> Accepted
-              </span>
-            )}
             {isGroupRejected && (
               <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold" style={{ backgroundColor: 'var(--status-error-subtle)', color: 'var(--status-error)' }}>
                 <X className="h-3.5 w-3.5" /> Excluded
@@ -595,6 +590,47 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
               </span>
             )}
             <span className="text-xs text-muted-foreground">{reviewedCount}/{groups.length} reviewed</span>
+            <div className="mx-1 h-5 w-px bg-border" />
+            {/* Accept / Undo toggle */}
+            {allGroupAccepted ? (
+              <button
+                type="button"
+                onClick={handleUndoAcceptGroup}
+                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted"
+              >
+                <Undo2 className="h-3.5 w-3.5" /> Undo
+              </button>
+            ) : isGroupRejected ? (
+              <button
+                type="button"
+                onClick={handleUndoRejectAll}
+                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted"
+              >
+                <Undo2 className="h-3.5 w-3.5" /> Undo
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  handleAcceptGroup()
+                  setShowAcceptDropdown(false)
+                  setTimeout(() => { if (selectedGroupIdx < groups.length - 1) selectGroup(selectedGroupIdx + 1) }, 300)
+                }}
+                className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-bold text-white"
+                style={{ backgroundColor: 'var(--status-success)' }}
+              >
+                <Check className="h-3.5 w-3.5" /> Accept
+              </button>
+            )}
+            {/* Next */}
+            <button
+              type="button"
+              onClick={() => { if (selectedGroupIdx < groups.length - 1) selectGroup(selectedGroupIdx + 1) }}
+              disabled={selectedGroupIdx >= groups.length - 1}
+              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Next <ArrowRight className="h-3.5 w-3.5" />
+            </button>
           </div>
         </div>
 
@@ -739,19 +775,6 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                       <p className="text-sm font-semibold text-foreground">{firstReason.reason}</p>
                     </div>
                   ) : null })()}
-                  <div className="flex items-center gap-2 pt-2">
-                    <button type="button" onClick={handleUndoRejectAll} className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-4 py-2 text-xs font-semibold text-muted-foreground hover:bg-muted">
-                      <Undo2 className="h-3.5 w-3.5" /> Undo
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { if (selectedGroupIdx < groups.length - 1) selectGroup(selectedGroupIdx + 1) }}
-                      disabled={selectedGroupIdx >= groups.length - 1}
-                      className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-xs font-bold uppercase tracking-wide text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      Next <ArrowRight className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
                 </div>
               )}
 
@@ -785,19 +808,6 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                         })}
                       </div>
                       {(() => { const changedRec = allRecords.find(r => { const d = overrides[`sup-pg${r.engagementPageId}`]; if (!d) return false; if (d.userOverrideDecision?.includes('Not Superseded')) return false; return d.userOverrideDecision !== d.originalAIDecision }); const reason = changedRec ? overrides[`sup-pg${changedRec.engagementPageId}`]?.overrideReason : null; const displayReason = reason && reason !== 'Verifier decision' ? reason : null; return displayReason ? (<p className="mt-2 text-xs text-foreground"><span className="font-bold text-muted-foreground">Reason:</span> {displayReason}</p>) : null })()}
-                    </div>
-                    <div className="flex items-center gap-2 pt-2">
-                      <button type="button" onClick={handleUndoOverride} className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-4 py-2 text-xs font-semibold text-muted-foreground hover:bg-muted">
-                        <Undo2 className="h-3.5 w-3.5" /> Undo
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => { if (selectedGroupIdx < groups.length - 1) selectGroup(selectedGroupIdx + 1) }}
-                        disabled={selectedGroupIdx >= groups.length - 1}
-                        className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-xs font-bold uppercase tracking-wide text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        Next <ArrowRight className="h-3.5 w-3.5" />
-                      </button>
                     </div>
                   </div>
                 )
@@ -843,85 +853,49 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                       </div>
                     </div>
 
-                    {/* ── Action buttons ── */}
-                    <div className="flex flex-wrap items-center gap-2">
-                      {/* Accept / Undo toggle */}
-                      {allGroupAccepted ? (
-                        <button
-                          type="button"
-                          onClick={handleUndoAcceptGroup}
-                          className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-4 py-2 text-xs font-semibold text-muted-foreground hover:bg-muted"
-                        >
-                          <Undo2 className="h-3.5 w-3.5" /> Undo Accept
-                        </button>
-                      ) : (
+                    {/* ── Disagree actions (only shown when not yet accepted) ── */}
+                    {!allGroupAccepted && (
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Disagree?</span>
+                        {/* Reclassify */}
                         <button
                           type="button"
                           onClick={() => {
-                            handleAcceptGroup()
-                            setShowAcceptDropdown(false)
-                            // Auto-advance to next group after accept
-                            setTimeout(() => { if (selectedGroupIdx < groups.length - 1) selectGroup(selectedGroupIdx + 1) }, 300)
+                            if (!showOverridePanel && activeGroup) {
+                              const restored = restoreReclassifyState(activeGroup, overrides, isActiveFlipped, activeFlippedIdx)
+                              setDocRoles(restored.roles); setSelectedReason(restored.reasonId); setCustomReason(restored.reasonCustom)
+                              setNotSupersededReason(restored.exclIds); setNotSupersededCustom(restored.exclCustom)
+                            }
+                            setShowOverridePanel(p => !p); setShowRejectPanel(false)
                           }}
-                          disabled={isGroupRejected}
-                          className="inline-flex items-center gap-1.5 rounded-md px-4 py-2 text-xs font-bold text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-                          style={{ backgroundColor: 'var(--status-success)' }}
+                          className="inline-flex items-center gap-1.5 rounded-md border px-4 py-2 text-xs font-semibold transition-colors"
+                          style={{
+                            borderColor: showOverridePanel ? 'var(--status-warning)' : 'var(--status-warning-border)',
+                            backgroundColor: showOverridePanel ? 'var(--status-warning-subtle)' : 'var(--card)',
+                            color: 'var(--status-warning)',
+                          }}
                         >
-                          <Check className="h-3.5 w-3.5" /> Accept
+                          <ArrowLeftRight className="h-3.5 w-3.5" /> Reclassify
                         </button>
-                      )}
 
-                      {/* Reclassify */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (!showOverridePanel && activeGroup) {
-                            const restored = restoreReclassifyState(activeGroup, overrides, isActiveFlipped, activeFlippedIdx)
-                            setDocRoles(restored.roles); setSelectedReason(restored.reasonId); setCustomReason(restored.reasonCustom)
-                            setNotSupersededReason(restored.exclIds); setNotSupersededCustom(restored.exclCustom)
-                          }
-                          setShowOverridePanel(p => !p); setShowRejectPanel(false)
-                        }}
-                        disabled={allGroupAccepted || isGroupRejected}
-                        className="inline-flex items-center gap-1.5 rounded-md border px-4 py-2 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-                        style={{
-                          borderColor: allGroupAccepted ? 'var(--border)' : 'var(--status-warning-border)',
-                          backgroundColor: isActiveFlipped ? 'var(--status-warning-subtle)' : 'var(--card)',
-                          color: allGroupAccepted ? 'var(--muted-foreground)' : 'var(--status-warning)',
-                        }}
-                      >
-                        <ArrowLeftRight className="h-3.5 w-3.5" /> Reclassify
-                      </button>
-
-                      {/* Not Superseded */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (!showRejectPanel) { setRejectStep('reason'); setRejectTargetPageId(null); setNewOriginalAfterReject(null); setSelectedRejectReasons(new Set()); setCustomRejectReason('') }
-                          setShowRejectPanel(p => !p); setShowOverridePanel(false)
-                        }}
-                        disabled={allGroupAccepted || isGroupRejected}
-                        className="inline-flex items-center gap-1.5 rounded-md border px-4 py-2 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-                        style={{
-                          borderColor: allGroupAccepted ? 'var(--border)' : 'var(--status-error-border)',
-                          backgroundColor: 'var(--card)',
-                          color: allGroupAccepted ? 'var(--muted-foreground)' : 'var(--status-error)',
-                        }}
-                      >
-                        <X className="h-3.5 w-3.5" /> Not Superseded
-                      </button>
-
-                      {/* Next */}
-                      <div className="mx-1 h-6 w-px bg-border" />
-                      <button
-                        type="button"
-                        onClick={() => { if (selectedGroupIdx < groups.length - 1) selectGroup(selectedGroupIdx + 1) }}
-                        disabled={selectedGroupIdx >= groups.length - 1}
-                        className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-xs font-bold uppercase tracking-wide text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        Next <ArrowRight className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
+                        {/* Not Superseded */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!showRejectPanel) { setRejectStep('reason'); setRejectTargetPageId(null); setNewOriginalAfterReject(null); setSelectedRejectReasons(new Set()); setCustomRejectReason('') }
+                            setShowRejectPanel(p => !p); setShowOverridePanel(false)
+                          }}
+                          className="inline-flex items-center gap-1.5 rounded-md border px-4 py-2 text-xs font-semibold transition-colors"
+                          style={{
+                            borderColor: showRejectPanel ? 'var(--status-error)' : 'var(--status-error-border)',
+                            backgroundColor: showRejectPanel ? 'var(--status-error-subtle)' : 'var(--card)',
+                            color: 'var(--status-error)',
+                          }}
+                        >
+                          <X className="h-3.5 w-3.5" /> Not Superseded
+                        </button>
+                      </div>
+                    )}
 
                     {/* ── Inline Reclassify panel ── */}
                     {showOverridePanel && !allGroupAccepted && (() => {
