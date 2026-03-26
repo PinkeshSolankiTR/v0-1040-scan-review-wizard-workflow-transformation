@@ -607,7 +607,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                 <X className="h-3.5 w-3.5" /> Excluded
               </span>
             )}
-            {isActiveFlipped && !isGroupRejected && !allGroupAccepted && (
+            {isGroupOverridden && !isGroupRejected && !allGroupAccepted && (
               <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold" style={{ backgroundColor: 'var(--status-warning-subtle)', color: 'var(--status-warning)' }}>
                 <ArrowLeftRight className="h-3.5 w-3.5" /> Reclassified
               </span>
@@ -627,6 +627,24 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
               <button
                 type="button"
                 onClick={handleUndoRejectAll}
+                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted"
+              >
+                <Undo2 className="h-3.5 w-3.5" /> Undo
+              </button>
+            ) : isGroupOverridden ? (
+              <button
+                type="button"
+                onClick={() => {
+                  handleUndoOverride()
+                  // Also clear any partial rejections from the reclassification table
+                  if (activeGroup) {
+                    setRejectedDocs(prev => {
+                      const next = new Map(prev)
+                      for (const r of activeGroup.records) next.delete(String(r.engagementPageId))
+                      return next
+                    })
+                  }
+                }}
                 className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted"
               >
                 <Undo2 className="h-3.5 w-3.5" /> Undo
@@ -1187,6 +1205,8 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                                         override(key, 'superseded', r.confidenceLevel, detailObj)
                                       }
                                       setShowOverridePanel(false)
+                                      // Auto-advance to next group after applying
+                                      setTimeout(() => { if (selectedGroupIdx < groups.length - 1) selectGroup(selectedGroupIdx + 1) }, 300)
                                     }}
                                     className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
                                     style={{ backgroundColor: _canApply ? 'var(--primary)' : 'var(--muted)' }}
