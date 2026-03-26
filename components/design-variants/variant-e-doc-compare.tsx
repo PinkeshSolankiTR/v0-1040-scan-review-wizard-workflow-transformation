@@ -662,7 +662,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
         </div>
 
         {/* ── Tab content ── */}
-        <div className={`flex-1 overflow-auto ${activeTab === 'analysis' ? 'flex flex-col' : ''}`}>
+        <div className={`flex-1 ${activeTab === 'analysis' ? 'flex overflow-hidden' : 'overflow-auto'}`}>
           {/* Fields tab */}
           {activeTab === 'fields' && (
             <div className="p-5">
@@ -714,7 +714,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
 
           {/* AI Analysis tab -- Option C: Split layout (Summary left, Actions right) */}
           {activeTab === 'analysis' && (
-            <div className="flex min-h-0 flex-1 overflow-hidden">
+            <div className="flex h-full w-full min-h-0 flex-1">
 
               {/* ── LEFT COLUMN: AI Analysis ── */}
               <div className="flex-1 overflow-y-auto p-6">
