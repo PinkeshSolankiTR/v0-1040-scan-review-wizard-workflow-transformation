@@ -547,7 +547,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                       {group.formType}
                     </span>
                     <span className="shrink-0 text-xs text-muted-foreground">
-                      {group.records.length}p
+                      {group.records.length} {group.records.length === 1 ? 'page' : 'pages'}
                     </span>
                   </div>
                   <span className={`mt-1 inline-block rounded px-1.5 py-0.5 text-[0.625rem] font-semibold ${
