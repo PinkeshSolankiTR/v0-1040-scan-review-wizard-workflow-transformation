@@ -165,6 +165,8 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
   // Per-row reason state: pageId -> { reasonId, customText }
   const [rowReasons, setRowReasons] = useState<Map<string, { reasonId: string | null; customText: string }>>(new Map())
 
+  const [showDisagreeOptions, setShowDisagreeOptions] = useState(false)
+  const [disagreeChoice, setDisagreeChoice] = useState<'reclassify' | 'not-superseded' | null>(null)
   const [showRejectPanel, setShowRejectPanel] = useState(false)
   const [rejectStep, setRejectStep] = useState<'select' | 'reason'>('select')
   const [rejectTargetPageId, setRejectTargetPageId] = useState<string | null>(null)
@@ -214,6 +216,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
     }
     setSelectedReason(null); setCustomReason(''); setRowReasons(new Map())
     setShowRejectPanel(false); setSelectedRejectReasons(new Set()); setCustomRejectReason('')
+    setShowDisagreeOptions(false); setDisagreeChoice(null)
   }
 
   // Seed docRoles on initial mount for the first group
@@ -798,7 +801,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
 
           {/* AI Analysis tab -- Option D: Clean layout (no chat style) */}
           {activeTab === 'analysis' && (
-            <div className="mx-auto max-w-2xl p-5">
+            <div className="mx-auto max-w-3xl p-5">
 
               {/* ── State: Group rejected ── */}
               {isGroupRejected && (
@@ -892,9 +895,6 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                 const entity = activeGroup?.formEntity ?? ''
                 const matchingFields = comparedValues.filter(v => v.match)
                 const differingFields = comparedValues.filter(v => !v.match)
-                const supDoc = leftDoc, origDoc = rightDoc
-                const supLabel = supDoc?.documentRef?.formLabel ?? `${formType} (Superseded)`
-                const origLabel = origDoc?.documentRef?.formLabel ?? `${formType} (Original)`
                 const hasCorrectedField = differingFields.some(v => v.field.toLowerCase().includes('corrected'))
                 const hasAmountDiffs = differingFields.some(v => (v.category ?? '').toLowerCase() === 'income')
                 const hasDocNumberDiff = differingFields.some(v => v.field.toLowerCase().includes('document number'))
@@ -903,13 +903,6 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                   <div className="space-y-5">
                     {/* AI narrative block */}
                     <div className="rounded-lg border border-border bg-card p-4">
-                      {/* Document labels */}
-                      <div className="mb-3 flex items-center gap-2 text-xs text-muted-foreground">
-                        <span className="font-semibold" style={{ color: 'var(--status-error)' }}>{supLabel.replace(formType, '').replace(/[-()\s]+/g, ' ').trim() || 'Superseded'}</span>
-                        <span className="rounded-full bg-muted px-2 py-0.5 text-[0.625rem] font-bold uppercase tracking-wide text-muted-foreground">vs</span>
-                        <span className="font-semibold" style={{ color: 'var(--status-success)' }}>{origLabel.replace(formType, '').replace(/[-()\s]+/g, ' ').trim() || 'Original'}</span>
-                      </div>
-
                       {/* Narrative */}
                       <p className="text-sm leading-relaxed text-foreground">
                         {allIdentifyingMatch ? `AI identified these as versions of the same ${formType} filing from ${entity || 'the same payer'}. Core identifying fields match, confirming same taxpayer and payer.` : `AI compared these ${formType} documents: ${matchingFields.length} matching, ${differingFields.length} differing out of ${comparedValues.length} total.`}
@@ -924,9 +917,43 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                         <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
                         <span className="text-xs text-foreground leading-relaxed">{aiAnalysisData.panelTooltip}</span>
                       </div>
+
+                      {/* AI Trust Indicator */}
+                      <p className="mt-3 text-[0.6875rem] text-muted-foreground">
+                        {aiAnalysisData.avgConf >= 90
+                          ? `AI has processed 847 similar ${formType} ${hasCorrectedField ? 'corrected ' : ''}pairs. 94% accepted without changes.`
+                          : aiAnalysisData.avgConf >= 70
+                            ? `AI has processed 312 similar ${formType} pairs. 71% accepted without changes.`
+                            : `AI has processed 23 similar ${formType} pairs. Limited historical data available.`}
+                      </p>
                     </div>
 
-                    {/* ── Collapsible reclassification section + Not Superseded button ── */}
+                    {/* Page Decision Visual */}
+                    <div className="flex flex-wrap gap-3">
+                      {activeGroup!.records.map(r => {
+                        const pgNum = r.documentRef?.pageNumber ?? r.engagementPageId
+                        const label = r.documentRef?.formLabel?.replace(formType, '').replace(/[-()\s]+/g, ' ').trim() || formType
+                        const isOrig = r.decisionType === 'Original'
+                        return (
+                          <div key={r.engagementPageId} className="flex min-w-[7rem] flex-1 flex-col gap-1.5 rounded-lg border border-border bg-card p-3">
+                            <span className="text-xs font-bold text-foreground">Pg {pgNum}</span>
+                            <span className="truncate text-[0.625rem] text-muted-foreground">{label}</span>
+                            <span
+                              className="mt-auto inline-flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-[0.625rem] font-bold"
+                              style={{
+                                backgroundColor: isOrig ? 'var(--status-success-subtle, rgba(34,197,94,0.1))' : 'var(--status-error-subtle, rgba(239,68,68,0.1))',
+                                color: isOrig ? 'var(--status-success)' : 'var(--status-error)',
+                              }}
+                            >
+                              {isOrig ? <CheckCircle className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                              {isOrig ? 'Original' : 'Superseded'}
+                            </span>
+                          </div>
+                        )
+                      })}
+                    </div>
+
+                    {/* ── Disagree trigger + inline options ── */}
                     {!allGroupAccepted && !isGroupRejected && (() => {
                       const tableRecords = activeGroup?.records.filter(record => !rejectedPageIds.has(String(record.engagementPageId))) ?? []
                       // Hide Not Sup. column for 2-doc groups (use the whole-group button instead)
@@ -951,23 +978,75 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
 
                       return (
                         <>
-                          {/* Collapsible header */}
+                          {/* Single "Disagree" trigger */}
                           <div className="border-t border-border pt-4">
-                            <button
-                              type="button"
-                              onClick={() => setShowOverridePanel(p => !p)}
-                              className="flex w-full items-center gap-2 text-left"
-                            >
-                              {showOverridePanel ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
-                              <div>
-                                <p className="text-xs font-bold text-foreground">Not satisfied with the AI recommendation?</p>
-                                <p className="text-[0.6875rem] text-muted-foreground">Reclassify pages within this group.</p>
+                            {!showDisagreeOptions && !disagreeChoice ? (
+                              <button
+                                type="button"
+                                onClick={() => setShowDisagreeOptions(true)}
+                                className="text-xs font-medium text-muted-foreground underline decoration-dotted underline-offset-4 transition-colors hover:text-foreground"
+                              >
+                                Disagree with this recommendation?
+                              </button>
+                            ) : showDisagreeOptions && !disagreeChoice ? (
+                              <div className="space-y-2">
+                                <p className="text-xs font-bold text-foreground">What would you like to change?</p>
+                                <div className="flex gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setDisagreeChoice('reclassify')
+                                      setShowDisagreeOptions(false)
+                                      setShowOverridePanel(true)
+                                    }}
+                                    className="flex flex-1 flex-col gap-0.5 rounded-lg border border-border bg-card p-3 text-left transition-colors hover:border-primary/30 hover:bg-accent/50"
+                                  >
+                                    <span className="text-xs font-bold text-foreground">Change page classifications</span>
+                                    <span className="text-[0.625rem] text-muted-foreground">Reassign which page is Original or Superseded.</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setDisagreeChoice('not-superseded')
+                                      setShowDisagreeOptions(false)
+                                      setShowRejectPanel(true)
+                                      setSelectedRejectReasons(new Set())
+                                      setCustomRejectReason('')
+                                    }}
+                                    className="flex flex-1 flex-col gap-0.5 rounded-lg border border-border bg-card p-3 text-left transition-colors hover:border-red-300 hover:bg-red-500/5"
+                                  >
+                                    <span className="text-xs font-bold" style={{ color: 'var(--status-error)' }}>These are not related</span>
+                                    <span className="text-[0.625rem] text-muted-foreground">Both documents remain as-is in the binder.</span>
+                                  </button>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => setShowDisagreeOptions(false)}
+                                  className="text-[0.625rem] text-muted-foreground underline decoration-dotted underline-offset-2 hover:text-foreground"
+                                >
+                                  Cancel
+                                </button>
                               </div>
-                            </button>
+                            ) : disagreeChoice === 'reclassify' ? (
+                              <div className="flex items-center justify-between">
+                                <p className="text-xs font-bold text-foreground">Reclassify pages</p>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setDisagreeChoice(null)
+                                    setShowOverridePanel(false)
+                                    setShowDisagreeOptions(false)
+                                  }}
+                                  className="text-[0.625rem] text-muted-foreground underline decoration-dotted underline-offset-2 hover:text-foreground"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            ) : null}
                           </div>
 
                           {/* Expanded: Classification table */}
-                          {showOverridePanel && (
+                          {disagreeChoice === 'reclassify' && showOverridePanel && (
                             <>
                               <div className="overflow-hidden rounded-lg border border-border">
                                 <table className="w-full text-xs">
@@ -1218,25 +1297,8 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                             </>
                           )}
 
-                          {/* ── Not Superseded (whole group) ── */}
-                          <div className="border-t border-border pt-4">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (!showRejectPanel) { setSelectedRejectReasons(new Set()); setCustomRejectReason('') }
-                                setShowRejectPanel(p => !p)
-                              }}
-                              className="flex w-full items-center gap-2 text-left"
-                            >
-                              {showRejectPanel ? <ChevronDown className="h-3.5 w-3.5" style={{ color: 'var(--status-error)' }} /> : <ChevronRight className="h-3.5 w-3.5" style={{ color: 'var(--status-error)' }} />}
-                              <div>
-                                <p className="text-xs font-bold" style={{ color: 'var(--status-error)' }}>Not Superseded</p>
-                                <p className="text-[0.6875rem] text-muted-foreground">Exclude the entire group. Both documents remain as-is in the binder.</p>
-                              </div>
-                            </button>
-                          </div>
-
-                          {showRejectPanel && (
+                          {/* ── Not Superseded (inline, triggered by disagree choice) ── */}
+                          {disagreeChoice === 'not-superseded' && showRejectPanel && (
                             <div className="rounded-lg border px-4 py-3" style={{ borderColor: 'var(--status-error-border)', backgroundColor: 'var(--status-error-subtle)' }}>
                               <p className="mb-2 text-xs font-bold text-foreground">Reason</p>
                               <fieldset className="border-none p-0">
@@ -1265,7 +1327,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                                 )}
                               </fieldset>
                               <div className="mt-3 flex gap-2">
-                                <button type="button" onClick={() => setShowRejectPanel(false)} className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted">Cancel</button>
+                                <button type="button" onClick={() => { setShowRejectPanel(false); setDisagreeChoice(null); setShowDisagreeOptions(false) }} className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted">Cancel</button>
                                 <button
                                   type="button"
                                   onClick={handleRejectDoc}
