@@ -264,6 +264,10 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
     for (const r of activeGroup.records) {
       undo(`sup-pg${r.engagementPageId}`, 'superseded', r.confidenceLevel)
     }
+    setShowDisagreeOptions(false)
+    setDisagreeChoice(null)
+    setShowOverridePanel(false)
+    setShowRejectPanel(false)
   }
 
   const [undoStack, setUndoStack] = useState<Array<{
@@ -393,6 +397,8 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
     setDocRoles(new Map())
     setNotSupersededReason(new Set())
     setNotSupersededCustom('')
+    setShowDisagreeOptions(false)
+    setDisagreeChoice(null)
     for (const r of activeGroup.records) undo(`sup-pg${r.engagementPageId}`, 'superseded', r.confidenceLevel)
   }
 
@@ -409,6 +415,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
     })
     setShowRejectPanel(false); setRejectStep('reason'); setRejectTargetPageId(null); setNewOriginalAfterReject(null)
     setSelectedRejectReasons(new Set()); setCustomRejectReason(''); setSelectedSupersededIdx(0)
+    setShowDisagreeOptions(false); setDisagreeChoice(null)
   }
 
   const handleUndoRejectAll = () => {
@@ -419,6 +426,9 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
       return next
     })
     setSelectedSupersededIdx(0)
+    setShowDisagreeOptions(false)
+    setDisagreeChoice(null)
+    setShowRejectPanel(false)
   }
 
   const [selectedSupersededIdx, setSelectedSupersededIdx] = useState(0)
