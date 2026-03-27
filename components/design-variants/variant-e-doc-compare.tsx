@@ -399,7 +399,9 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
     setNotSupersededCustom('')
     setShowDisagreeOptions(false)
     setDisagreeChoice(null)
-    for (const r of activeGroup.records) undo(`sup-pg${r.engagementPageId}`, 'superseded', r.confidenceLevel)
+    for (const r of activeGroup.records) {
+      undo(`sup-pg${r.engagementPageId}`, 'superseded', r.confidenceLevel)
+    }
   }
 
   const handleRejectDoc = () => {

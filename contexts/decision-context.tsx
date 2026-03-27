@@ -35,7 +35,16 @@ export function DecisionProvider({ children, seedAudit = [] }: { children: React
   }, [])
 
   const undo = useCallback((itemKey: string, wizardType: WizardType, confidence: number) => {
-    setDecisions(prev => ({ ...prev, [itemKey]: 'undone' }))
+    setDecisions(prev => {
+      const next = { ...prev }
+      delete next[itemKey]
+      return next
+    })
+    setOverrides(prev => {
+      const next = { ...prev }
+      delete next[itemKey]
+      return next
+    })
     setAuditLog(prev => [...prev, {
       timestamp: new Date().toISOString(),
       wizardType,
