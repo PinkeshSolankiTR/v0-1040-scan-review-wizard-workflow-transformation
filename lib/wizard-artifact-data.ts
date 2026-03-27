@@ -22,8 +22,8 @@ export const supersededData: WizardArtifactData = {
         title: '2. Decision Definition',
         content: [
           'Decision Name: Superseded Document Identification',
-          'Decision Statement: When multiple source documents of the same type exist within an engagement, determine which documents should remain Original for data capture and which should be marked Superseded, using deterministic rules aligned to the Superseded SOP.',
-          'AI Role: Decision support (rule-driven recommendations). Human Role: Review, override, or approve depending on confidence.',
+          'Decision Statement: When multiple source documents of the same type exist within an engagement, determine which documents should remain Original for data capture and which should be marked Superseded, using adaptive guidelines aligned to the Superseded SOP.',
+          'AI Role: Decision support (pattern-learned recommendations). Human Role: Review, override, or approve depending on confidence.',
           'The AI must not irreversibly remove documents without human visibility.',
         ],
       },
@@ -40,11 +40,11 @@ export const supersededData: WizardArtifactData = {
         title: '4. Decision Outputs',
         content: [
           'Required Output Fields: engagementPageId, isSuperseded (true/false), retainedPageId (if superseded), confidenceLevel (0.0-1.0).',
-          'Explainability Fields (Mandatory): decisionType (Original | Superseded), appliedRuleSet (SourceDocs | ConsolidatedStatements), decisionRule, decisionReason (human-readable explanation).',
+          'Explainability Fields (Mandatory): decisionType (Original | Superseded), appliedGuideline (SourceDocs | ConsolidatedStatements), decisionPattern, decisionReason (human-readable explanation).',
         ],
       },
       {
-        title: '5. Rule Set A: Source Documents',
+        title: '5. Guideline Set A: Source Documents',
         content: [
           'A1. Payer/Issuer Name Match (Hard Stop) -- If payer names do not match, keep both documents.',
           'A2. Payer/Issuer ID Match (Hard Stop) -- If EIN/TIN does not match, keep both documents.',
@@ -58,7 +58,7 @@ export const supersededData: WizardArtifactData = {
         ],
       },
       {
-        title: '6. Rule Set B: Consolidated Statements',
+        title: '6. Guideline Set B: Consolidated Statements',
         content: [
           'B1. Multiple Copy Verification -- If only one copy exists, no duplicate identification required.',
           'B2. Statement Date Presence Check -- Check whether copies contain a Statement Date.',
@@ -73,7 +73,7 @@ export const supersededData: WizardArtifactData = {
         ],
       },
       {
-        title: '7. Precedence Rules',
+        title: '7. Precedence Guidelines',
         content: [
           '1. Corrected > Uncorrected',
           '2. Latest Amended > Older Versions',
@@ -101,7 +101,7 @@ export const supersededData: WizardArtifactData = {
         title: '10-13. UX, Audit, Guardrails & Summary',
         content: [
           'Every AI action must display a reason. Special conditions must be clearly flagged.',
-          'All decisions must be logged with rule + confidence. User overrides must be captured.',
+          'All decisions must be logged with guideline + confidence. User overrides must be captured.',
           'The AI does NOT: Validate correctness of tax amounts, Merge documents, Infer missing identifiers, Decide without user visibility.',
           'SOP changes require spec update. Prompt changes do not require spec changes if behavior remains compliant.',
         ],
@@ -117,7 +117,7 @@ export const supersededData: WizardArtifactData = {
           'Allowed comparisons: Only compare/supersede pages within the same ocrtemplateid group. Never supersede across groups.',
           'Every page must be represented: Return exactly one decision object per page in the dataset.',
           'At least one retained per group: For each ocrtemplateid group, ensure at least one page remains Original.',
-          'Mandatory explainability: Populate decisionType, appliedRuleSet, decisionRule, decisionReason for EVERY page.',
+          'Mandatory explainability: Populate decisionType, appliedGuideline, decisionPattern, decisionReason for EVERY page.',
           'Confidence semantics: Assign confidenceLevel and follow defined ranges.',
           'Human oversight/escalation: If multiple corrected copies or conflicting amended dates or confidence below threshold, set reviewRequired=true.',
           'Non-goals/guardrails: Do not validate correctness of amounts, merge documents, or infer missing identifiers.',
@@ -129,15 +129,15 @@ export const supersededData: WizardArtifactData = {
         title: 'Required Fields per Page',
         content: [
           'engagementPageId (integer), isSuperseded (boolean), retainedPageId (integer or null), confidenceLevel (number 0.0-1.0)',
-          'decisionType ("Original" | "Superseded"), appliedRuleSet ("SourceDocs" | "ConsolidatedStatements")',
-          'decisionRule (string, e.g. "A9", "B4"), decisionReason (string, human-readable)',
+          'decisionType ("Original" | "Superseded"), appliedGuideline ("SourceDocs" | "ConsolidatedStatements")',
+          'decisionPattern (string, e.g. "A9", "B4"), decisionReason (string, human-readable)',
           'reviewRequired (boolean), escalationReason (string or null)',
         ],
       },
     ],
     systemPrompt: `You are a tax document decision engine for the Superseded Wizard.
 
-STRICT OUTPUT RULES
+STRICT OUTPUT GUIDELINES
 - Output MUST be valid JSON only. No extra text, no markdown.
 - Return an array of objects. Every page in the dataset must appear exactly once.
 
@@ -146,8 +146,8 @@ HARD CONSTRAINTS
 - In each ocrtemplateid group, at least one page must remain not superseded.
 
 DECISION REQUIREMENTS
-- You must follow the ordered rules and precedence described in the Superseded decision specification.
-- You must produce mandatory explainability fields (decisionType, appliedRuleSet, decisionRule, decisionReason) for every page.
+- You must follow the ordered guidelines and precedence described in the Superseded decision specification.
+- You must produce mandatory explainability fields (decisionType, appliedGuideline, decisionPattern, decisionReason) for every page.
 - You must assign confidenceLevel (0-1) using defined confidence ranges and set reviewRequired/escalationReason when appropriate.
 
 GUARDRAILS
@@ -158,12 +158,12 @@ GUARDRAILS
 
 GOAL
 For each ocrtemplateid group:
-- Identify true duplicates/superseded copies using the rule sets below.
+- Identify true duplicates/superseded copies using the guideline sets below.
 - Keep at least one page as Original (not superseded).
 - Supersede duplicates when appropriate.
 - Output one decision object per page.
 
-RULE SET A: SOURCE DOCUMENTS (apply in order; stop at first failing rule)
+GUIDELINE SET A: SOURCE DOCUMENTS (apply in order; stop at first failing check)
 A1 Payer/Issuer Name Match (if fail → Keep Both)
 A2 Payer/Issuer ID Match (if fail → Keep Both)
 A3 Recipient/Taxpayer Name Match (if fail → Keep Both)
@@ -174,10 +174,10 @@ A7 Exact Match Resolution
 A8 Short-Year K-1 Exception
 A9 Corrected Indicator Override
 
-RULE SET B: CONSOLIDATED STATEMENTS (apply sequentially)
+GUIDELINE SET B: CONSOLIDATED STATEMENTS (apply sequentially)
 B1-B10 (Multiple Copy Verification through Finalization)
 
-PRECEDENCE RULES
+PRECEDENCE GUIDELINES
 - Corrected > Uncorrected
 - Latest Amended > Older Versions
 - Federal Copy > State/Employee Copies
@@ -203,32 +203,32 @@ Return a JSON array with one object per page with all required fields.`,
       {
         title: 'Overview',
         content: [
-          'The Feedback Loop enables the AI to learn from user overrides. When a reviewer changes an AI decision, the system captures the override pattern and may generate a learned rule for future use.',
-          'This is a rule-based deterministic learning system, not a neural network retrain. Learned rules are transparent, auditable, and can be managed by administrators.',
+          'The Feedback Loop enables the AI to self-learn from user overrides. When a reviewer changes an AI decision, the system captures the override pattern and may generate a learned pattern for future use.',
+          'This is a pattern-based adaptive learning system, not a neural network retrain. Learned patterns are transparent, auditable, and can be managed by administrators.',
         ],
       },
       {
         title: 'Override Capture',
         content: [
-          'When a user overrides an AI decision (e.g., changes Superseded to Original), the system records: original AI decision, user decision, confidence level, applied rule, document characteristics, and reason if provided.',
-          'Override patterns are tracked with frequency counters. When a pattern crosses a threshold, a learned rule candidate is generated.',
+          'When a user overrides an AI decision (e.g., changes Superseded to Original), the system records: original AI decision, user decision, confidence level, applied guideline, document characteristics, and reason if provided.',
+          'Override patterns are tracked with frequency counters. When a pattern crosses a threshold, a learned pattern candidate is generated.',
         ],
       },
       {
-        title: 'Learned Rule Lifecycle',
+        title: 'Learned Pattern Lifecycle',
         content: [
           'Stage 1 - Candidate: Pattern detected, not yet active. Requires admin review.',
-          'Stage 2 - Active: Admin-approved rule. Applied to future decisions with confidence ramp.',
-          'Stage 3 - Retired: Rule no longer applies. Kept in audit trail.',
-          'Conflict resolution: If a learned rule conflicts with a base rule, the base rule wins unless the learned rule has admin override.',
+          'Stage 2 - Active: Admin-approved pattern. Applied to future decisions with confidence ramp.',
+          'Stage 3 - Retired: Pattern no longer applies. Kept in audit trail.',
+          'Conflict resolution: If a learned pattern conflicts with a base guideline, the base guideline wins unless the learned pattern has admin override.',
         ],
       },
       {
         title: 'Confidence Ramp',
         content: [
-          'New learned rules start at reduced confidence and ramp up based on successful application count.',
+          'New learned patterns start at reduced confidence and ramp up based on successful application count.',
           'Initial confidence multiplier: 0.7x. After 10 successful applications: 0.85x. After 50: 1.0x.',
-          'If a learned rule is frequently re-overridden, it is automatically flagged for review.',
+          'If a learned pattern is frequently re-overridden, it is automatically flagged for review.',
         ],
       },
     ],
@@ -256,7 +256,7 @@ export const duplicateData: WizardArtifactData = {
         title: '2. Decision Definition',
         content: [
           'Duplicate Data Identification -- a unified determination that covers amount matching, source document comparison, and consolidated statement comparison.',
-          'AI Role: Decision support with rule-driven recommendations. Human Role: Review, override, or approve depending on confidence.',
+          'AI Role: Decision support with pattern-learned recommendations. Human Role: Review, override, or approve depending on confidence.',
         ],
       },
       {
@@ -317,33 +317,33 @@ export const duplicateData: WizardArtifactData = {
         title: 'Duplicate Decision Fields',
         content: [
           'decision (Duplicate / Original), matchType (DirectAmount / SumMatch / Other), confidenceLevel (number 0.0-1.0)',
-          'retainDocId (integer or null), fieldsCompared (array of field names), appliedRuleSet (string)',
-          'decisionRule (string), decisionReason (string, human-readable)',
+          'retainDocId (integer or null), fieldsCompared (array of field names), appliedGuideline (string)',
+          'decisionPattern (string), decisionReason (string, human-readable)',
           'reviewRequired (boolean), escalationReason (string or null)',
         ],
       },
     ],
     systemPrompt: `You are a tax document decision engine for the Duplicate Wizard.
 
-STRICT OUTPUT RULES
+STRICT OUTPUT GUIDELINES
 - Output MUST be valid JSON only. No extra text, no markdown.
 
 DECISION REQUIREMENTS
-- Apply duplicate identification rules sequentially across all comparison types.
+- Apply duplicate identification guidelines sequentially across all comparison types.
 - Populate mandatory explainability fields for every item.
 - Assign confidenceLevel using defined ranges.
 
 GUARDRAILS
-- Do not validate correctness of tax amounts beyond matching rules.
+- Do not validate correctness of tax amounts beyond matching guidelines.
 - Do not merge documents.
 - Amount tolerance applies per configured threshold.
 - If required identifiers are missing, mark for review.`,
     taskPrompt: `You are given engagement data containing organizer entries, source documents, and consolidated statements.
 
 GOAL
-Identify duplicates using the decision rules below.
+Identify duplicates using the decision guidelines below.
 
-DUPLICATE IDENTIFICATION RULES (sequential)
+DUPLICATE IDENTIFICATION GUIDELINES (sequential)
 - Amount matching: Name match (hard stop), direct amount match within tolerance, sum-of-amounts match within tolerance.
 - Source document comparison: Payer/issuer match, recipient match, account number, tax year, jurisdiction (hard stop), corrected precedence, exact duplicate resolution, ownership match.
 - Consolidated statement comparison: Broker/payer name, account number, taxpayer name, tax year, statement date retention.
@@ -361,7 +361,7 @@ OUTPUT: Return JSON with all required fields per comparison.`,
         title: 'Overview',
         content: [
           'The Duplicate Wizard feedback loop captures user overrides on duplicate identification decisions.',
-          'Override patterns are tracked across all comparison types to enable targeted rule learning.',
+          'Override patterns are tracked across all comparison types to enable targeted pattern learning.',
         ],
       },
       {
@@ -372,10 +372,10 @@ OUTPUT: Return JSON with all required fields per comparison.`,
         ],
       },
       {
-        title: 'Learned Rule Lifecycle',
+        title: 'Learned Pattern Lifecycle',
         content: [
           'Same three-stage lifecycle as Superseded: Candidate, Active, Retired.',
-          'Learned rules cover amount matching patterns, identifier matching precedence, and broker/account disambiguation.',
+          'Learned patterns cover amount matching patterns, identifier matching precedence, and broker/account disambiguation.',
         ],
       },
     ],
@@ -421,7 +421,7 @@ export const cfaData: WizardArtifactData = {
         ],
       },
       {
-        title: '5. Decision Rules',
+        title: '5. Decision Guidelines',
         content: [
           'CFA-1: Mandatory Compatibility Check (Hard Stop) -- Child\'s parentFaxFormDWPCode must contain parent\'s faxFormDWPCode. If no compatible parent exists, AddForm is required.',
           'CFA-2: Name & Identifier Matching -- Match child engagementFormName against parent searchString and toolTip. Exact match gets highest confidence.',
@@ -464,7 +464,7 @@ export const cfaData: WizardArtifactData = {
     ],
     systemPrompt: `You are a smart tax bot for the CFA (Child Form Association) wizard.
 
-STRICT OUTPUT RULES
+STRICT OUTPUT GUIDELINES
 - Output MUST be valid JSON only. No extra text, no markdown.
 - Return one decision per child form.
 
@@ -480,7 +480,7 @@ CONFIDENCE SCORING
 - < 0.50: uncertain, do not auto-associate`,
     taskPrompt: `You are given child forms that need parent association.
 
-RULES (apply in order):
+GUIDELINES (apply in order):
 1. Mandatory Compatibility Check -- parentFaxFormDWPCode must contain parent faxFormDWPCode
 2. Best Match Selection -- name/identifier matching
 3. Avoid Placeholder Parents -- prefer parents with real data
@@ -510,9 +510,9 @@ OUTPUT: Return JSON array with one object per child form with all required field
         ],
       },
       {
-        title: 'Learned Rule Lifecycle',
+        title: 'Learned Pattern Lifecycle',
         content: [
-          'CFA learned rules focus on: name matching improvements (e.g., abbreviation handling), AddForm threshold adjustments, placeholder parent identification patterns.',
+          'CFA learned patterns focus on: name matching improvements (e.g., abbreviation handling), AddForm threshold adjustments, placeholder parent identification patterns.',
           'Same Candidate -> Active -> Retired lifecycle with confidence ramp.',
         ],
       },
@@ -604,7 +604,7 @@ export const nfrData: WizardArtifactData = {
     ],
     systemPrompt: `You are a tax document matching expert for the NFR (New Form Review) wizard.
 
-STRICT OUTPUT RULES
+STRICT OUTPUT GUIDELINES
 - Output MUST be valid JSON only. No extra text, no markdown.
 - Return one decision per unmatched document.
 
@@ -619,7 +619,7 @@ GUARDRAILS
 - Do not edit proforma data.`,
     taskPrompt: `You are given unmatched documents that need proforma association.
 
-RULES (apply in order):
+GUIDELINES (apply in order):
 1. Form Type Compatibility (Hard Stop) -- formTypeId must match
 2. ImageIndex Eligibility -- only ImageIndex=3 proforma forms
 3. Name & Identifier Matching -- nodeName, searchString comparison
@@ -651,9 +651,9 @@ OUTPUT: Return JSON array with one object per document with all required fields.
         ],
       },
       {
-        title: 'Learned Rule Lifecycle',
+        title: 'Learned Pattern Lifecycle',
         content: [
-          'NFR learned rules focus on: name matching refinements, formTypeId edge cases, ImageIndex exceptions, threshold adjustments for specific form types.',
+          'NFR learned patterns focus on: name matching refinements, formTypeId edge cases, ImageIndex exceptions, threshold adjustments for specific form types.',
           'Same Candidate -> Active -> Retired lifecycle with confidence ramp.',
         ],
       },

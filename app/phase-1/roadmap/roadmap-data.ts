@@ -28,7 +28,7 @@ export const ROADMAP: Epic = {
   id: '4651627',
   title: 'Verification Experience - Eliminate Review Wizards via AI (Phase 1)',
   description:
-    'This Epic aims to modernize and streamline the verification workflow by removing Review Wizard steps where the system can replace user actions with AI-powered automation. By analysing current usage patterns, identifying automation opportunities, and integrating business rules into an AI module, the goal is to reduce manual intervention, improve processing time, and enhance user experience while maintaining accuracy and transparency through confidence-level scoring.',
+    'This Epic aims to modernize and streamline the verification workflow by removing Review Wizard steps where the system can replace user actions with AI-powered automation. By analysing current usage patterns, identifying automation opportunities, and integrating decision guidelines into a self-learning AI module, the goal is to reduce manual intervention, improve processing time, and enhance user experience while maintaining accuracy and transparency through confidence-level scoring.',
   features: [
     /* ─── Wizard-Specific Features ─── */
     {
@@ -37,25 +37,25 @@ export const ROADMAP: Epic = {
       category: 'wizard',
       accentColor: 'oklch(0.55 0.18 290)',
       description:
-        'This feature consolidates all analysis, architecture, AI design, and implementation work required to fully automate the Superseded Wizard -- one of the core review steps in the binder verification workflow. The Superseded Wizard currently requires manual reviewer intervention to determine which version of a document (e.g., W-2, 1099, K-1) is the most current and should be retained, and which prior versions should be marked as superseded.\n\nScope includes: Comprehensive code analysis and documentation of existing Superseded logic across both RW 1.0 and RW 2.0 (trigger conditions, business rules, decision points, data flow, DB dependencies); Gap analysis comparing current system behavior against the finalized SOP\'s sequential rule framework (payer/issuer name, ID matching, recipient validation, account numbers, tax year, amounts, maximum-data tie-breaks); Technical architecture definition for a hybrid rule-based + AI reasoning engine, including backend components for rule execution order, tie-breaking logic, and evidence logging; AI Prompt design, Decision Specification, and architectural blueprint for the AI model; Usage data analysis identifying top 100 binders with highest superseded document occurrences; SOP-aligned AI logic encoding: sequential rule evaluation with stop conditions, consolidated statement handling, corrected/amended form precedence, and short-year K-1 exception handling.\n\nGoal: Replace manual superseded screening with an AI-assisted, rule-driven automation layer that reduces reviewer effort, improves consistency, and delivers transparent reasoning with confidence scoring -- targeting accuracy improvement beyond the previous ~70-80% AI baseline.',
+        'This feature consolidates all analysis, architecture, AI design, and implementation work required to fully automate the Superseded Wizard -- one of the core review steps in the binder verification workflow. The Superseded Wizard currently requires manual reviewer intervention to determine which version of a document (e.g., W-2, 1099, K-1) is the most current and should be retained, and which prior versions should be marked as superseded.\n\nScope includes: Comprehensive code analysis and documentation of existing Superseded logic across both RW 1.0 and RW 2.0 (trigger conditions, decision guidelines, decision points, data flow, DB dependencies); Gap analysis comparing current system behavior against the finalized SOP\'s sequential guideline framework (payer/issuer name, ID matching, recipient validation, account numbers, tax year, amounts, maximum-data tie-breaks); Technical architecture definition for a self-learning AI reasoning engine, including backend components for guideline evaluation order, tie-breaking logic, and evidence logging; AI Prompt design, Decision Specification, and architectural blueprint for the AI model; Usage data analysis identifying top 100 binders with highest superseded document occurrences; SOP-aligned AI logic encoding: sequential guideline evaluation with stop conditions, consolidated statement handling, corrected/amended form precedence, and short-year K-1 exception handling.\n\nGoal: Replace manual superseded screening with an AI-assisted, self-learning automation layer that reduces reviewer effort, improves consistency, and delivers transparent reasoning with confidence scoring -- targeting accuracy improvement beyond the previous ~70-80% AI baseline.',
       spikes: [
         {
           id: '4904669',
           title: 'Code Analysis and Documentation - Superseded Wizard Functionality',
           description:
-            'Comprehensive documentation of how Superseded wizard type currently functions in our system (both RW 1.0 and 2.0). This analysis will help us understand wizard trigger patterns, business logics and usage statistics; identify optimization opportunities; support the Wizards Usage Analysis initiative; facilitate knowledge transfer and onboarding. Deliverables: Overview (purpose, triggers, outcomes), Technical Implementation (entry points, dependencies, DB tables/procedures, APIs), Trigger Conditions (activation conditions, business rules, user/system events, error handling), Workflow/Process Flow (step-by-step execution, decision points, validation rules), Data Flow (input, transformations, output, persistence), Version Differences (RW 1.0 vs 2.0).',
+            'Comprehensive documentation of how Superseded wizard type currently functions in our system (both RW 1.0 and 2.0). This analysis will help us understand wizard trigger patterns, decision guidelines and usage statistics; identify optimization opportunities; support the Wizards Usage Analysis initiative; facilitate knowledge transfer and onboarding. Deliverables: Overview (purpose, triggers, outcomes), Technical Implementation (entry points, dependencies, DB tables/procedures, APIs), Trigger Conditions (activation conditions, decision guidelines, user/system events, error handling), Workflow/Process Flow (step-by-step execution, decision points, validation guidelines), Data Flow (input, transformations, output, persistence), Version Differences (RW 1.0 vs 2.0).',
         },
         {
           id: '4963387',
           title: 'Gap Analysis - Superseded Wizard',
           description:
-            "Assess extracted rules for the Superseded Wizard versus the SOP's sequential rule framework (payer/issuer name, IDs, recipient name, account numbers, amounts, tax year, maximum data). Identify missing or mismatched rule implementations, incorrect stop-conditions, and any deviations in comparison logic.",
+            "Assess extracted guidelines for the Superseded Wizard versus the SOP's sequential guideline framework (payer/issuer name, IDs, recipient name, account numbers, amounts, tax year, maximum data). Identify missing or mismatched guideline implementations, incorrect stop-conditions, and any deviations in comparison logic.",
         },
         {
           id: '4963365',
           title: 'Technical Architecture Analysis - Superseded Wizard',
           description:
-            'Evaluate the technical architecture for handling Superseded document identification based on the newly prepared SOP rules. Define how rule-based evaluation (payer name, ID, amounts, account matching, etc.) integrates with AI reasoning to reduce manual screening. Identify backend components required to implement rule execution order, tie-breaking rules, and evidence logging.',
+            'Evaluate the technical architecture for handling Superseded document identification based on the newly prepared SOP guidelines. Define how guideline-based evaluation (payer name, ID, amounts, account matching, etc.) integrates with AI reasoning to reduce manual screening. Identify backend components required to implement guideline evaluation order, tie-breaking logic, and evidence logging.',
         },
         {
           id: '4963411',
@@ -107,7 +107,7 @@ export const ROADMAP: Epic = {
       category: 'wizard',
       accentColor: 'oklch(0.55 0.15 250)',
       description:
-        'This feature consolidates all analysis, architecture, AI design, and implementation work required to fully automate the Duplicate Data Wizard. The Duplicate Wizard currently requires reviewers to manually identify and resolve duplicate documents within a binder -- comparing documents by payer name, taxpayer ID, recipient details, account numbers, and amounts to determine which copy should be marked as Original and which as Duplicate.\n\nScope includes: Comprehensive code analysis and documentation of existing Duplicate detection logic across both RW 1.0 and RW 2.0 (entry points, matching algorithms, decision trees, DB tables/procedures, API dependencies); Gap analysis validating current system rules against SOP-defined duplicate-detection criteria; Technical architecture definition mapping SOP rules to system behavior; AI/ML evaluation of previous duplicate detection capabilities; AI Prompt design, Decision Specification, and architectural blueprint for the duplicate detection AI model; SOP-aligned AI implementation.\n\nGoal: Replace manual duplicate screening with automated, rule-driven detection augmented by AI for ambiguous cases -- delivering transparent match reasoning, confidence-based auto-apply thresholds, and a reviewer accept/reject/override workflow with feedback capture for continuous model improvement.',
+        'This feature consolidates all analysis, architecture, AI design, and implementation work required to fully automate the Duplicate Data Wizard. The Duplicate Wizard currently requires reviewers to manually identify and resolve duplicate documents within a binder -- comparing documents by payer name, taxpayer ID, recipient details, account numbers, and amounts to determine which copy should be marked as Original and which as Duplicate.\n\nScope includes: Comprehensive code analysis and documentation of existing Duplicate detection logic across both RW 1.0 and RW 2.0 (entry points, matching algorithms, decision trees, DB tables/procedures, API dependencies); Gap analysis validating current system guidelines against SOP-defined duplicate-detection criteria; Technical architecture definition mapping SOP guidelines to system behavior; AI/ML evaluation of previous duplicate detection capabilities; AI Prompt design, Decision Specification, and architectural blueprint for the duplicate detection AI model; SOP-aligned AI implementation.\n\nGoal: Replace manual duplicate screening with automated, guideline-driven detection augmented by AI for ambiguous cases -- delivering transparent match reasoning, confidence-based auto-apply thresholds, and a reviewer accept/reject/override workflow with feedback capture for continuous model improvement.',
       spikes: [
         {
           id: '4904672',
@@ -165,7 +165,7 @@ export const ROADMAP: Epic = {
           id: '4963361',
           title: 'Technical Architecture Analysis - Pre-Verification Wizard',
           description:
-            'Document the technical architecture needs for the Pre-Verification Wizard, including how existing rule-based checks and business validations will be restructured into a unified automation framework. Identify which components should remain rule-based and where AI reasoning may enhance ambiguity handling (e.g., missing documents, consistency validation). Define API, data, and workflow dependencies needed for modernization.',
+            'Document the technical architecture needs for the Pre-Verification Wizard, including how existing guideline-based checks and validations will be restructured into a unified automation framework. Identify which components should remain guideline-based and where AI reasoning may enhance ambiguity handling (e.g., missing documents, consistency validation). Define API, data, and workflow dependencies needed for modernization.',
         },
         {
           id: '4963406',
@@ -249,7 +249,7 @@ export const ROADMAP: Epic = {
           id: '4963371',
           title: 'Technical Architecture Analysis - NFR Wizard',
           description:
-            'Perform architecture assessment for the NFR Wizard, identifying how current logic determines unknown/missing document types. Outline the future-state approach for classification logic (rule-based), taxonomy mapping, and AI reasoning support for misclassified or incomplete data. Document integration requirements with extraction services and metadata processors.',
+            'Perform architecture assessment for the NFR Wizard, identifying how current logic determines unknown/missing document types. Outline the future-state approach for classification logic (guideline-based), taxonomy mapping, and AI reasoning support for misclassified or incomplete data. Document integration requirements with extraction services and metadata processors.',
         },
         {
           id: '4963424',
@@ -283,7 +283,7 @@ export const ROADMAP: Epic = {
           id: '4963375',
           title: 'Technical Architecture Analysis - Finalization Wizard',
           description:
-            'Analyze the Finalization Wizard workflow and define how rule-based logic and AI-derived suggestions can unify into a single automation layer. Identify dependencies for producing final binder assessments, rule sequencing, and AI validation checks. Document structure for returning a clean, auditable reasoning output prior to finalization.',
+            'Analyze the Finalization Wizard workflow and define how guideline-based logic and AI-derived suggestions can unify into a single automation layer. Identify dependencies for producing final binder assessments, guideline sequencing, and AI validation checks. Document structure for returning a clean, auditable reasoning output prior to finalization.',
         },
         {
           id: '4963432',
@@ -311,7 +311,7 @@ export const ROADMAP: Epic = {
           id: '4963374',
           title: 'Technical Architecture Analysis - Tax Exempt Wizard',
           description:
-            'Define the architectural needs for automating the Tax Exempt Wizard, including how rule-based logic validates tax-exempt documentation and identifies mismatches. Specify where AI can assist (e.g., entity recognition, document-type inference). Outline API and data-processing requirements for automated decisioning and user validation.',
+            'Define the architectural needs for automating the Tax Exempt Wizard, including how guideline-based logic validates tax-exempt documentation and identifies mismatches. Specify where AI can assist (e.g., entity recognition, document-type inference). Outline API and data-processing requirements for automated decisioning and user validation.',
         },
         {
           id: '4963431',
@@ -339,7 +339,7 @@ export const ROADMAP: Epic = {
           id: '4963379',
           title: 'Technical Architecture Analysis - CBD Wizard',
           description:
-            'Document architectural requirements for the CBD Wizard, including rule-based logic to detect inter-binder inconsistencies and AI opportunities for contextual matching across large datasets. Define technical needs for multi-binder comparison, data retrieval layers, caching, and conflict-resolution workflows.',
+            'Document architectural requirements for the CBD Wizard, including guideline-based logic to detect inter-binder inconsistencies and AI opportunities for contextual matching across large datasets. Define technical needs for multi-binder comparison, data retrieval layers, caching, and conflict-resolution workflows.',
         },
         {
           id: '4963433',

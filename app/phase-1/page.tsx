@@ -25,7 +25,7 @@ const WIZARDS = [
     accentColor: 'oklch(0.55 0.18 290)',
     description:
       'Identifies superseded source documents using payer matching, EIN comparison, corrected indicator analysis, and date-based retention logic.',
-    ruleSets: ['Rule Set A (Source Documents)', 'Rule Set B (Consolidated Statements)'],
+    ruleSets: ['Guideline Set A (Source Documents)', 'Guideline Set B (Consolidated Statements)'],
     decisionTypes: 'Original / Superseded',
     artifacts: [
       { label: 'Documentation', icon: BookOpen, type: 'documentation' },
@@ -211,15 +211,15 @@ export default function Phase1Page() {
               Phase 1: Elimination of Wizard
             </h1>
             <p className="text-sm text-muted-foreground">
-              AI-Automated Business Rules & Wizard Reduction
+              AI-Driven Intelligent Automation & Wizard Reduction
             </p>
           </div>
 
           {/* Summary strip */}
           <div className="rounded-lg border border-border bg-card p-4 mb-8">
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Phase 1 eliminates 4 of 7 wizard steps through AI-automated
-              business rules. Each wizard below has a complete AI Decision
+              Phase 1 eliminates 4 of 7 wizard steps through AI-driven
+              decision guidelines. Each wizard below has a complete AI Decision
               Specification, LLM Prompt design, Feedback Loop mechanism, and a
               working interactive prototype. Target:{' '}
               <strong className="text-foreground">

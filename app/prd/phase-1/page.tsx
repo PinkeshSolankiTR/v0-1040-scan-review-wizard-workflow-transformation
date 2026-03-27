@@ -68,7 +68,7 @@ export default function Phase1PrdPage() {
                 Elimination of Wizard -- PRD Context
               </h1>
               <p className="text-sm text-muted-foreground mt-1">
-                AI-Automated Business Rules &amp; Wizard Reduction
+                AI-Driven Intelligent Automation &amp; Wizard Reduction
               </p>
             </div>
           </div>
@@ -195,7 +195,7 @@ export default function Phase1PrdPage() {
                 <h2 className="text-lg font-semibold text-foreground">5. How It Works</h2>
               </div>
               <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
-                Each wizard follows a consistent three-step pattern: the AI reads document data, applies predefined business rules to make decisions, and presents results with a confidence score so reviewers know exactly where to focus.
+                Each wizard follows a consistent three-step pattern: the AI reads document data, applies learned patterns and guidelines to make decisions, and presents results with a confidence score so reviewers know exactly where to focus.
               </p>
 
               <div className="flex flex-col gap-6">
@@ -219,7 +219,7 @@ export default function Phase1PrdPage() {
                       <div>
                         <p className="text-xs font-semibold text-foreground mb-2">How AI Decides</p>
                         <p className="text-sm text-muted-foreground leading-relaxed">
-                          Compares documents within the same group using predefined business rules. Identifies newer, corrected, or amended versions and determines which to retain. High-confidence decisions apply automatically; lower-confidence ones go to the reviewer.
+                          Compares documents within the same group using learned patterns and guidelines. Identifies newer, corrected, or amended versions and determines which to retain. High-confidence decisions apply automatically; lower-confidence ones go to the reviewer.
                         </p>
                       </div>
                       <div>
@@ -251,7 +251,7 @@ export default function Phase1PrdPage() {
                       <div>
                         <p className="text-xs font-semibold text-foreground mb-2">How AI Decides</p>
                         <p className="text-sm text-muted-foreground leading-relaxed">
-                          Applies business rules for duplicate identification: comparing amounts, payer/recipient identifiers, account numbers, jurisdictions, and document dates. Jurisdiction mismatches are an automatic hard stop.
+                          Applies learned patterns for duplicate identification: comparing amounts, payer/recipient identifiers, account numbers, jurisdictions, and document dates. Jurisdiction mismatches are an automatic hard stop.
                         </p>
                       </div>
                       <div>
