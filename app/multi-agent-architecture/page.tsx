@@ -11,7 +11,6 @@ import {
   Lightbulb,
   ShieldAlert,
   RefreshCw,
-  AlertTriangle,
   Zap,
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
@@ -106,53 +105,29 @@ export default function MultiAgentArchitecturePage() {
             </div>
           </div>
 
-          {/* Current Process + How Agents Help */}
-          <div className="grid gap-4 sm:grid-cols-2 mb-6">
-            <Card>
-              <CardContent className="py-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <AlertTriangle className="size-4 text-[var(--status-warning)]" />
-                  <p className="text-xs font-semibold text-foreground uppercase tracking-wider">Current Process</p>
-                </div>
-                <ul className="flex flex-col gap-2 text-xs text-muted-foreground leading-relaxed">
-                  <li className="flex items-start gap-2">
-                    <span className="mt-1 size-1 shrink-0 rounded-full bg-muted-foreground" />
-                    Verifiers manually compare documents side by side to identify superseded, duplicate, CFA, and NFR pages.
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="mt-1 size-1 shrink-0 rounded-full bg-muted-foreground" />
-                    Each binder requires reviewing every page individually with no automated classification or grouping.
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="mt-1 size-1 shrink-0 rounded-full bg-muted-foreground" />
-                    Decision guidelines are applied inconsistently across verifiers, leading to variable quality and throughput.
-                  </li>
-                </ul>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="py-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <Zap className="size-4 text-[var(--ai-accent)]" />
-                  <p className="text-xs font-semibold text-foreground uppercase tracking-wider">How Agents Help</p>
-                </div>
-                <ul className="flex flex-col gap-2 text-xs text-muted-foreground leading-relaxed">
-                  <li className="flex items-start gap-2">
-                    <span className="mt-1 size-1 shrink-0 rounded-full bg-[var(--ai-accent)]" />
-                    Automate document classification and wizard assignment -- no manual sorting required.
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="mt-1 size-1 shrink-0 rounded-full bg-[var(--ai-accent)]" />
-                    Apply guidelines consistently across every binder with built-in hallucination checks for accuracy.
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="mt-1 size-1 shrink-0 rounded-full bg-[var(--ai-accent)]" />
-                    Self-learn from verifier overrides -- decision quality improves continuously without manual rule updates.
-                  </li>
-                </ul>
-              </CardContent>
-            </Card>
-          </div>
+          {/* How Agents Help */}
+          <Card className="mb-6">
+            <CardContent className="py-5">
+              <div className="flex items-center gap-2 mb-3">
+                <Zap className="size-4 text-[var(--ai-accent)]" />
+                <p className="text-xs font-semibold text-foreground uppercase tracking-wider">How Agents Help</p>
+              </div>
+              <ul className="flex flex-col gap-2 text-xs text-muted-foreground leading-relaxed">
+                <li className="flex items-start gap-2">
+                  <span className="mt-1 size-1 shrink-0 rounded-full bg-[var(--ai-accent)]" />
+                  Automate document classification and wizard assignment -- no manual sorting required.
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="mt-1 size-1 shrink-0 rounded-full bg-[var(--ai-accent)]" />
+                  Apply guidelines consistently across every binder with built-in hallucination checks for accuracy.
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="mt-1 size-1 shrink-0 rounded-full bg-[var(--ai-accent)]" />
+                  Self-learn from verifier overrides -- decision quality improves continuously without manual rule updates.
+                </li>
+              </ul>
+            </CardContent>
+          </Card>
 
           {/* Agent Overview Table */}
           <Card>
