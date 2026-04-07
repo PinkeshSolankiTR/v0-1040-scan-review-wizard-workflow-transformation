@@ -12,7 +12,6 @@ import {
   ShieldAlert,
   RefreshCw,
   Zap,
-  Download,
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -65,20 +64,12 @@ export default function MultiAgentArchitecturePage() {
             <Sparkles className="size-7 text-[var(--ai-accent)]" />
             <span className="text-lg font-bold text-foreground">1040SCAN</span>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" asChild>
-              <a href="/api/export-architecture" download>
-                <Download className="size-3.5" />
-                Download Word
-              </a>
-            </Button>
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/">
-                <ArrowLeft className="size-3.5" />
-                Back to Overview
-              </Link>
-            </Button>
-          </div>
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/">
+              <ArrowLeft className="size-3.5" />
+              Back to Overview
+            </Link>
+          </Button>
         </div>
       </header>
 

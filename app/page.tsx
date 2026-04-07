@@ -11,6 +11,7 @@ import {
   FileText,
   Brain,
   Map,
+  Download,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -185,7 +186,12 @@ export default function HomePage() {
               1040SCAN
             </span>
           </div>
-
+          <Button variant="outline" size="sm" asChild>
+            <a href="/api/export-architecture" download>
+              <Download className="size-3.5" />
+              Download Spec
+            </a>
+          </Button>
         </div>
       </header>
 
