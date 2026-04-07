@@ -189,7 +189,7 @@ export default function HomePage() {
           <Button variant="outline" size="sm" asChild>
             <a href="/api/export-architecture" download>
               <Download className="size-3.5" />
-              Download Spec
+              Download All Docs
             </a>
           </Button>
         </div>

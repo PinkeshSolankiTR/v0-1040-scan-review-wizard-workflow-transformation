@@ -1,5 +1,7 @@
-import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, BorderStyle, HeadingLevel, PageBreak } from 'docx'
+import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, BorderStyle, HeadingLevel } from 'docx'
 import { NextResponse } from 'next/server'
+import { supersededData, duplicateData, cfaData, nfrData } from '@/lib/wizard-artifact-data'
+import type { WizardArtifactData } from '@/components/wizard-artifact-page'
 
 /* ── Shared helpers ── */
 
@@ -109,6 +111,90 @@ function wizardBlock(name: string, goesIn: string, decides: string, comesOut: st
   ]
 }
 
+/* ── Wizard Spec Section Generator ── */
+
+function generateWizardSection(data: WizardArtifactData, sectionNumber: number, accentColor: string) {
+  const children: Paragraph[] = []
+
+  // Header
+  children.push(new Paragraph({
+    spacing: { after: 60 },
+    children: [
+      new TextRun({ text: `Section ${sectionNumber}`, bold: true, size: 20, color: accentColor }),
+      new TextRun({ text: '  |  ', size: 20, color: '9CA3AF' }),
+      new TextRun({ text: 'Wizard Specification', size: 20, color: accentColor, italics: true }),
+    ],
+  }))
+  children.push(sectionTitle(`${data.title} Wizard`))
+  children.push(sectionSubtitle(`AI Decision Spec (${data.decisionSpec.version}), LLM Prompts & Feedback Loop`))
+
+  // AI Decision Spec
+  children.push(sectionHeading('AI Decision Spec'))
+  for (const section of data.decisionSpec.sections) {
+    children.push(subHeading(section.title))
+    for (const line of section.content) {
+      children.push(bullet(line, accentColor))
+    }
+  }
+
+  children.push(divider())
+
+  // LLM Prompts
+  children.push(sectionHeading('LLM Prompts'))
+
+  // Mapping Table
+  children.push(subHeading('Key Mappings'))
+  for (const mapping of data.prompts.mappingTable) {
+    for (const line of mapping.content) {
+      children.push(bullet(line, accentColor))
+    }
+  }
+
+  // Output Contract
+  children.push(subHeading('Output Contract'))
+  for (const contract of data.prompts.outputContract) {
+    for (const line of contract.content) {
+      children.push(bullet(line, accentColor))
+    }
+  }
+
+  // System Prompt
+  children.push(subHeading('System Prompt'))
+  children.push(new Paragraph({
+    spacing: { after: 120 },
+    indent: { left: 360 },
+    children: [new TextRun({ text: data.prompts.systemPrompt, size: 18, color: '4B5563', font: 'Consolas' })],
+  }))
+
+  // Task Prompt
+  children.push(subHeading('Task Prompt'))
+  children.push(new Paragraph({
+    spacing: { after: 120 },
+    indent: { left: 360 },
+    children: [new TextRun({ text: data.prompts.taskPrompt, size: 18, color: '4B5563', font: 'Consolas' })],
+  }))
+
+  children.push(divider())
+
+  // Feedback Loop
+  children.push(sectionHeading('Feedback Loop'))
+  for (const section of data.feedbackLoop.sections) {
+    children.push(subHeading(section.title))
+    for (const line of section.content) {
+      children.push(bullet(line, accentColor))
+    }
+  }
+
+  // Footer
+  children.push(spacer())
+  children.push(divider())
+
+  return {
+    properties: { page: { margin: { top: 720, bottom: 720, left: 900, right: 900 } } },
+    children,
+  }
+}
+
 /* ── Data ── */
 
 const AGENTS = [
@@ -187,6 +273,10 @@ export async function GET() {
           bodyText('2.  Phase 2 -- Quick Validation (PRD)'),
           bodyText('3.  Phase 3 -- Dashboard & Gamification (PRD)'),
           bodyText('4.  Multi-Agent Architecture'),
+          bodyText('5.  Superseded Wizard -- AI Decision Spec, LLM Prompts, Feedback Loop'),
+          bodyText('6.  Duplicate Data Wizard -- AI Decision Spec, LLM Prompts, Feedback Loop'),
+          bodyText('7.  CFA Wizard -- AI Decision Spec, LLM Prompts, Feedback Loop'),
+          bodyText('8.  NFR Wizard -- AI Decision Spec, LLM Prompts, Feedback Loop'),
           spacer(),
         ],
       },
@@ -495,6 +585,12 @@ export async function GET() {
           }),
         ],
       },
+
+      /* ═══════════════════════════ WIZARD SPECS ═══════════════════════════ */
+      generateWizardSection(supersededData, 5, '7C3AED'),
+      generateWizardSection(duplicateData, 6, '2563EB'),
+      generateWizardSection(cfaData, 7, '059669'),
+      generateWizardSection(nfrData, 8, 'D97706'),
     ],
   })
 
