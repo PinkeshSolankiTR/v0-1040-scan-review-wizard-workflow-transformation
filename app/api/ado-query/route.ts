@@ -1,3 +1,5 @@
+export const runtime = 'nodejs'
+
 /* ── Azure DevOps Query API Route ──
    Returns ALL work items from the saved query as a flat list
    with parent-child relationships preserved.

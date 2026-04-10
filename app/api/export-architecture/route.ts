@@ -1,7 +1,26 @@
+export const runtime = 'nodejs'
+
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, BorderStyle, HeadingLevel } from 'docx'
 import { NextResponse } from 'next/server'
 import { supersededData, duplicateData, cfaData, nfrData } from '@/lib/wizard-artifact-data'
-import type { WizardArtifactData } from '@/components/wizard-artifact-page'
+
+/* Local type matching WizardArtifactData shape used for doc generation only */
+interface WizardDocData {
+  title: string
+  decisionSpec: {
+    version: string
+    sections: { title: string; content: string[] }[]
+  }
+  prompts: {
+    systemPrompt: string
+    taskPrompt: string
+    mappingTable: { title: string; content: string[] }[]
+    outputContract: { title: string; content: string[] }[]
+  }
+  feedbackLoop: {
+    sections: { title: string; content: string[] }[]
+  }
+}
 
 /* ── Shared helpers ── */
 
@@ -113,7 +132,7 @@ function wizardBlock(name: string, goesIn: string, decides: string, comesOut: st
 
 /* ── Wizard Spec Section Generator ── */
 
-function generateWizardSection(data: WizardArtifactData, sectionNumber: number, accentColor: string) {
+function generateWizardSection(data: WizardDocData, sectionNumber: number, accentColor: string) {
   const children: Paragraph[] = []
 
   // Header
@@ -206,7 +225,7 @@ const AGENTS = [
   { number: '6', name: 'Refinement & Reasoning Agent', description: 'Produces final AI decision with human-readable reasoning and confidence score for reviewer UI.' },
 ]
 
-/* ── Route Handler ── */
+/* ── Route Handler ─�� */
 
 export async function GET() {
   const doc = new Document({
