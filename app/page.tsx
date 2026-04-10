@@ -183,7 +183,7 @@ export default function HomePage() {
           <div className="flex items-center gap-3">
             <Sparkles className="size-7 text-[var(--ai-accent)]" />
             <span className="text-lg font-bold text-foreground">
-              1040SCA
+              1040SCAN
             </span>
           </div>
           <Button variant="outline" size="sm" asChild>
