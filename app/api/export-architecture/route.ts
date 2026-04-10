@@ -1,3 +1,5 @@
+export const runtime = 'nodejs'
+
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, BorderStyle, HeadingLevel } from 'docx'
 import { NextResponse } from 'next/server'
 import { supersededData, duplicateData, cfaData, nfrData } from '@/lib/wizard-artifact-data'
@@ -223,7 +225,7 @@ const AGENTS = [
   { number: '6', name: 'Refinement & Reasoning Agent', description: 'Produces final AI decision with human-readable reasoning and confidence score for reviewer UI.' },
 ]
 
-/* ── Route Handler ── */
+/* ── Route Handler ─�� */
 
 export async function GET() {
   const doc = new Document({

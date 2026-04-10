@@ -1,3 +1,5 @@
+export const runtime = 'nodejs'
+
 /* ── Azure DevOps Iterations API Route ──
    Returns sprint iteration data for all 3 teams.
    Member capacity is now derived from work items + lib/team-config.ts

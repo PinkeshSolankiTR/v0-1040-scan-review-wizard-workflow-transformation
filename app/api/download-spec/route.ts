@@ -1,3 +1,5 @@
+export const runtime = 'nodejs'
+
 import {
   Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
   WidthType, AlignmentType, HeadingLevel, BorderStyle, ShadingType,
