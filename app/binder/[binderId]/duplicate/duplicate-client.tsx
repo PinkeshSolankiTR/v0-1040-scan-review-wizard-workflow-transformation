@@ -1213,7 +1213,6 @@ export function DuplicateClient({ data }: { data: DuplicateRecord[]}) {
                         </button>
                       </div>
                     </>
-                  )}
                 </div>
               </>
               )
