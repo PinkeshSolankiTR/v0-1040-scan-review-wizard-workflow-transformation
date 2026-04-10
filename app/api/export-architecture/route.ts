@@ -1,7 +1,24 @@
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType, BorderStyle, HeadingLevel } from 'docx'
 import { NextResponse } from 'next/server'
 import { supersededData, duplicateData, cfaData, nfrData } from '@/lib/wizard-artifact-data'
-import type { WizardArtifactData } from '@/components/wizard-artifact-page'
+
+/* Local type matching WizardArtifactData shape used for doc generation only */
+interface WizardDocData {
+  title: string
+  decisionSpec: {
+    version: string
+    sections: { title: string; content: string[] }[]
+  }
+  prompts: {
+    systemPrompt: string
+    taskPrompt: string
+    mappingTable: { title: string; content: string[] }[]
+    outputContract: { title: string; content: string[] }[]
+  }
+  feedbackLoop: {
+    sections: { title: string; content: string[] }[]
+  }
+}
 
 /* ── Shared helpers ── */
 
@@ -113,7 +130,7 @@ function wizardBlock(name: string, goesIn: string, decides: string, comesOut: st
 
 /* ── Wizard Spec Section Generator ── */
 
-function generateWizardSection(data: WizardArtifactData, sectionNumber: number, accentColor: string) {
+function generateWizardSection(data: WizardDocData, sectionNumber: number, accentColor: string) {
   const children: Paragraph[] = []
 
   // Header
