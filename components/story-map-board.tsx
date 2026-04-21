@@ -116,8 +116,8 @@ function buildColumns(adoItems: AdoWorkItemFlat[], localData: LocalData | null):
     item.workItemType === 'Feature' && item.parentId === ELIMINATION_WIZARD_EPIC_ID
   )
   const adoColumns: StoryColumn[] = features.map(feature => {
-    const featureDescendants = collectDescendants(feature.id, scopedItems)
-    const children = scopedItems.filter(item => featureDescendants.has(item.id) && item.workItemType !== 'Feature')
+    /* Direct children only -- no grandchildren or sub-tasks */
+    const children = scopedItems.filter(item => item.parentId === feature.id && item.workItemType !== 'Feature')
     const cards: StoryCard[] = children.map((child, idx) => ({
       id: `ado-${child.id}`,
       title: child.title,
