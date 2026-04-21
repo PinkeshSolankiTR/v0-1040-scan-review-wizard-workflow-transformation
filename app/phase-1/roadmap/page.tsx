@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 
 import type { AdoWorkItemFlat, AdoQueryResponse } from '@/app/api/ado-query/route'
+import { StoryMapBoard } from '@/components/story-map-board'
 import type { CapacityResponse } from '@/app/api/ado-capacity/route'
 import { MEMBER_ROLES, extractTeamFromPath, getMemberActivities, isMemberExcluded, TARGET_RELEASE_DATE, type TeamName } from '@/lib/team-config'
 
@@ -513,7 +514,7 @@ function FeatureRow({ feature, idx }: { feature: FeatureProgressItem; idx: numbe
 
 /* ──────────────────────────────────────────────
    PO Dashboard: Risk section card
-   ────────────────────────────────────────────── */
+   ────────────────────────────���───────────────── */
 function RiskSection({ label, icon: Icon, items, color }: { label: string; icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>; items: AdoWorkItemFlat[]; color: string }) {
   const [expanded, setExpanded] = useState(false)
   const displayItems = expanded ? items : items.slice(0, 5)
@@ -558,7 +559,7 @@ function RiskSection({ label, icon: Icon, items, color }: { label: string; icon:
 /* ──────────────────────────────────────────────
    MAIN PAGE
    ─────────────────────────────────────────��──── */
-type RoadmapTab = 'ado' | 'dashboard'
+type RoadmapTab = 'ado' | 'dashboard' | 'storymap'
 type StateFilter = 'all' | 'active' | 'done' | 'new'
 
 export default function DeliveryRoadmapPage() {
@@ -1010,6 +1011,7 @@ export default function DeliveryRoadmapPage() {
   const tabs: { id: RoadmapTab; label: string; sublabel: string }[] = [
     { id: 'ado', label: 'Azure DevOps (Live)', sublabel: 'Real-time from ADO query' },
     { id: 'dashboard', label: 'PO Dashboard', sublabel: 'Key insights & risk radar' },
+    { id: 'storymap', label: 'Story Mapping', sublabel: 'Plan & organize work items' },
   ]
 
   const progressPct = stats.total > 0 ? Math.round((stats.done / stats.total) * 100) : 0
@@ -1722,6 +1724,10 @@ export default function DeliveryRoadmapPage() {
             </div>
           )}
 
+          {/* -- TAB: Story Mapping -- */}
+          {activeTab === 'storymap' && (
+            <StoryMapBoard adoItems={data?.items ?? []} isLoading={isLoading} />
+          )}
 
         </div>
       </main>
