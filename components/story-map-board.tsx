@@ -84,6 +84,15 @@ function saveLocalData(data: LocalData) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
 }
 
+/* ── Default columns for Elimination Wizard (Phase 1) ── */
+const DEFAULT_COLUMNS: StoryColumn[] = [
+  { id: 'default-superseded', title: 'Superseded Wizard', description: 'Identify and classify superseded documents within a binder', source: 'local', cards: [] },
+  { id: 'default-duplicate', title: 'Duplicate Data Wizard', description: 'Detect and resolve duplicate data entries across documents', source: 'local', cards: [] },
+  { id: 'default-cfa', title: 'CFA Wizard', description: 'Review and validate CFA-related document classifications', source: 'local', cards: [] },
+  { id: 'default-nfr', title: 'NFR Wizard', description: 'Classify and handle Not For Review documents', source: 'local', cards: [] },
+  { id: 'default-shared', title: 'Shared / Cross-Cutting', description: 'Components, services, and patterns shared across all wizards', source: 'local', cards: [] },
+]
+
 /* ── Merge ADO items with local data ── */
 function buildColumns(adoItems: AdoWorkItemFlat[], localData: LocalData | null): StoryColumn[] {
   const allMap = new Map<number, AdoWorkItemFlat>()
@@ -120,22 +129,25 @@ function buildColumns(adoItems: AdoWorkItemFlat[], localData: LocalData | null):
     }
   })
 
-  if (!localData) return adoColumns
+  /* Use defaults if no ADO columns and no local data */
+  const baseColumns = adoColumns.length > 0 ? adoColumns : (localData?.columns.length ? [] : DEFAULT_COLUMNS)
+
+  if (!localData) return baseColumns
 
   /* Merge: keep local columns, update ADO columns with any local card additions */
   const merged: StoryColumn[] = []
   const localColMap = new Map(localData.columns.map(c => [c.id, c]))
 
-  /* First add ADO columns in their original order, merging local cards */
-  for (const adoCol of adoColumns) {
-    const localCol = localColMap.get(adoCol.id)
+  /* First add base columns in their original order, merging local cards */
+  for (const baseCol of baseColumns) {
+    const localCol = localColMap.get(baseCol.id)
     if (localCol) {
-      /* Merge: ADO cards first, then local-only cards */
+      /* Merge: base cards first, then local-only cards */
       const localOnlyCards = localCol.cards.filter(c => c.source === 'local')
-      merged.push({ ...adoCol, cards: [...adoCol.cards, ...localOnlyCards] })
-      localColMap.delete(adoCol.id)
+      merged.push({ ...baseCol, cards: [...baseCol.cards, ...localOnlyCards] })
+      localColMap.delete(baseCol.id)
     } else {
-      merged.push(adoCol)
+      merged.push(baseCol)
     }
   }
 
@@ -172,7 +184,7 @@ function AddColumnForm({ onAdd, onCancel }: { onAdd: (title: string, desc: strin
         ref={inputRef}
         value={title}
         onChange={e => setTitle(e.target.value)}
-        placeholder="Feature / Epic title"
+        placeholder="Wizard / Feature title"
         className="rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-foreground"
         onKeyDown={e => { if (e.key === 'Enter' && title.trim()) onAdd(title.trim(), desc.trim()) }}
       />
@@ -687,8 +699,6 @@ export function StoryMapBoard({ adoItems, isLoading }: { adoItems: AdoWorkItemFl
   }, [columns, searchQuery, typeFilter, labelFilter])
 
   const totalCards = columns.reduce((sum, c) => sum + c.cards.length, 0)
-  const totalLocal = columns.reduce((sum, c) => sum + c.cards.filter(card => card.source === 'local').length, 0)
-  const totalAdo = totalCards - totalLocal
 
   if (isLoading) {
     return (
@@ -701,6 +711,18 @@ export function StoryMapBoard({ adoItems, isLoading }: { adoItems: AdoWorkItemFl
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Scope header */}
+      <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3">
+        <div className="flex size-8 items-center justify-center rounded-md bg-foreground">
+          <Layers className="size-4 text-background" />
+        </div>
+        <div className="flex-1">
+          <p className="text-sm font-semibold text-foreground">Phase 1: Elimination of Wizard</p>
+          <p className="text-xs text-muted-foreground">Story map scoped to Superseded, Duplicate, CFA, and NFR wizards</p>
+        </div>
+        <Badge variant="secondary" className="text-[0.625rem]">{filteredColumns.length} features &middot; {totalCards} cards</Badge>
+      </div>
+
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-3">
         {/* Search */}
@@ -745,12 +767,7 @@ export function StoryMapBoard({ adoItems, isLoading }: { adoItems: AdoWorkItemFl
           </select>
         </div>
 
-        {/* Stats */}
-        <div className="flex items-center gap-3 ml-auto">
-          <span className="text-[0.625rem] text-muted-foreground">
-            {filteredColumns.length} columns &middot; {totalCards} cards ({totalAdo} ADO, {totalLocal} local)
-          </span>
-        </div>
+
       </div>
 
       {/* Board */}
@@ -780,15 +797,15 @@ export function StoryMapBoard({ adoItems, isLoading }: { adoItems: AdoWorkItemFl
             onClick={() => setShowAddColumn(true)}
             className="flex items-center gap-2 rounded-xl border border-dashed border-border min-w-[280px] w-[280px] shrink-0 px-4 py-8 text-sm text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors justify-center"
           >
-            <Plus className="size-4" /> Add Feature / Epic
+            <Plus className="size-4" /> Add Wizard / Feature
           </button>
         )}
       </div>
 
       {/* Footer note */}
       <p className="text-center text-[0.625rem] text-muted-foreground/60">
-        ADO cards are read-only. Locally added cards and columns persist across sessions.
-        Drag cards between columns to reorganize.
+        Scoped to Phase 1: Elimination of Wizard. ADO cards are read-only.
+        Locally added cards and columns persist across sessions. Drag cards between columns to reorganize.
       </p>
     </div>
   )
