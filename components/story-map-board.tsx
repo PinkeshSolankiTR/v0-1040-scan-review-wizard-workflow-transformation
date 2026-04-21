@@ -12,8 +12,9 @@ import type { AdoWorkItemFlat } from '@/app/api/ado-query/route'
 /* ── Constants ── */
 const STORAGE_KEY = 'storymap-local-data'
 
-const WORK_ITEM_TYPES = ['User Story', 'Task', 'Bug', 'Spike'] as const
-type WorkItemType = typeof WORK_ITEM_TYPES[number]
+/* Predefined types for the "add card" form; ADO items keep their original type */
+const WORK_ITEM_TYPES = ['User Story', 'Task', 'Bug', 'Spike', 'Design Story'] as const
+type WorkItemType = string
 
 const LABELS = ['API', 'UI', 'Spike', 'Infrastructure', 'Database', 'Testing', 'Documentation'] as const
 type Label = typeof LABELS[number]
@@ -28,12 +29,16 @@ const LABEL_COLORS: Record<Label, { bg: string; text: string }> = {
   Documentation:  { bg: 'oklch(0.90 0.04 260)', text: 'oklch(0.35 0.06 260)' },
 }
 
-const TYPE_COLORS: Record<WorkItemType, { bg: string; text: string; dot: string }> = {
-  'User Story': { bg: 'oklch(0.92 0.08 240)', text: 'oklch(0.35 0.14 240)', dot: 'oklch(0.55 0.2 240)' },
-  'Task':       { bg: 'oklch(0.92 0.08 80)',  text: 'oklch(0.35 0.14 80)',  dot: 'oklch(0.6 0.2 80)' },
-  'Bug':        { bg: 'oklch(0.92 0.1 25)',   text: 'oklch(0.35 0.18 25)',  dot: 'oklch(0.55 0.25 25)' },
-  'Spike':      { bg: 'oklch(0.92 0.06 300)', text: 'oklch(0.35 0.12 300)', dot: 'oklch(0.55 0.15 300)' },
+const TYPE_COLOR_MAP: Record<string, { bg: string; text: string; dot: string }> = {
+  'User Story':    { bg: 'oklch(0.92 0.08 240)', text: 'oklch(0.35 0.14 240)', dot: 'oklch(0.55 0.2 240)' },
+  'Task':          { bg: 'oklch(0.92 0.08 80)',  text: 'oklch(0.35 0.14 80)',  dot: 'oklch(0.6 0.2 80)' },
+  'Bug':           { bg: 'oklch(0.92 0.1 25)',   text: 'oklch(0.35 0.18 25)',  dot: 'oklch(0.55 0.25 25)' },
+  'Spike':         { bg: 'oklch(0.92 0.06 300)', text: 'oklch(0.35 0.12 300)', dot: 'oklch(0.55 0.15 300)' },
+  'Design Story':  { bg: 'oklch(0.92 0.08 170)', text: 'oklch(0.35 0.14 170)', dot: 'oklch(0.55 0.2 170)' },
+  'Test Case':     { bg: 'oklch(0.92 0.06 50)',  text: 'oklch(0.35 0.12 50)',  dot: 'oklch(0.55 0.15 50)' },
 }
+const DEFAULT_TYPE_COLOR = { bg: 'oklch(0.93 0.03 260)', text: 'oklch(0.35 0.06 260)', dot: 'oklch(0.55 0.08 260)' }
+function getTypeColor(type: string) { return TYPE_COLOR_MAP[type] || DEFAULT_TYPE_COLOR }
 
 /* ── Types ── */
 interface StoryCard {
@@ -122,7 +127,7 @@ function buildColumns(adoItems: AdoWorkItemFlat[], localData: LocalData | null):
       id: `ado-${child.id}`,
       title: child.title,
       description: child.description || '',
-      workItemType: (WORK_ITEM_TYPES.includes(child.workItemType as WorkItemType) ? child.workItemType : 'Task') as WorkItemType,
+      workItemType: child.workItemType,
       labels: extractLabels(child.tags),
       source: 'ado' as const,
       adoId: child.id,
@@ -175,7 +180,7 @@ function CompactCard({
   const [desc, setDesc] = useState(card.description)
   const [type, setType] = useState(card.workItemType)
   const [labels, setLabels] = useState<Label[]>(card.labels)
-  const tc = TYPE_COLORS[card.workItemType]
+  const tc = getTypeColor(card.workItemType)
 
   const handleSave = () => {
     onEdit({ ...card, title: title.trim() || card.title, description: desc, workItemType: type, labels })
@@ -196,7 +201,7 @@ function CompactCard({
           className="rounded border border-border bg-background px-2 py-1 text-[0.6875rem] text-foreground outline-none focus:ring-1 focus:ring-foreground resize-none" />
         <div className="flex flex-wrap gap-1">
           {WORK_ITEM_TYPES.map(t => {
-            const isSelected = type === t; const c = TYPE_COLORS[t]
+            const isSelected = type === t; const c = getTypeColor(t)
             return (
               <button key={t} type="button" onClick={() => setType(t)}
                 className="rounded-full px-2 py-0.5 text-[0.5625rem] font-medium transition-all"
@@ -318,7 +323,7 @@ function InlineAddCard({ onAdd, onCancel }: { onAdd: (card: Omit<StoryCard, 'id'
       <div className="flex items-center gap-1.5">
         <div className="flex gap-0.5">
           {WORK_ITEM_TYPES.map(t => {
-            const isSelected = type === t; const c = TYPE_COLORS[t]
+            const isSelected = type === t; const c = getTypeColor(t)
             return (
               <button key={t} type="button" onClick={() => setType(t)}
                 className="rounded-full px-1.5 py-0 text-[0.5rem] font-medium transition-all"
@@ -437,14 +442,14 @@ function FeatureRow({
         {/* Type breakdown badges */}
         <div className="flex items-center gap-1 shrink-0">
           {Object.entries(typeCounts).map(([type, count]) => {
-            const tc = TYPE_COLORS[type as WorkItemType]
-            return tc ? (
+            const tc = getTypeColor(type)
+            return (
               <span key={type} className="rounded-full px-1.5 py-0 text-[0.5rem] font-medium flex items-center gap-0.5"
                 style={{ backgroundColor: tc.bg, color: tc.text }}>
                 <span className="size-1 rounded-full" style={{ backgroundColor: tc.dot }} />
                 {count}
               </span>
-            ) : null
+            )
           })}
           <Badge variant="secondary" className="text-[0.5625rem] px-1.5 py-0">{column.cards.length}</Badge>
         </div>
@@ -627,6 +632,13 @@ export function StoryMapBoard({ adoItems, isLoading }: { adoItems: AdoWorkItemFl
 
   const totalCards = columns.reduce((sum, c) => sum + c.cards.length, 0)
 
+  /* Unique work item types from actual data (for filter dropdown) */
+  const uniqueTypes = useMemo(() => {
+    const types = new Set<string>()
+    columns.forEach(col => col.cards.forEach(card => types.add(card.workItemType)))
+    return Array.from(types).sort()
+  }, [columns])
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -668,7 +680,7 @@ export function StoryMapBoard({ adoItems, isLoading }: { adoItems: AdoWorkItemFl
           <select value={typeFilter} onChange={e => setTypeFilter(e.target.value as WorkItemType | 'all')}
             className="rounded-md border border-border bg-background px-1.5 py-1 text-[0.625rem] text-foreground outline-none focus:ring-1 focus:ring-foreground">
             <option value="all">All Types</option>
-            {WORK_ITEM_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+            {uniqueTypes.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
         </div>
         <div className="flex items-center gap-1">
