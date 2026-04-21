@@ -93,21 +93,44 @@ const DEFAULT_COLUMNS: StoryColumn[] = [
   { id: 'default-shared', title: 'Shared / Cross-Cutting', description: 'Components, services, and patterns shared across all wizards', source: 'local', cards: [] },
 ]
 
+/* ── Scope: Only show children of this epic (Elimination Wizard) ── */
+const ELIMINATION_WIZARD_EPIC_ID = 4651627
+
+/* ── Collect all descendant IDs under a given root ── */
+function collectDescendants(rootId: number, allItems: AdoWorkItemFlat[]): Set<number> {
+  const descendants = new Set<number>()
+  const queue = [rootId]
+  while (queue.length > 0) {
+    const current = queue.shift()!
+    for (const item of allItems) {
+      if (item.parentId === current && !descendants.has(item.id)) {
+        descendants.add(item.id)
+        queue.push(item.id)
+      }
+    }
+  }
+  return descendants
+}
+
 /* ── Merge ADO items with local data ── */
 function buildColumns(adoItems: AdoWorkItemFlat[], localData: LocalData | null): StoryColumn[] {
   const allMap = new Map<number, AdoWorkItemFlat>()
   adoItems.forEach(item => allMap.set(item.id, item))
 
-  /* Find top-level items (Epics/Features with no parent, or parent not in dataset) */
-  const topLevel = adoItems.filter(item => {
-    const isTopType = ['Epic', 'Feature'].includes(item.workItemType)
-    const parentMissing = !item.parentId || !allMap.has(item.parentId)
-    return isTopType && parentMissing
-  })
+  /* Filter: only items under the Elimination Wizard epic */
+  const scopedIds = collectDescendants(ELIMINATION_WIZARD_EPIC_ID, adoItems)
+  const scopedItems = adoItems.filter(item => scopedIds.has(item.id))
 
-  /* Build ADO columns */
-  const adoColumns: StoryColumn[] = topLevel.map(parent => {
-    const children = adoItems.filter(item => item.parentId === parent.id && item.id !== parent.id)
+  /* Find Features directly under the epic (these become columns) */
+  const features = scopedItems.filter(item =>
+    item.workItemType === 'Feature' && item.parentId === ELIMINATION_WIZARD_EPIC_ID
+  )
+
+  /* Build ADO columns from Features */
+  const adoColumns: StoryColumn[] = features.map(feature => {
+    /* Cards = all non-Feature descendants under this feature */
+    const featureDescendants = collectDescendants(feature.id, scopedItems)
+    const children = scopedItems.filter(item => featureDescendants.has(item.id) && item.workItemType !== 'Feature')
     const cards: StoryCard[] = children.map((child, idx) => ({
       id: `ado-${child.id}`,
       title: child.title,
@@ -120,11 +143,11 @@ function buildColumns(adoItems: AdoWorkItemFlat[], localData: LocalData | null):
       order: idx,
     }))
     return {
-      id: `ado-col-${parent.id}`,
-      title: parent.title,
-      description: parent.description || '',
+      id: `ado-col-${feature.id}`,
+      title: feature.title,
+      description: feature.description || '',
       source: 'ado' as const,
-      adoId: parent.id,
+      adoId: feature.id,
       cards,
     }
   })
@@ -564,7 +587,7 @@ function StoryColumn({
   )
 }
 
-/* ══════════════════════════════════════════════
+/* ��═════════════════════════════════════════════
    MAIN BOARD
    ══════════════════════════════════════════════ */
 export function StoryMapBoard({ adoItems, isLoading }: { adoItems: AdoWorkItemFlat[]; isLoading: boolean }) {
