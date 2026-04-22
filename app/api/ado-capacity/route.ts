@@ -9,7 +9,7 @@ export const runtime = 'nodejs'
 import { NextResponse } from 'next/server'
 
 /* ── ADO config ── */
-const ADO_ORG = 'tr-tax'
+const ADO_ORG = process.env.ADO_ORG || 'tr-tax'
 const ADO_PROJECT = 'TaxProf'
 const ADO_API_VERSION = '7.1'
 const TEAMS = ['surePrep-rw-wizards1', 'surePrep-rw-wizards2', 'surePrep-rw-infinity']

@@ -9,7 +9,7 @@ export const runtime = 'nodejs'
 import { NextResponse } from 'next/server'
 
 /* ── ADO config ── */
-const ADO_ORG = 'tr-tax'
+const ADO_ORG = process.env.ADO_ORG || 'tr-tax'
 const ADO_PROJECT = 'TaxProf'
 const QUERY_ID = '2788c428-8768-429b-8b28-4bcfa0bb26cc'
 const ADO_API_VERSION = '7.1'
