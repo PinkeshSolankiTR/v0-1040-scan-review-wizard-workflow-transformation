@@ -37,9 +37,17 @@ export interface AdoQueryResponse {
 }
 
 /* ── Helpers ── */
-function getAuthHeader(): string {
+function resolvePat(): string {
+  /* Check ADO_PAT first; if empty, check if the PAT was accidentally stored in ADO_ORG */
   const pat = process.env.ADO_PAT
-  if (!pat) throw new Error('ADO_PAT environment variable is not set')
+  if (pat && pat.length > 20) return pat
+  const org = process.env.ADO_ORG
+  if (org && org.length > 20) return org
+  throw new Error('ADO_PAT environment variable is not set')
+}
+
+function getAuthHeader(): string {
+  const pat = resolvePat()
   return `Basic ${Buffer.from(`:${pat}`).toString('base64')}`
 }
 
