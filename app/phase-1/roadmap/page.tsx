@@ -12,8 +12,9 @@ import {
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
-import { ROADMAP as STATIC_ROADMAP, type Feature as StaticFeature, type Spike as StaticSpike } from './roadmap-data'
+
 import type { AdoWorkItemFlat, AdoQueryResponse } from '@/app/api/ado-query/route'
+import { StoryMapBoard } from '@/components/story-map-board'
 import type { CapacityResponse } from '@/app/api/ado-capacity/route'
 import { MEMBER_ROLES, extractTeamFromPath, getMemberActivities, isMemberExcluded, TARGET_RELEASE_DATE, type TeamName } from '@/lib/team-config'
 
@@ -389,92 +390,9 @@ function EpicSection({
   )
 }
 
-/* ──────────────────────────────────────────────
-   STATIC: components (unchanged from before)
-   ────────────────────────────────────────────── */
-function StaticSpikeRow({ spike }: { spike: StaticSpike }) {
-  const [open, setOpen] = useState(false)
-  return (
-    <div className="border-b border-border last:border-b-0">
-      <button type="button" onClick={() => setOpen(p => !p)} className="flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-muted/40 transition-colors">
-        <div className="mt-0.5 shrink-0">
-          {open ? <ChevronDown className="size-3.5 text-muted-foreground" /> : <ChevronRight className="size-3.5 text-muted-foreground" />}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <Badge variant="outline" className="shrink-0 text-[0.625rem] font-mono px-1.5 py-0">{spike.id}</Badge>
-            <span className="text-sm font-medium text-foreground leading-snug">{spike.title}</span>
-          </div>
-        </div>
-      </button>
-      {open && (
-        <div className="px-4 pb-3 pl-10">
-          <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-line">{spike.description}</p>
-        </div>
-      )}
-    </div>
-  )
-}
 
-function StaticFeatureCard({ feature }: { feature: StaticFeature }) {
-  const [expanded, setExpanded] = useState(false)
-  const [showDescription, setShowDescription] = useState(false)
-  const spikeCount = feature.spikes.length
-  const categoryIcon = feature.category === 'wizard' ? <Crosshair className="size-3.5" /> : <Wrench className="size-3.5" />
-  const categoryLabel = feature.category === 'wizard' ? 'Wizard-Specific' : 'Cross-Cutting'
 
-  return (
-    <Card className="border-l-4 overflow-hidden" style={{ borderLeftColor: feature.accentColor }}>
-      <CardHeader className="pb-0">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-              <Badge variant="secondary" className="text-[0.625rem] gap-1 py-0">{categoryIcon}{categoryLabel}</Badge>
-              {feature.id && <span className="text-[0.625rem] font-mono text-muted-foreground">ID: {feature.id}</span>}
-            </div>
-            <h3 className="text-base font-semibold text-foreground leading-snug text-balance">{feature.title}</h3>
-          </div>
-          <div className="flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1.5" style={{ backgroundColor: `color-mix(in oklch, ${feature.accentColor} 10%, transparent)` }}>
-            <Hash className="size-3.5" style={{ color: feature.accentColor }} />
-            <span className="text-sm font-bold" style={{ color: feature.accentColor }}>{spikeCount}</span>
-            <span className="text-[0.625rem] text-muted-foreground">{spikeCount === 1 ? 'spike' : 'spikes'}</span>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="pt-3">
-        <div className="mb-3">
-          <button type="button" onClick={() => setShowDescription(p => !p)} className="text-xs font-medium text-muted-foreground hover:text-foreground hover:underline flex items-center gap-1">
-            {showDescription ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
-            {showDescription ? 'Hide description' : 'View description'}
-          </button>
-          {showDescription && (
-            <div className="mt-2 rounded-md border border-border bg-muted/30 p-3">
-              <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-line">{feature.description}</p>
-            </div>
-          )}
-        </div>
-        {spikeCount > 0 && (
-          <div>
-            <button type="button" onClick={() => setExpanded(p => !p)} className="flex w-full items-center justify-between rounded-md border border-border bg-muted/30 px-3 py-2 text-left hover:bg-muted/50 transition-colors">
-              <span className="text-xs font-semibold text-foreground uppercase tracking-wider">Spikes ({spikeCount})</span>
-              {expanded ? <ChevronDown className="size-3.5 text-muted-foreground" /> : <ChevronRight className="size-3.5 text-muted-foreground" />}
-            </button>
-            {expanded && (
-              <div className="mt-1 rounded-md border border-border overflow-hidden">
-                {feature.spikes.map(spike => <StaticSpikeRow key={spike.id} spike={spike} />)}
-              </div>
-            )}
-          </div>
-        )}
-        {spikeCount === 0 && (
-          <div className="rounded-md border border-dashed border-border bg-muted/20 px-3 py-2">
-            <p className="text-xs text-muted-foreground italic">No spikes defined yet -- tasks to be created.</p>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  )
-}
+
 
 /* ──────────────────────────────────────────────
    PO Dashboard: Collapsible section wrapper
@@ -596,7 +514,7 @@ function FeatureRow({ feature, idx }: { feature: FeatureProgressItem; idx: numbe
 
 /* ──────────────────────────────────────────────
    PO Dashboard: Risk section card
-   ────────────────────────────────────────────── */
+   ────────────────────────────���───────────────── */
 function RiskSection({ label, icon: Icon, items, color }: { label: string; icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>; items: AdoWorkItemFlat[]; color: string }) {
   const [expanded, setExpanded] = useState(false)
   const displayItems = expanded ? items : items.slice(0, 5)
@@ -641,7 +559,7 @@ function RiskSection({ label, icon: Icon, items, color }: { label: string; icon:
 /* ──────────────────────────────────────────────
    MAIN PAGE
    ─────────────────────────────────────────��──── */
-type RoadmapTab = 'ado' | 'static' | 'dashboard'
+type RoadmapTab = 'ado' | 'dashboard' | 'storymap'
 type StateFilter = 'all' | 'active' | 'done' | 'new'
 
 export default function DeliveryRoadmapPage() {
@@ -1090,14 +1008,10 @@ export default function DeliveryRoadmapPage() {
     }
   }, [dashboardData, capacityInsights, scopedItems])
 
-  /* Static data */
-  const staticWizardFeatures = STATIC_ROADMAP.features.filter(f => f.category === 'wizard')
-  const staticCrossCuttingFeatures = STATIC_ROADMAP.features.filter(f => f.category === 'cross-cutting')
-
   const tabs: { id: RoadmapTab; label: string; sublabel: string }[] = [
     { id: 'ado', label: 'Azure DevOps (Live)', sublabel: 'Real-time from ADO query' },
     { id: 'dashboard', label: 'PO Dashboard', sublabel: 'Key insights & risk radar' },
-    { id: 'static', label: 'Static Roadmap', sublabel: 'Original CSV-based data' },
+    { id: 'storymap', label: 'Story Mapping', sublabel: 'Plan & organize work items' },
   ]
 
   const progressPct = stats.total > 0 ? Math.round((stats.done / stats.total) * 100) : 0
@@ -1205,7 +1119,7 @@ export default function DeliveryRoadmapPage() {
                   <div>
                     <p className="text-sm font-medium text-amber-900">Could not connect to Azure DevOps</p>
                     <p className="text-xs text-amber-700 mt-0.5">
-                      Check your network connection and PAT validity. View the Static Roadmap tab for cached data.
+                      Check your network connection and PAT validity.
                     </p>
                     <button type="button" onClick={() => mutate()} className="text-xs font-medium text-amber-800 hover:underline mt-1">Try again</button>
                   </div>
@@ -1345,7 +1259,7 @@ export default function DeliveryRoadmapPage() {
                   <div>
                     <p className="text-sm font-medium text-foreground">No live data available</p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Switch to the <strong>Static Roadmap</strong> tab to view the original CSV-based data.
+                      Try refreshing or check your Azure DevOps connection settings.
                     </p>
                   </div>
                   <Button variant="outline" size="sm" onClick={() => mutate()}>
@@ -1810,67 +1724,11 @@ export default function DeliveryRoadmapPage() {
             </div>
           )}
 
-          {/* ── TAB: Static Roadmap (CSV) ── */}
-          {activeTab === 'static' && (
-            <div>
-              <Card className="mb-8 border-l-4 border-l-foreground">
-                <CardHeader>
-                  <div className="flex items-start gap-3">
-                    <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted">
-                      <Layers className="size-5 text-foreground" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <Badge variant="outline" className="text-[0.625rem] font-mono px-1.5 py-0">Epic: {STATIC_ROADMAP.id}</Badge>
-                        <Badge className="bg-foreground text-background text-[0.625rem]">Active</Badge>
-                      </div>
-                      <h2 className="text-lg font-bold text-foreground leading-snug text-balance">{STATIC_ROADMAP.title}</h2>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground leading-relaxed mb-4">{STATIC_ROADMAP.description}</p>
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="flex flex-col items-center rounded-md bg-muted/50 px-2 py-3 text-center">
-                      <p className="text-lg font-bold text-foreground">{STATIC_ROADMAP.features.length}</p>
-                      <p className="text-xs text-muted-foreground leading-tight mt-0.5">Features</p>
-                    </div>
-                    <div className="flex flex-col items-center rounded-md bg-muted/50 px-2 py-3 text-center">
-                      <p className="text-lg font-bold text-foreground">{STATIC_ROADMAP.features.reduce((sum, f) => sum + f.spikes.length, 0)}</p>
-                      <p className="text-xs text-muted-foreground leading-tight mt-0.5">Spikes</p>
-                    </div>
-                    <div className="flex flex-col items-center rounded-md bg-muted/50 px-2 py-3 text-center">
-                      <p className="text-lg font-bold text-foreground">{staticWizardFeatures.length}</p>
-                      <p className="text-xs text-muted-foreground leading-tight mt-0.5">Wizards</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <div className="mb-10">
-                <div className="flex items-center gap-2 mb-4">
-                  <Crosshair className="size-4 text-foreground" />
-                  <h2 className="text-lg font-bold text-foreground">Wizard-Specific Features</h2>
-                  <Badge variant="secondary" className="text-[0.625rem]">{staticWizardFeatures.length}</Badge>
-                </div>
-                <div className="grid gap-4">
-                  {staticWizardFeatures.map(f => <StaticFeatureCard key={f.id} feature={f} />)}
-                </div>
-              </div>
-              <div className="mb-10">
-                <div className="flex items-center gap-2 mb-4">
-                  <Wrench className="size-4 text-foreground" />
-                  <h2 className="text-lg font-bold text-foreground">Cross-Cutting Features</h2>
-                  <Badge variant="secondary" className="text-[0.625rem]">{staticCrossCuttingFeatures.length}</Badge>
-                </div>
-                <div className="grid gap-4">
-                  {staticCrossCuttingFeatures.map(f => <StaticFeatureCard key={f.id} feature={f} />)}
-                </div>
-              </div>
-              <p className="text-center text-xs text-muted-foreground/60">
-                Static roadmap data from original CSV import. This data is not updated in real-time.
-              </p>
-            </div>
+          {/* -- TAB: Story Mapping -- */}
+          {activeTab === 'storymap' && (
+            <StoryMapBoard adoItems={data?.items ?? []} isLoading={isLoading} />
           )}
+
         </div>
       </main>
     </div>
