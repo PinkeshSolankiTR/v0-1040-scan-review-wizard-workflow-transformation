@@ -2,6 +2,26 @@ import type { Binder, SupersededRecord, DuplicateRecord, CfaRecord, NfrRecord } 
 
 const PDF_PATH = '/documents/1TDI-CCH-2024-binder.pdf'
 
+/* Pre-rendered page images for reliable prototype rendering */
+const IMG = {
+  '1099-div':          '/documents/pages/1099-div-exxonmobil.jpg',
+  '1099-div-corrected':'/documents/pages/1099-div-exxonmobil-corrected.jpg',
+  '1099-div-draft':    '/documents/pages/1099-div-exxonmobil-draft.jpg',
+  'w2':                '/documents/pages/w2-whynot-stop.jpg',
+  'w2-corrected':      '/documents/pages/w2-whynot-stop-corrected.jpg',
+  '1099-int':          '/documents/pages/1099-int-chase.jpg',
+  '1099-int-updated':  '/documents/pages/1099-int-chase-updated.jpg',
+  '1099-b':            '/documents/pages/1099-b-schwab.jpg',
+  '1099-b-final':      '/documents/pages/1099-b-schwab-final.jpg',
+  '1099-b-preliminary':'/documents/pages/1099-b-schwab-preliminary.jpg',
+  'k1':                '/documents/pages/k1-chapman-trust.jpg',
+  'k1-amended':        '/documents/pages/k1-chapman-trust-amended.jpg',
+  '1099-r':            '/documents/pages/1099-r-fidelity.jpg',
+  '1099-r-corrected':  '/documents/pages/1099-r-fidelity-corrected.jpg',
+  'schedule-c':        '/documents/pages/schedule-c-craft-shop.jpg',
+  '1099-misc':         '/documents/pages/1099-misc-richmont.jpg',
+}
+
 export const binderA: Binder = {
   id: 'demo-a',
   label: 'Demo Binder',
@@ -33,7 +53,7 @@ export const supersededA: SupersededRecord[] = [
     decisionReason: 'NEWER_VERSION|Page 32 replaces page 21||SAME_RECIPIENT|Documents match the same person||UPDATED_VALUES|Newer document has corrections',
     reviewRequired: false,
     escalationReason: null,
-    documentRef: { pdfPath: PDF_PATH, pageNumber: 21, formType: '1099-DIV', formLabel: '1099-DIV (ExxonMobil)' },
+    documentRef: { pdfPath: PDF_PATH, pageNumber: 21, formType: '1099-DIV', formLabel: '1099-DIV (ExxonMobil)', imagePath: IMG['1099-div'] },
     comparedValues: [
       { field: 'Payer Name', valueA: 'EXXON MOBIL CORPORATION', valueB: 'EXXON MOBIL CORPORATION', match: true, category: 'Payer Info', cropA: { x: 0.05, y: 0.12, width: 0.42, height: 0.04 }, cropB: { x: 0.05, y: 0.12, width: 0.42, height: 0.04 } },
       { field: 'Payer (Transfer Agent)', valueA: 'COMPUTERSHARE', valueB: 'COMPUTERSHARE', match: true, category: 'Payer Info', cropA: { x: 0.05, y: 0.17, width: 0.42, height: 0.04 }, cropB: { x: 0.05, y: 0.17, width: 0.42, height: 0.04 } },
@@ -56,7 +76,7 @@ export const supersededA: SupersededRecord[] = [
     decisionReason: 'NEWER_VERSION|This is the most recent version||CORRECTED_MARK|Marked as "Corrected"||UPDATED_VALUES|Has updated information',
     reviewRequired: false,
     escalationReason: null,
-    documentRef: { pdfPath: PDF_PATH, pageNumber: 32, formType: '1099-DIV', formLabel: '1099-DIV (ExxonMobil) - Corrected' },
+    documentRef: { pdfPath: PDF_PATH, pageNumber: 32, formType: '1099-DIV', formLabel: '1099-DIV (ExxonMobil) - Corrected', imagePath: IMG['1099-div-corrected'] },
     comparedValues: [
       { field: 'Payer Name', valueA: 'EXXON MOBIL CORPORATION', valueB: 'EXXON MOBIL CORPORATION', match: true, category: 'Payer Info', cropA: { x: 0.05, y: 0.12, width: 0.42, height: 0.04 }, cropB: { x: 0.05, y: 0.12, width: 0.42, height: 0.04 } },
       { field: 'Payer (Transfer Agent)', valueA: 'COMPUTERSHARE', valueB: 'COMPUTERSHARE', match: true, category: 'Payer Info', cropA: { x: 0.05, y: 0.17, width: 0.42, height: 0.04 }, cropB: { x: 0.05, y: 0.17, width: 0.42, height: 0.04 } },
@@ -80,7 +100,7 @@ export const supersededA: SupersededRecord[] = [
     decisionReason: 'EARLIEST_VERSION|This is the earliest draft||SAME_RECIPIENT|Documents match the same person||REPLACED_TWICE|Replaced first by page 21, then by page 32',
     reviewRequired: false,
     escalationReason: null,
-    documentRef: { pdfPath: PDF_PATH, pageNumber: 17, formType: '1099-DIV', formLabel: '1099-DIV (ExxonMobil) - Draft' },
+    documentRef: { pdfPath: PDF_PATH, pageNumber: 17, formType: '1099-DIV', formLabel: '1099-DIV (ExxonMobil) - Draft', imagePath: IMG['1099-div-draft'] },
     comparedValues: [
       { field: 'Payer Name', valueA: 'EXXON MOBIL CORPORATION', valueB: 'EXXON MOBIL CORPORATION', match: true, category: 'Payer Info', cropA: { x: 0.05, y: 0.12, width: 0.42, height: 0.04 }, cropB: { x: 0.05, y: 0.12, width: 0.42, height: 0.04 } },
       { field: 'Payer (Transfer Agent)', valueA: 'COMPUTERSHARE', valueB: 'COMPUTERSHARE', match: true, category: 'Payer Info', cropA: { x: 0.05, y: 0.17, width: 0.42, height: 0.04 }, cropB: { x: 0.05, y: 0.17, width: 0.42, height: 0.04 } },
@@ -105,7 +125,7 @@ export const supersededA: SupersededRecord[] = [
     decisionReason: 'NEWER_VERSION|Page 14 replaces page 5||SAME_RECIPIENT|Employee name matches||UPDATED_VALUES|Wage amount corrected',
     reviewRequired: false,
     escalationReason: null,
-    documentRef: { pdfPath: PDF_PATH, pageNumber: 5, formType: 'W-2', formLabel: 'W-2 (WHYNOT STOP INC)' },
+    documentRef: { pdfPath: PDF_PATH, pageNumber: 5, formType: 'W-2', formLabel: 'W-2 (WHYNOT STOP INC)', imagePath: IMG['w2'] },
     comparedValues: [
       { field: 'Employer Name', valueA: 'WHYNOT STOP INC', valueB: 'WHYNOT STOP INC', match: true, category: 'Employer Info', cropA: { x: 0.05, y: 0.12, width: 0.42, height: 0.04 }, cropB: { x: 0.05, y: 0.12, width: 0.42, height: 0.04 } },
       { field: 'Employer EIN', valueA: '53-XXXXXXX', valueB: '53-XXXXXXX', match: true, category: 'Employer Info', cropA: { x: 0.05, y: 0.17, width: 0.25, height: 0.04 }, cropB: { x: 0.05, y: 0.17, width: 0.25, height: 0.04 } },
@@ -127,7 +147,7 @@ export const supersededA: SupersededRecord[] = [
     decisionReason: 'NEWER_VERSION|This is the corrected version||CORRECTED_MARK|Marked as "Corrected"||UPDATED_VALUES|Has updated wage information',
     reviewRequired: false,
     escalationReason: null,
-    documentRef: { pdfPath: PDF_PATH, pageNumber: 14, formType: 'W-2', formLabel: 'W-2 (WHYNOT STOP INC) - Corrected' },
+    documentRef: { pdfPath: PDF_PATH, pageNumber: 14, formType: 'W-2', formLabel: 'W-2 (WHYNOT STOP INC) - Corrected', imagePath: IMG['w2-corrected'] },
     comparedValues: [
       { field: 'Employer Name', valueA: 'WHYNOT STOP INC', valueB: 'WHYNOT STOP INC', match: true, category: 'Employer Info', cropA: { x: 0.05, y: 0.12, width: 0.42, height: 0.04 }, cropB: { x: 0.05, y: 0.12, width: 0.42, height: 0.04 } },
       { field: 'Employer EIN', valueA: '53-XXXXXXX', valueB: '53-XXXXXXX', match: true, category: 'Employer Info', cropA: { x: 0.05, y: 0.17, width: 0.25, height: 0.04 }, cropB: { x: 0.05, y: 0.17, width: 0.25, height: 0.04 } },
@@ -151,7 +171,7 @@ export const supersededA: SupersededRecord[] = [
     decisionReason: 'SAME_PAYER|Same bank on both forms||SAME_RECIPIENT|Recipient matches||AMOUNT_DIFF|Interest amounts differ by $142',
     reviewRequired: true,
     escalationReason: 'Interest amounts differ. Could be a corrected version or a different account.',
-    documentRef: { pdfPath: PDF_PATH, pageNumber: 8, formType: '1099-INT', formLabel: '1099-INT (Chase Bank)' },
+    documentRef: { pdfPath: PDF_PATH, pageNumber: 8, formType: '1099-INT', formLabel: '1099-INT (Chase Bank)', imagePath: IMG['1099-int'] },
     comparedValues: [
       { field: 'Payer Name', valueA: 'JPMORGAN CHASE BANK NA', valueB: 'JPMORGAN CHASE BANK NA', match: true, category: 'Payer Info', cropA: { x: 0.05, y: 0.12, width: 0.42, height: 0.04 }, cropB: { x: 0.05, y: 0.12, width: 0.42, height: 0.04 } },
       { field: 'Payer TIN', valueA: '13-4994650', valueB: '13-4994650', match: true, category: 'Payer Info', cropA: { x: 0.05, y: 0.17, width: 0.25, height: 0.04 }, cropB: { x: 0.05, y: 0.17, width: 0.25, height: 0.04 } },
@@ -172,7 +192,7 @@ export const supersededA: SupersededRecord[] = [
     decisionReason: 'SAME_PAYER|Same bank on both||LATER_DATE|This form has a later postmark||AMOUNT_DIFF|Higher interest amount suggests updated reporting',
     reviewRequired: true,
     escalationReason: 'Interest amounts differ. Could be a corrected version or a different account.',
-    documentRef: { pdfPath: PDF_PATH, pageNumber: 22, formType: '1099-INT', formLabel: '1099-INT (Chase Bank) - Updated' },
+    documentRef: { pdfPath: PDF_PATH, pageNumber: 22, formType: '1099-INT', formLabel: '1099-INT (Chase Bank) - Updated', imagePath: IMG['1099-int-updated'] },
     comparedValues: [
       { field: 'Payer Name', valueA: 'JPMORGAN CHASE BANK NA', valueB: 'JPMORGAN CHASE BANK NA', match: true, category: 'Payer Info', cropA: { x: 0.05, y: 0.12, width: 0.42, height: 0.04 }, cropB: { x: 0.05, y: 0.12, width: 0.42, height: 0.04 } },
       { field: 'Payer TIN', valueA: '13-4994650', valueB: '13-4994650', match: true, category: 'Payer Info', cropA: { x: 0.05, y: 0.17, width: 0.25, height: 0.04 }, cropB: { x: 0.05, y: 0.17, width: 0.25, height: 0.04 } },
@@ -195,7 +215,7 @@ export const supersededA: SupersededRecord[] = [
     decisionReason: 'SAME_BROKER|Same brokerage on both||SAME_RECIPIENT|Recipient matches||LATER_STATEMENT|Later consolidated statement replaces earlier one',
     reviewRequired: true,
     escalationReason: 'Consolidated statement from same broker. Proceeds and cost basis differ.',
-    documentRef: { pdfPath: PDF_PATH, pageNumber: 11, formType: '1099-B', formLabel: '1099-B (Charles Schwab)' },
+    documentRef: { pdfPath: PDF_PATH, pageNumber: 11, formType: '1099-B', formLabel: '1099-B (Charles Schwab)', imagePath: IMG['1099-b'] },
     comparedValues: [
       { field: 'Broker Name', valueA: 'CHARLES SCHWAB & CO INC', valueB: 'CHARLES SCHWAB & CO INC', match: true, category: 'Broker Info', cropA: { x: 0.05, y: 0.12, width: 0.42, height: 0.04 }, cropB: { x: 0.05, y: 0.12, width: 0.42, height: 0.04 } },
       { field: 'Account Number', valueA: '****4592', valueB: '****4592', match: true, category: 'Broker Info', cropA: { x: 0.05, y: 0.17, width: 0.25, height: 0.04 }, cropB: { x: 0.05, y: 0.17, width: 0.25, height: 0.04 } },
@@ -216,7 +236,7 @@ export const supersededA: SupersededRecord[] = [
     decisionReason: 'SAME_BROKER|Same brokerage||LATER_STATEMENT|This is the final consolidated statement||UPDATED_VALUES|Contains corrected proceeds and cost basis',
     reviewRequired: true,
     escalationReason: 'Consolidated statement from same broker. Proceeds and cost basis differ.',
-    documentRef: { pdfPath: PDF_PATH, pageNumber: 38, formType: '1099-B', formLabel: '1099-B (Charles Schwab) - Final' },
+    documentRef: { pdfPath: PDF_PATH, pageNumber: 38, formType: '1099-B', formLabel: '1099-B (Charles Schwab) - Final', imagePath: IMG['1099-b-final'] },
     comparedValues: [
       { field: 'Broker Name', valueA: 'CHARLES SCHWAB & CO INC', valueB: 'CHARLES SCHWAB & CO INC', match: true, category: 'Broker Info', cropA: { x: 0.05, y: 0.12, width: 0.42, height: 0.04 }, cropB: { x: 0.05, y: 0.12, width: 0.42, height: 0.04 } },
       { field: 'Account Number', valueA: '****4592', valueB: '****4592', match: true, category: 'Broker Info', cropA: { x: 0.05, y: 0.17, width: 0.25, height: 0.04 }, cropB: { x: 0.05, y: 0.17, width: 0.25, height: 0.04 } },
@@ -239,7 +259,7 @@ export const supersededA: SupersededRecord[] = [
     decisionReason: 'SAME_BROKER|Same brokerage||EARLIEST_STATEMENT|Preliminary statement from Jan||REPLACED_BY_FINAL|Replaced by final consolidated on Mar 15',
     reviewRequired: true,
     escalationReason: 'Preliminary consolidated statement. Replaced by two later versions.',
-    documentRef: { pdfPath: PDF_PATH, pageNumber: 7, formType: '1099-B', formLabel: '1099-B (Charles Schwab) - Preliminary' },
+    documentRef: { pdfPath: PDF_PATH, pageNumber: 7, formType: '1099-B', formLabel: '1099-B (Charles Schwab) - Preliminary', imagePath: IMG['1099-b-preliminary'] },
     comparedValues: [
       { field: 'Broker Name', valueA: 'CHARLES SCHWAB & CO INC', valueB: 'CHARLES SCHWAB & CO INC', match: true, category: 'Broker Info', cropA: { x: 0.05, y: 0.12, width: 0.42, height: 0.04 }, cropB: { x: 0.05, y: 0.12, width: 0.42, height: 0.04 } },
       { field: 'Account Number', valueA: '****4592', valueB: '****4592', match: true, category: 'Broker Info', cropA: { x: 0.05, y: 0.17, width: 0.25, height: 0.04 }, cropB: { x: 0.05, y: 0.17, width: 0.25, height: 0.04 } },
@@ -262,7 +282,7 @@ export const supersededA: SupersededRecord[] = [
     decisionReason: 'SAME_TRUST|Same trust EIN||AMOUNT_DIFF|Several income categories differ significantly||UNCERTAIN|May be from different reporting periods',
     reviewRequired: true,
     escalationReason: 'Confidence below threshold. Multiple income categories differ. Could be amended K-1 or different distribution period.',
-    documentRef: { pdfPath: PDF_PATH, pageNumber: 15, formType: 'Schedule K-1', formLabel: 'K-1 (Chapman Trust)' },
+    documentRef: { pdfPath: PDF_PATH, pageNumber: 15, formType: 'Schedule K-1', formLabel: 'K-1 (Chapman Trust)', imagePath: IMG['k1'] },
     comparedValues: [
       { field: 'Trust Name', valueA: 'CHAPMAN IRREVOCABLE TRUST', valueB: 'CHAPMAN IRREVOCABLE TRUST', match: true, category: 'Entity Info', cropA: { x: 0.05, y: 0.12, width: 0.42, height: 0.04 }, cropB: { x: 0.05, y: 0.12, width: 0.42, height: 0.04 } },
       { field: 'Trust EIN', valueA: '34-3353535', valueB: '34-3353535', match: true, category: 'Entity Info', cropA: { x: 0.05, y: 0.17, width: 0.25, height: 0.04 }, cropB: { x: 0.05, y: 0.17, width: 0.25, height: 0.04 } },
@@ -284,7 +304,7 @@ export const supersededA: SupersededRecord[] = [
     decisionReason: 'SAME_TRUST|Same trust EIN||LATER_DATE|Later filing date||AMOUNT_DIFF|Multiple income lines changed substantially',
     reviewRequired: true,
     escalationReason: 'Confidence below threshold. Multiple income categories differ. Could be amended K-1 or different distribution period.',
-    documentRef: { pdfPath: PDF_PATH, pageNumber: 42, formType: 'Schedule K-1', formLabel: 'K-1 (Chapman Trust) - Amended' },
+    documentRef: { pdfPath: PDF_PATH, pageNumber: 42, formType: 'Schedule K-1', formLabel: 'K-1 (Chapman Trust) - Amended', imagePath: IMG['k1-amended'] },
     comparedValues: [
       { field: 'Trust Name', valueA: 'CHAPMAN IRREVOCABLE TRUST', valueB: 'CHAPMAN IRREVOCABLE TRUST', match: true, category: 'Entity Info', cropA: { x: 0.05, y: 0.12, width: 0.42, height: 0.04 }, cropB: { x: 0.05, y: 0.12, width: 0.42, height: 0.04 } },
       { field: 'Trust EIN', valueA: '34-3353535', valueB: '34-3353535', match: true, category: 'Entity Info', cropA: { x: 0.05, y: 0.17, width: 0.25, height: 0.04 }, cropB: { x: 0.05, y: 0.17, width: 0.25, height: 0.04 } },
@@ -308,7 +328,7 @@ export const supersededA: SupersededRecord[] = [
     decisionReason: 'SAME_PAYER|Same custodian||SAME_RECIPIENT|Recipient SSN matches||DIST_CODE_DIFF|Distribution code differs between versions',
     reviewRequired: true,
     escalationReason: 'Distribution codes differ (7 vs 1). This may be a correction or a separate distribution event.',
-    documentRef: { pdfPath: PDF_PATH, pageNumber: 19, formType: '1099-R', formLabel: '1099-R (Fidelity)' },
+    documentRef: { pdfPath: PDF_PATH, pageNumber: 19, formType: '1099-R', formLabel: '1099-R (Fidelity)', imagePath: IMG['1099-r'] },
     comparedValues: [
       { field: 'Payer Name', valueA: 'FIDELITY INVESTMENTS', valueB: 'FIDELITY INVESTMENTS', match: true, category: 'Payer Info', cropA: { x: 0.05, y: 0.12, width: 0.42, height: 0.04 }, cropB: { x: 0.05, y: 0.12, width: 0.42, height: 0.04 } },
       { field: 'Payer TIN', valueA: '04-3523567', valueB: '04-3523567', match: true, category: 'Payer Info', cropA: { x: 0.05, y: 0.17, width: 0.25, height: 0.04 }, cropB: { x: 0.05, y: 0.17, width: 0.25, height: 0.04 } },
@@ -330,7 +350,7 @@ export const supersededA: SupersededRecord[] = [
     decisionReason: 'SAME_PAYER|Same custodian||LATER_DATE|More recent version||DIST_CODE_DIFF|Distribution code changed - may indicate correction',
     reviewRequired: true,
     escalationReason: 'Distribution codes differ (7 vs 1). This may be a correction or a separate distribution event.',
-    documentRef: { pdfPath: PDF_PATH, pageNumber: 44, formType: '1099-R', formLabel: '1099-R (Fidelity) - Corrected' },
+    documentRef: { pdfPath: PDF_PATH, pageNumber: 44, formType: '1099-R', formLabel: '1099-R (Fidelity) - Corrected', imagePath: IMG['1099-r-corrected'] },
     comparedValues: [
       { field: 'Payer Name', valueA: 'FIDELITY INVESTMENTS', valueB: 'FIDELITY INVESTMENTS', match: true, category: 'Payer Info', cropA: { x: 0.05, y: 0.12, width: 0.42, height: 0.04 }, cropB: { x: 0.05, y: 0.12, width: 0.42, height: 0.04 } },
       { field: 'Payer TIN', valueA: '04-3523567', valueB: '04-3523567', match: true, category: 'Payer Info', cropA: { x: 0.05, y: 0.17, width: 0.25, height: 0.04 }, cropB: { x: 0.05, y: 0.17, width: 0.25, height: 0.04 } },
@@ -364,8 +384,8 @@ export const duplicateA: DuplicateRecord[] = [
       { field: 'Employee Address', valueA: '1234 MAIN STREET, DALLAS, TX 75202', valueB: '1234 MAIN STREET, DALLAS, TX 75202', match: true },
       { field: 'Tax Year', valueA: '2024', valueB: '2024', match: true },
     ],
-    documentRefA: { pdfPath: PDF_PATH, pageNumber: 1, formType: 'W-2', formLabel: 'W-2 (Source Doc)' },
-    documentRefB: { pdfPath: PDF_PATH, pageNumber: 1, formType: 'W-2', formLabel: 'W-2 (Organizer)' },
+    documentRefA: { pdfPath: PDF_PATH, pageNumber: 1, formType: 'W-2', formLabel: 'W-2 (Source Doc)', imagePath: IMG['w2'] },
+    documentRefB: { pdfPath: PDF_PATH, pageNumber: 1, formType: 'W-2', formLabel: 'W-2 (Organizer)', imagePath: IMG['w2'] },
   },
   {
     itemType: 'DUPLICATE_DATA',
@@ -387,8 +407,8 @@ export const duplicateA: DuplicateRecord[] = [
       { field: 'Payer TIN', valueA: '13-2852910', valueB: '13-2852910', match: true },
       { field: 'Box 3 (Other Income)', valueA: '$14,921.24', valueB: '$14,921.24', match: true },
     ],
-    documentRefA: { pdfPath: PDF_PATH, pageNumber: 4, formType: '1099-MISC', formLabel: '1099-MISC (Source)' },
-    documentRefB: { pdfPath: PDF_PATH, pageNumber: 4, formType: '1099-MISC', formLabel: '1099-MISC (Organizer)' },
+    documentRefA: { pdfPath: PDF_PATH, pageNumber: 4, formType: '1099-MISC', formLabel: '1099-MISC (Source)', imagePath: IMG['1099-misc'] },
+    documentRefB: { pdfPath: PDF_PATH, pageNumber: 4, formType: '1099-MISC', formLabel: '1099-MISC (Organizer)', imagePath: IMG['1099-misc'] },
   },
   {
     itemType: 'DUPLICATE_DATA',
@@ -410,8 +430,8 @@ export const duplicateA: DuplicateRecord[] = [
       { field: 'Payer TIN', valueA: '53-XXXXXXX', valueB: '13-2852910', match: false },
       { field: 'Address', valueA: '1234 MAIN STREET, DALLAS, TX 75202', valueB: '1234 MAIN STREET, DALLAS, TX 75202', match: true },
     ],
-    documentRefA: { pdfPath: PDF_PATH, pageNumber: 1, formType: 'W-2', formLabel: 'W-2 (WHYNOT STOP)' },
-    documentRefB: { pdfPath: PDF_PATH, pageNumber: 4, formType: '1099-MISC', formLabel: '1099-MISC (RICHMONT)' },
+    documentRefA: { pdfPath: PDF_PATH, pageNumber: 1, formType: 'W-2', formLabel: 'W-2 (WHYNOT STOP)', imagePath: IMG['w2'] },
+    documentRefB: { pdfPath: PDF_PATH, pageNumber: 4, formType: '1099-MISC', formLabel: '1099-MISC (RICHMONT)', imagePath: IMG['1099-misc'] },
   },
   {
     itemType: 'DUPLICATE_SOURCE_DOC',
@@ -433,8 +453,8 @@ export const duplicateA: DuplicateRecord[] = [
       { field: 'Page Dimensions', valueA: '8.5 x 11 in', valueB: '8.5 x 11 in', match: true },
       { field: 'Scan Quality', valueA: '300 DPI', valueB: '150 DPI', match: false },
     ],
-    documentRefA: { pdfPath: PDF_PATH, pageNumber: 1, formType: 'W-2', formLabel: 'W-2 Scan A' },
-    documentRefB: { pdfPath: PDF_PATH, pageNumber: 2, formType: 'W-2', formLabel: 'W-2 Scan B' },
+    documentRefA: { pdfPath: PDF_PATH, pageNumber: 1, formType: 'W-2', formLabel: 'W-2 Scan A', imagePath: IMG['w2'] },
+    documentRefB: { pdfPath: PDF_PATH, pageNumber: 2, formType: 'W-2', formLabel: 'W-2 Scan B', imagePath: IMG['w2'] },
   },
   {
     itemType: 'DUPLICATE_SOURCE_DOC',
@@ -455,8 +475,8 @@ export const duplicateA: DuplicateRecord[] = [
       { field: 'Net Income', valueA: '$28,119.85', valueB: '$33,700.00', match: false },
       { field: 'Form Type', valueA: 'Schedule C', valueB: 'Schedule C', match: true },
     ],
-    documentRefA: { pdfPath: PDF_PATH, pageNumber: 3, formType: 'Schedule C', formLabel: 'Sched C (v1)' },
-    documentRefB: { pdfPath: PDF_PATH, pageNumber: 3, formType: 'Schedule C', formLabel: 'Sched C (v2)' },
+    documentRefA: { pdfPath: PDF_PATH, pageNumber: 3, formType: 'Schedule C', formLabel: 'Sched C (v1)', imagePath: IMG['schedule-c'] },
+    documentRefB: { pdfPath: PDF_PATH, pageNumber: 3, formType: 'Schedule C', formLabel: 'Sched C (v2)', imagePath: IMG['schedule-c'] },
   },
   {
     itemType: 'DUPLICATE_CONSOLIDATED_STATEMENT',
@@ -479,8 +499,8 @@ export const duplicateA: DuplicateRecord[] = [
       { field: 'Ordinary Dividends', valueA: '$62,565', valueB: '$62,890', match: false },
       { field: 'Business Income', valueA: '$8,748', valueB: '$8,748', match: true },
     ],
-    documentRefA: { pdfPath: PDF_PATH, pageNumber: 5, formType: 'K-1', formLabel: 'K-1 (v1)' },
-    documentRefB: { pdfPath: PDF_PATH, pageNumber: 5, formType: 'K-1', formLabel: 'K-1 (v2)' },
+    documentRefA: { pdfPath: PDF_PATH, pageNumber: 5, formType: 'K-1', formLabel: 'K-1 (v1)', imagePath: IMG['k1'] },
+    documentRefB: { pdfPath: PDF_PATH, pageNumber: 5, formType: 'K-1', formLabel: 'K-1 (v2)', imagePath: IMG['k1'] },
   },
 ]
 
@@ -495,7 +515,7 @@ export const cfaA: CfaRecord[] = [
     ParentFaxFormId: 1001,
     childFormLabel: 'W-2 (WHYNOT STOP INC)',
     parentFormLabel: 'Form 1040 (Jill Anderson)',
-    documentRef: { pdfPath: PDF_PATH, pageNumber: 1, formType: 'W-2', formLabel: 'W-2 (WHYNOT STOP INC)' },
+    documentRef: { pdfPath: PDF_PATH, pageNumber: 1, formType: 'W-2', formLabel: 'W-2 (WHYNOT STOP INC)', imagePath: IMG['w2'] },
     comparedValues: [
       { field: 'Employee Name', valueA: 'JILL ANDERSON', valueB: 'JILL ANDERSON (1040 Filer)', match: true },
       { field: 'Employee SSN', valueA: '***-**-1234', valueB: '***-**-1234 (Primary SSN)', match: true },
@@ -513,7 +533,7 @@ export const cfaA: CfaRecord[] = [
     ParentFaxFormId: 1001,
     childFormLabel: 'Schedule C (Jill\'s Craft Shop)',
     parentFormLabel: 'Form 1040 (Jill Anderson)',
-    documentRef: { pdfPath: PDF_PATH, pageNumber: 3, formType: 'Schedule C', formLabel: 'Schedule C (Jill\'s Craft Shop)' },
+    documentRef: { pdfPath: PDF_PATH, pageNumber: 3, formType: 'Schedule C', formLabel: 'Schedule C (Jill\'s Craft Shop)', imagePath: IMG['schedule-c'] },
     comparedValues: [
       { field: 'Proprietor Name', valueA: 'JILL ANDERSON', valueB: 'JILL ANDERSON (1040 Filer)', match: true },
       { field: 'Business Name', valueA: 'Jill\'s Craft Shop', valueB: 'N/A', match: true },
@@ -532,7 +552,7 @@ export const cfaA: CfaRecord[] = [
     ParentFaxFormId: 1001,
     childFormLabel: '1099-MISC (RICHMONT NORTH AMERICA)',
     parentFormLabel: 'Form 1040 (Jill Anderson)',
-    documentRef: { pdfPath: PDF_PATH, pageNumber: 4, formType: '1099-MISC', formLabel: '1099-MISC (RICHMONT NORTH AMERICA)' },
+    documentRef: { pdfPath: PDF_PATH, pageNumber: 4, formType: '1099-MISC', formLabel: '1099-MISC (RICHMONT NORTH AMERICA)', imagePath: IMG['1099-misc'] },
     comparedValues: [
       { field: 'Recipient Name', valueA: 'JACK ANDERSON', valueB: 'JILL ANDERSON (1040 Filer)', match: false },
       { field: 'Recipient TIN', valueA: '111-11-1111', valueB: '***-**-1234 (Primary SSN)', match: false },
@@ -550,7 +570,7 @@ export const cfaA: CfaRecord[] = [
     ParentFaxFormId: 1001,
     childFormLabel: 'K-1 Form 1041 (CHAPMAN IRREVOCABLE TRUST)',
     parentFormLabel: 'Form 1040 (Jill Anderson)',
-    documentRef: { pdfPath: PDF_PATH, pageNumber: 5, formType: 'Schedule K-1', formLabel: 'K-1 (CHAPMAN IRREVOCABLE TRUST)' },
+    documentRef: { pdfPath: PDF_PATH, pageNumber: 5, formType: 'Schedule K-1', formLabel: 'K-1 (CHAPMAN IRREVOCABLE TRUST)', imagePath: IMG['k1'] },
     comparedValues: [
       { field: 'Trust Name', valueA: 'CHAPMAN IRREVOCABLE TRUST', valueB: 'N/A', match: true },
       { field: 'Trust EIN', valueA: '34-3353535', valueB: 'N/A', match: true },
@@ -577,7 +597,7 @@ export const nfrA: NfrRecord[] = [
     fieldLabel: 'W-2 Wages',
     sourceValue: 'W-2 Box 1 (WHYNOT STOP INC)',
     returnValue: '1040, Line 1a',
-    documentRef: { pdfPath: PDF_PATH, pageNumber: 1, formType: 'W-2', formLabel: 'W-2 (WHYNOT STOP INC)' },
+    documentRef: { pdfPath: PDF_PATH, pageNumber: 1, formType: 'W-2', formLabel: 'W-2 (WHYNOT STOP INC)', imagePath: IMG['w2'] },
     comparedValues: [
       { field: 'Employer Name', valueA: 'WHYNOT STOP INC', valueB: 'WHYNOT STOP INC', match: true },
       { field: 'Employee Name', valueA: 'JILL ANDERSON', valueB: 'JILL ANDERSON', match: true },
@@ -598,7 +618,7 @@ export const nfrA: NfrRecord[] = [
     fieldLabel: 'Schedule C Net Income',
     sourceValue: 'Schedule C, Net Income',
     returnValue: '1040 Schedule 1, Line 3',
-    documentRef: { pdfPath: PDF_PATH, pageNumber: 3, formType: 'Schedule C', formLabel: 'Schedule C (Jill\'s Craft Shop)' },
+    documentRef: { pdfPath: PDF_PATH, pageNumber: 3, formType: 'Schedule C', formLabel: 'Schedule C (Jill\'s Craft Shop)', imagePath: IMG['schedule-c'] },
     comparedValues: [
       { field: 'Business Name', valueA: 'Jill\'s Craft Shop', valueB: 'Jill\'s Craft Shop', match: true },
       { field: 'Total Income', valueA: '$48,650.00', valueB: '$48,650.00', match: true },
@@ -623,7 +643,7 @@ export const nfrA: NfrRecord[] = [
     fieldLabel: '1099-MISC Other Income',
     sourceValue: '1099-MISC Box 3',
     returnValue: '1040 Schedule 1, Line 8z',
-    documentRef: { pdfPath: PDF_PATH, pageNumber: 4, formType: '1099-MISC', formLabel: '1099-MISC (RICHMONT NORTH AMERICA)' },
+    documentRef: { pdfPath: PDF_PATH, pageNumber: 4, formType: '1099-MISC', formLabel: '1099-MISC (RICHMONT NORTH AMERICA)', imagePath: IMG['1099-misc'] },
     comparedValues: [
       { field: 'Recipient Name', valueA: 'JACK ANDERSON (1099-MISC)', valueB: 'JILL ANDERSON (1040 Filer)', match: false },
       { field: 'Recipient TIN', valueA: '111-11-1111', valueB: '***-**-1234', match: false },
@@ -645,7 +665,7 @@ export const nfrA: NfrRecord[] = [
     fieldLabel: 'K-1 Interest & Dividends',
     sourceValue: 'K-1 (Form 1041) Boxes 1, 2a',
     returnValue: '1040 Schedule B',
-    documentRef: { pdfPath: PDF_PATH, pageNumber: 5, formType: 'Schedule K-1', formLabel: 'K-1 (CHAPMAN IRREVOCABLE TRUST)' },
+    documentRef: { pdfPath: PDF_PATH, pageNumber: 5, formType: 'Schedule K-1', formLabel: 'K-1 (CHAPMAN IRREVOCABLE TRUST)', imagePath: IMG['k1'] },
     comparedValues: [
       { field: 'Trust Name', valueA: 'CHAPMAN IRREVOCABLE TRUST', valueB: 'CHAPMAN IRREVOCABLE TRUST', match: true },
       { field: 'Trust EIN', valueA: '34-3353535', valueB: '34-3353535', match: true },
@@ -668,7 +688,7 @@ export const nfrA: NfrRecord[] = [
     fieldLabel: 'K-1 Business Income',
     sourceValue: 'K-1 (Form 1041) Box 6',
     returnValue: '1040 Schedule E, Part III',
-    documentRef: { pdfPath: PDF_PATH, pageNumber: 5, formType: 'Schedule K-1', formLabel: 'K-1 (CHAPMAN IRREVOCABLE TRUST)' },
+    documentRef: { pdfPath: PDF_PATH, pageNumber: 5, formType: 'Schedule K-1', formLabel: 'K-1 (CHAPMAN IRREVOCABLE TRUST)', imagePath: IMG['k1'] },
     comparedValues: [
       { field: 'Business Income (Box 6)', valueA: '$8,748', valueB: '$9,200', match: false },
       { field: 'Beneficiary Name', valueA: 'JILL BAKER FAMILY TRUST', valueB: 'JILL ANDERSON', match: false },

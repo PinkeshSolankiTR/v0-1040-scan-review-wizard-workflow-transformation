@@ -170,6 +170,8 @@ export interface DocumentRef {
   pageNumber: number
   formType: string
   formLabel: string
+  /** Optional path to a pre-rendered page image (used instead of PDF rendering) */
+  imagePath?: string
 }
 
 // ── Document ──

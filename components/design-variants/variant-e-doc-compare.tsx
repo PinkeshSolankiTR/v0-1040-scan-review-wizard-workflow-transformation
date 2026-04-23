@@ -8,11 +8,13 @@
 
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { PdfPageViewer } from '@/components/pdf-page-viewer'
-import { FieldComparison } from '@/components/field-comparison'
+import { PdfFieldThumbnail } from '@/components/pdf-field-thumbnail'
 import { useDecisions } from '@/contexts/decision-context'
 import { useLearnedRules } from '@/contexts/learned-rules-context'
+import { useWizardPipeline } from '@/contexts/wizard-pipeline-context'
 import {
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   FileText,
   Sparkles,
@@ -29,9 +31,9 @@ import {
   Maximize,
   Eye,
   Info,
-  Columns2,
   X,
   CheckCircle,
+
 } from 'lucide-react'
 import type { SupersededRecord, OverrideDetail } from '@/lib/types'
 
@@ -147,6 +149,158 @@ function restoreReclassifyState(
     if (exclIds.size === 0) exclCustom = savedExclReason || ''
   }
   return { roles, reasonId, reasonCustom, exclIds, exclCustom }
+}
+
+/* ── Field-Level Insights (carousel table) ── */
+const VISIBLE_PAGES = 4
+
+function FieldLevelInsightsSection({
+  allFields,
+  allPages,
+  pageLookup,
+  fieldCropPositions,
+  formType,
+}: {
+  allFields: string[]
+  allPages: SupersededRecord[]
+  pageLookup: Map<string, Map<string, { valueA: string; valueB: string; match: boolean }>>
+  fieldCropPositions: Record<string, { yPercent: number; scale: number }>
+  formType: string
+}) {
+  const [startIdx, setStartIdx] = useState(0)
+  const needsCarousel = allPages.length > VISIBLE_PAGES
+  const visiblePages = needsCarousel ? allPages.slice(startIdx, startIdx + VISIBLE_PAGES) : allPages
+  const canGoLeft = startIdx > 0
+  const canGoRight = startIdx + VISIBLE_PAGES < allPages.length
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <h3 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Field-Level Insights</h3>
+        <div className="flex items-center gap-2">
+          <span className="text-[0.625rem] text-muted-foreground">{allFields.length} fields across {allPages.length} pages</span>
+          {needsCarousel && (
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                disabled={!canGoLeft}
+                onClick={() => setStartIdx(Math.max(0, startIdx - 1))}
+                className="flex h-5 w-5 items-center justify-center rounded border border-border bg-card transition-colors hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
+                aria-label="Show previous pages"
+              >
+                <ChevronLeft className="h-3 w-3" />
+              </button>
+              <span className="text-[0.5625rem] font-medium text-muted-foreground tabular-nums">
+                {startIdx + 1}&ndash;{Math.min(startIdx + VISIBLE_PAGES, allPages.length)} of {allPages.length}
+              </span>
+              <button
+                type="button"
+                disabled={!canGoRight}
+                onClick={() => setStartIdx(Math.min(allPages.length - VISIBLE_PAGES, startIdx + 1))}
+                className="flex h-5 w-5 items-center justify-center rounded border border-border bg-card transition-colors hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
+                aria-label="Show next pages"
+              >
+                <ChevronRight className="h-3 w-3" />
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Scrollable container: vertical scroll after ~5 rows */}
+      <div className="overflow-auto rounded-lg border border-border" style={{ maxHeight: '15.5rem' }}>
+        <table className="w-full text-xs">
+          <thead className="sticky top-0 z-10">
+            <tr className="border-b border-border bg-muted">
+              <th className="sticky left-0 z-20 bg-muted px-3 py-2 text-left font-bold text-muted-foreground" style={{ minWidth: '9rem' }}>Field</th>
+              {visiblePages.map(r => {
+                const pgNum = r.documentRef?.pageNumber ?? r.engagementPageId
+                const isOrig = r.decisionType === 'Original'
+                const label = r.documentRef?.formLabel
+                  ? r.documentRef.formLabel.replace(formType, '').trim().replace(/^[-()\s]+|[-()\s]+$/g, '') || (isOrig ? 'Original' : 'Superseded')
+                  : isOrig ? 'Original' : 'Superseded'
+                return (
+                  <th key={r.engagementPageId} className="border-l border-border px-2 py-2 text-center font-bold text-muted-foreground" style={{ minWidth: '8.5rem' }}>
+                    <div className="flex flex-col items-center gap-0.5">
+                      <span className="text-[0.625rem]">Pg {pgNum}</span>
+                      <span
+                        className="inline-block max-w-[8rem] truncate rounded-full px-1.5 py-0.5 text-[0.5625rem] font-semibold"
+                        style={{
+                          backgroundColor: isOrig ? 'var(--status-success-subtle, rgba(34,197,94,0.1))' : 'var(--status-error-subtle, rgba(239,68,68,0.1))',
+                          color: isOrig ? 'var(--status-success)' : 'var(--status-error)',
+                        }}
+                      >
+                        {label}
+                      </span>
+                    </div>
+                  </th>
+                )
+              })}
+            </tr>
+          </thead>
+          <tbody>
+            {allFields.map(field => {
+              const cropPos = fieldCropPositions[field] ?? { yPercent: 30, scale: 2.5 }
+              return (
+                <tr key={field} className="border-b border-border last:border-b-0">
+                  <td className="sticky left-0 z-[5] bg-card px-3 py-2 border-r border-border">
+                    <span className="font-semibold text-foreground text-[0.6875rem]">{field}</span>
+                  </td>
+                  {visiblePages.map(r => {
+                    const pid = String(r.engagementPageId)
+                    const fieldData = pageLookup.get(pid)?.get(field)
+                    const docRef = r.documentRef
+                    const displayValue = fieldData?.valueA ?? '--'
+                    // Find the crop coordinates from the record's comparedValues
+                    const comparedField = r.comparedValues?.find(cv => cv.field === field)
+                    const crop = comparedField?.cropA ?? { x: 0.05, y: 0.1, width: 0.9, height: 0.06 }
+                    return (
+                      <td key={pid} className="border-l border-border px-2 py-1.5">
+                        {docRef ? (
+                          <PdfFieldThumbnail
+                            pdfPath={docRef.pdfPath}
+                            pageNumber={docRef.pageNumber}
+                            crop={crop}
+                            displayValue={displayValue}
+                            imagePath={docRef.imagePath}
+                          />
+                        ) : (
+                          <span className="block text-center text-[0.625rem] text-muted-foreground">--</span>
+                        )}
+                      </td>
+                    )
+                  })}
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Carousel dot indicators for many pages */}
+      {needsCarousel && (
+        <div className="flex items-center justify-center gap-1 pt-1">
+          {allPages.map((_, i) => {
+            const isActive = i >= startIdx && i < startIdx + VISIBLE_PAGES
+            return (
+              <button
+                key={i}
+                type="button"
+                onClick={() => setStartIdx(Math.min(i, allPages.length - VISIBLE_PAGES))}
+                className="rounded-full transition-all"
+                style={{
+                  width: isActive ? '0.5rem' : '0.25rem',
+                  height: '0.25rem',
+                  backgroundColor: isActive ? 'var(--foreground)' : 'var(--border)',
+                }}
+                aria-label={`Jump to page ${i + 1}`}
+              />
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
 }
 
 /* ── Main Component ── */
@@ -474,7 +628,10 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
     return leftDoc.comparedValues ?? []
   }, [leftDoc])
 
-  const [activeTab, setActiveTab] = useState<'fields' | 'documents' | 'analysis'>('analysis')
+  const [activeTab, setActiveTab] = useState<'documents' | 'analysis'>('analysis')
+  const [selectedKpiPageId, setSelectedKpiPageId] = useState<string | null>(null)
+  const { activeWizard, setActiveWizard, wizardSteps, updateSteps } = useWizardPipeline()
+
 
   const reviewedCount = useMemo(() => {
     return groups.filter(g => {
@@ -502,8 +659,69 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
      RENDER: Teams-style layout
      Left sidebar (document list) | Right panel (title bar + tabs + content)
      ────────────────────────────────────────────────────────────────── */
+  /* ── Sync wizard pipeline steps to shared context ── */
+  const isSupersededComplete = reviewedCount === groups.length && groups.length > 0
+  useEffect(() => {
+    const supersededPageCount = data.length
+    updateSteps([
+      { id: 'superseded', label: 'Superseded', count: supersededPageCount, completed: isSupersededComplete, enabled: true },
+      { id: 'cfa', label: 'CFA', count: isSupersededComplete ? 4 : 0, completed: false, enabled: isSupersededComplete },
+      { id: 'duplicate', label: 'Duplicate', count: isSupersededComplete ? 0 : 0, completed: false, enabled: isSupersededComplete },
+      { id: 'nfr', label: 'NFR', count: isSupersededComplete ? 2 : 0, completed: false, enabled: isSupersededComplete },
+    ])
+  }, [data.length, isSupersededComplete, updateSteps])
+
   return (
     <div className="flex h-full overflow-hidden bg-background">
+
+      {/* ═══════════════════════════════════════════════════════════
+          WIZARD CONTENT AREA
+          ══════════════���════════════════════════════════════════════ */}
+      {activeWizard !== 'superseded' ? (
+        /* Placeholder panels for CFA / Duplicate / NFR */
+        <div className="flex flex-1 items-center justify-center p-8">
+          <div className="flex flex-col items-center gap-4 text-center" style={{ maxWidth: '24rem' }}>
+            {(() => {
+              const step = wizardSteps.find(s => s.id === activeWizard)!
+              if (!step.enabled) return (
+                <>
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
+                    <AlertTriangle className="h-6 w-6 text-muted-foreground" />
+                  </div>
+                  <h3 className="text-lg font-bold text-foreground">{step.label} Wizard</h3>
+                  <p className="text-sm text-muted-foreground">Complete the Superseded Wizard first. Documents eligible for {step.label} review will appear here once superseded classification is finalized.</p>
+                  <button type="button" onClick={() => setActiveWizard('superseded')} className="mt-2 inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-xs font-bold text-primary-foreground">
+                    <ArrowRight className="h-3.5 w-3.5 rotate-180" /> Return to Superseded
+                  </button>
+                </>
+              )
+              if (step.count === 0) return (
+                <>
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full" style={{ backgroundColor: 'var(--status-success-subtle)' }}>
+                    <Check className="h-6 w-6" style={{ color: 'var(--status-success)' }} />
+                  </div>
+                  <h3 className="text-lg font-bold text-foreground">{step.label} -- No Items</h3>
+                  <p className="text-sm text-muted-foreground">No documents in this binder require {step.label} review. All documents passed the automated {step.label} checks.</p>
+                </>
+              )
+              return (
+                <>
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full" style={{ backgroundColor: 'color-mix(in srgb, var(--primary) 12%, transparent)' }}>
+                    <FileText className="h-6 w-6 text-primary" />
+                  </div>
+                  <h3 className="text-lg font-bold text-foreground">{step.label} Wizard</h3>
+                  <p className="text-sm text-muted-foreground">{step.count} document{step.count !== 1 ? 's' : ''} identified for {step.label} review. This wizard will follow the same review pattern as Superseded.</p>
+                  <span className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-xs font-medium text-muted-foreground">
+                    <Sparkles className="h-3 w-3" /> Coming soon
+                  </span>
+                </>
+              )
+            })()}
+          </div>
+        </div>
+      ) : (
+      /* Superseded wizard content (existing layout) */
+      <div className="flex flex-1 overflow-hidden">
 
       {/* ═══════════════════════════════════════════════════════════
           LEFT SIDEBAR: Document group list (Teams chat list style)
@@ -727,9 +945,8 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
               </button>
             )
           })()}
-          {/* Fields + Documents tabs */}
+          {/* Documents tab */}
           {[
-            { id: 'fields' as const, label: 'Fields', icon: Columns2, badge: comparedValues.length > 0 ? `${comparedValues.filter(v => !v.match).length}/${comparedValues.length}` : null },
             { id: 'documents' as const, label: 'Documents', icon: Eye, badge: null },
           ].map(tab => (
             <button
@@ -762,18 +979,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
 
         {/* ── Tab content ── */}
         <div className="flex-1 overflow-auto">
-          {/* Fields tab */}
-          {activeTab === 'fields' && (
-            <div className="p-5">
-              {isGroupRejected ? (
-                <div className="flex items-center justify-center py-16 text-sm text-muted-foreground">Group excluded -- no field comparison available</div>
-              ) : comparedValues.length > 0 ? (
-                <FieldComparison values={comparedValues} labelA={leftDoc?.documentRef?.formLabel ?? 'Superseded'} labelB={rightDoc?.documentRef?.formLabel ?? 'Original'} docRefA={leftDoc?.documentRef} docRefB={rightDoc?.documentRef} isOverridden={isActiveFlipped} />
-              ) : (
-                <div className="flex items-center justify-center py-16 text-sm text-muted-foreground">No field comparison data</div>
-              )}
-            </div>
-          )}
+
 
           {/* Documents tab */}
           {activeTab === 'documents' && (
@@ -940,30 +1146,224 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                       </p>
                     </div>
 
-                    {/* Page Decision Visual */}
-                    <div className="flex flex-wrap gap-3">
-                      {activeGroup!.records.map(r => {
-                        const pgNum = r.documentRef?.pageNumber ?? r.engagementPageId
-                        const label = r.documentRef?.formLabel?.replace(formType, '').replace(/[-()\s]+/g, ' ').trim() || formType
-                        const isOrig = r.decisionType === 'Original'
-                        return (
-                          <div key={r.engagementPageId} className="flex min-w-[7rem] flex-1 flex-col gap-1.5 rounded-lg border border-border bg-card p-3">
-                            <span className="text-xs font-bold text-foreground">Pg {pgNum}</span>
-                            <span className="truncate text-[0.625rem] text-muted-foreground">{label}</span>
-                            <span
-                              className="mt-auto inline-flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-[0.625rem] font-bold"
-                              style={{
-                                backgroundColor: isOrig ? 'var(--status-success-subtle, rgba(34,197,94,0.1))' : 'var(--status-error-subtle, rgba(239,68,68,0.1))',
-                                color: isOrig ? 'var(--status-success)' : 'var(--status-error)',
-                              }}
+                    {/* ── Field-Level Insights with Thumbnails ── */}
+                    {activeGroup && (() => {
+                      /* Collect all pages in the group (all records) */
+                      const allPages = activeGroup.records
+                      /* Collect unique field names across ALL pages */
+                      const fieldSet = new Set<string>()
+                      allPages.forEach(r => (r.comparedValues ?? []).forEach(v => fieldSet.add(v.field)))
+                      const allFields = Array.from(fieldSet)
+                      if (allFields.length === 0) return null
+
+                      /* Build a lookup: pageId -> { field -> ComparedValue } */
+                      const pageLookup = new Map<string, Map<string, { valueA: string; valueB: string; match: boolean }>>()
+                      allPages.forEach(r => {
+                        const map = new Map<string, { valueA: string; valueB: string; match: boolean }>()
+                        ;(r.comparedValues ?? []).forEach(v => map.set(v.field, v))
+                        pageLookup.set(String(r.engagementPageId), map)
+                      })
+
+                      /* Simulated field-level crop positions */
+                      const fieldCropPositions: Record<string, { yPercent: number; scale: number }> = {}
+                      allFields.forEach((field, idx) => {
+                        const yPercent = 12 + (idx * (68 / Math.max(allFields.length, 1)))
+                        fieldCropPositions[field] = { yPercent, scale: 2.8 }
+                      })
+
+                      return (
+                        <FieldLevelInsightsSection
+                          allFields={allFields}
+                          allPages={allPages}
+                          pageLookup={pageLookup}
+                          fieldCropPositions={fieldCropPositions}
+                          formType={formType}
+                        />
+                      )
+                    })()}
+
+                    {/* ── Toggleable KPI Page Cards ── */}
+                    <div className="space-y-2">
+                      <h3 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Page Classifications</h3>
+                      <div className="flex flex-wrap gap-3">
+                        {activeGroup!.records.map(r => {
+                          const pgNum = r.documentRef?.pageNumber ?? r.engagementPageId
+                          const pageId = String(r.engagementPageId)
+                          const label = r.documentRef?.formLabel?.replace(formType, '').replace(/[-()\s]+/g, ' ').trim() || formType
+                          const currentRole = docRoles.get(pageId)
+                          const isOrig = currentRole === 'original' || (!currentRole && r.decisionType === 'Original')
+                          const aiRole = r.decisionType === 'Original' ? 'original' : 'superseded'
+                          const wasChanged = currentRole && currentRole !== aiRole
+                          const isSelected = selectedKpiPageId === pageId
+                          return (
+                            <div
+                              key={r.engagementPageId}
+                              className={`flex min-w-[8rem] flex-1 flex-col gap-2 rounded-lg border p-3 transition-all cursor-pointer ${isSelected ? 'ring-2 ring-primary/30 shadow-sm' : 'hover:shadow-sm'}`}
+                              style={{ borderColor: isSelected ? 'var(--primary)' : wasChanged ? 'var(--status-warning-border)' : 'var(--border)', backgroundColor: isSelected ? 'var(--accent)' : 'var(--card)' }}
+                              onClick={() => setSelectedKpiPageId(isSelected ? null : pageId)}
                             >
-                              {isOrig ? <CheckCircle className="h-3 w-3" /> : <X className="h-3 w-3" />}
-                              {isOrig ? 'Original' : 'Superseded'}
-                            </span>
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-bold text-foreground">Pg {pgNum}</span>
+                                {wasChanged && <span className="rounded px-1 py-0.5 text-[0.5rem] font-bold" style={{ backgroundColor: 'var(--status-warning-subtle)', color: 'var(--status-warning)' }}>Changed</span>}
+                              </div>
+                              <span className="truncate text-[0.625rem] text-muted-foreground">{label}</span>
+                              {/* Toggleable classification button */}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  const newRole = isOrig ? 'superseded' : 'original'
+                                  setDocRoles(prev => {
+                                    const next = new Map(prev)
+                                    // Ensure all records are in the map
+                                    for (const rec of activeGroup!.records) {
+                                      const rid = String(rec.engagementPageId)
+                                      if (!next.has(rid)) next.set(rid, rec.decisionType === 'Original' ? 'original' : 'superseded')
+                                    }
+                                    next.set(pageId, newRole)
+                                    // If setting to original, flip others from original to superseded
+                                    if (newRole === 'original') {
+                                      for (const [otherId, otherRole] of next.entries()) {
+                                        if (otherId !== pageId && otherRole === 'original') next.set(otherId, 'superseded')
+                                      }
+                                    }
+                                    return next
+                                  })
+                                }}
+                                className="group mt-auto inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-[0.625rem] font-bold transition-all"
+                                style={{
+                                  backgroundColor: isOrig ? 'var(--status-success-subtle, rgba(34,197,94,0.1))' : 'var(--status-error-subtle, rgba(239,68,68,0.1))',
+                                  color: isOrig ? 'var(--status-success)' : 'var(--status-error)',
+                                  border: `1px solid ${isOrig ? 'var(--status-success-border, rgba(34,197,94,0.2))' : 'var(--status-error-border, rgba(239,68,68,0.2))'}`,
+                                }}
+                                title={`Click to change to ${isOrig ? 'Superseded' : 'Original'}`}
+                              >
+                                {isOrig ? <CheckCircle className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                                {isOrig ? 'Original' : 'Superseded'}
+                                <ArrowLeftRight className="ml-0.5 h-2.5 w-2.5 opacity-0 transition-opacity group-hover:opacity-60" />
+                              </button>
+                            </div>
+                          )
+                        })}
+                      </div>
+
+                      {/* KPI card detail panel -- only visible when a card is selected */}
+                      {selectedKpiPageId && (() => {
+                        const selectedRecord = activeGroup!.records.find(r => String(r.engagementPageId) === selectedKpiPageId)
+                        if (!selectedRecord) return null
+                        const pgNum = selectedRecord.documentRef?.pageNumber ?? selectedRecord.engagementPageId
+                        const confPct = Math.round(selectedRecord.confidenceLevel * 100)
+                        const confLabel = confPct >= 90 ? 'High' : confPct >= 70 ? 'Moderate' : 'Low'
+                        const confColor = confPct >= 90 ? 'var(--confidence-high)' : confPct >= 70 ? 'var(--confidence-medium)' : 'var(--confidence-low)'
+                        return (
+                          <div className="rounded-lg border border-border bg-card p-3 transition-all animate-in fade-in-0 slide-in-from-top-1 duration-200">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                                <span className="text-xs font-bold text-foreground">Page {pgNum} Details</span>
+                              </div>
+                              <button type="button" onClick={() => setSelectedKpiPageId(null)} className="text-muted-foreground hover:text-foreground"><X className="h-3.5 w-3.5" /></button>
+                            </div>
+                            <div className="grid grid-cols-3 gap-3">
+                              <div className="flex flex-col gap-0.5">
+                                <span className="text-[0.5625rem] font-bold uppercase tracking-wide text-muted-foreground">Confidence</span>
+                                <span className="text-sm font-bold" style={{ color: confColor }}>{confPct}% ({confLabel})</span>
+                              </div>
+                              <div className="flex flex-col gap-0.5">
+                                <span className="text-[0.5625rem] font-bold uppercase tracking-wide text-muted-foreground">Rule</span>
+                                <span className="text-[0.6875rem] font-medium text-foreground">{selectedRecord.appliedRuleSet}</span>
+                              </div>
+                              <div className="flex flex-col gap-0.5">
+                                <span className="text-[0.5625rem] font-bold uppercase tracking-wide text-muted-foreground">Form</span>
+                                <span className="text-[0.6875rem] font-medium text-foreground">{selectedRecord.documentRef?.formLabel ?? 'N/A'}</span>
+                              </div>
+                            </div>
+                            {selectedRecord.decisionReason && (
+                              <div className="mt-2 rounded-md bg-muted/50 px-2.5 py-1.5">
+                                <span className="text-[0.625rem] text-muted-foreground">{selectedRecord.decisionReason}</span>
+                              </div>
+                            )}
+                            {/* Mini thumbnail preview of the page */}
+                            {selectedRecord.documentRef && (
+                              <div className="mt-2 h-24 overflow-hidden rounded border border-border bg-white">
+                                <iframe
+                                  src={`${selectedRecord.documentRef.pdfPath}#page=${selectedRecord.documentRef.pageNumber}&toolbar=0&navpanes=0&scrollbar=0&view=FitH`}
+                                  title={`Page ${pgNum} preview`}
+                                  className="pointer-events-none h-full w-full border-none"
+                                  tabIndex={-1}
+                                />
+                              </div>
+                            )}
                           </div>
                         )
-                      })}
+                      })()}
                     </div>
+
+                    {/* ── Quick Apply bar for KPI card toggles ── */}
+                    {!allGroupAccepted && !isGroupRejected && (() => {
+                      const kpiChangedRows = activeGroup!.records.filter(r => {
+                        const cur = docRoles.get(String(r.engagementPageId))
+                        const ai = r.decisionType === 'Original' ? 'original' : 'superseded'
+                        return cur && cur !== ai
+                      })
+                      if (kpiChangedRows.length === 0 || disagreeChoice === 'reclassify') return null
+                      const origCount = Array.from(docRoles.values()).filter(v => v === 'original').length
+                      const supCount = Array.from(docRoles.values()).filter(v => v === 'superseded').length
+                      const valError = origCount === 0 ? 'At least one page must be Original.' : supCount === 0 ? 'At least one page must be Superseded.' : null
+                      return (
+                        <div className="flex items-center gap-3 rounded-lg border px-4 py-2.5" style={{ borderColor: 'var(--status-warning-border)', backgroundColor: 'var(--status-warning-subtle)' }}>
+                          <ArrowLeftRight className="h-3.5 w-3.5 shrink-0" style={{ color: 'var(--status-warning)' }} />
+                          <span className="flex-1 text-xs font-semibold text-foreground">
+                            {valError ?? `${kpiChangedRows.length} page${kpiChangedRows.length > 1 ? 's' : ''} reclassified`}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const fresh = new Map<string, 'original' | 'superseded' | 'not-superseded'>()
+                              for (const r of activeGroup!.records) fresh.set(String(r.engagementPageId), r.decisionType === 'Original' ? 'original' : 'superseded')
+                              setDocRoles(fresh)
+                            }}
+                            className="rounded-md border border-border bg-card px-2.5 py-1 text-[0.625rem] font-semibold text-muted-foreground hover:bg-muted"
+                          >
+                            Reset
+                          </button>
+                          <button
+                            type="button"
+                            disabled={!!valError}
+                            onClick={() => {
+                              if (!activeGroup) return
+                              const newOriginalPageId = Array.from(docRoles.entries()).find(([, role]) => role === 'original')?.[0]
+                              const aiOriginalId = String(activeGroup.originalRecord?.engagementPageId)
+                              if (newOriginalPageId && newOriginalPageId !== aiOriginalId) {
+                                const targetIdx = activeGroup.supersededRecords.findIndex(s => String(s.engagementPageId) === newOriginalPageId)
+                                setFlippedGroups(prev => { const next = new Map(prev); if (targetIdx >= 0) next.set(activeGroup.formType, targetIdx); return next })
+                              }
+                              for (const r of activeGroup.records) {
+                                const pid = String(r.engagementPageId)
+                                const docRole = docRoles.get(pid)
+                                const aiRole = r.decisionType === 'Original' ? 'original' : 'superseded'
+                                if (docRole === aiRole && !newOriginalPageId) continue
+                                const key = `sup-pg${r.engagementPageId}`
+                                const newDecision = docRole === 'original' ? 'Original' : 'Superseded'
+                                const detailObj: OverrideDetail = {
+                                  originalAIDecision: `Page ${r.engagementPageId} = ${r.decisionType}`,
+                                  userOverrideDecision: `Page ${r.engagementPageId} = ${newDecision}`,
+                                  overrideReason: 'Verifier decision',
+                                  formType: r.documentRef?.formType ?? 'Unknown',
+                                  fieldContext: r.comparedValues ?? [],
+                                }
+                                override(key, 'superseded', r.confidenceLevel, detailObj)
+                              }
+                              setTimeout(() => { if (selectedGroupIdx < groups.length - 1) selectGroup(selectedGroupIdx + 1) }, 300)
+                            }}
+                            className="rounded-md px-3 py-1 text-[0.625rem] font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                            style={{ backgroundColor: valError ? 'var(--muted)' : 'var(--primary)' }}
+                          >
+                            Apply
+                          </button>
+                        </div>
+                      )
+                    })()}
 
                     {/* ── Disagree trigger + inline options ── */}
                     {!allGroupAccepted && !isGroupRejected && (() => {
@@ -1398,6 +1798,8 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
             </div>
           </div>
         </div>
+      )}
+      </div>
       )}
     </div>
   )

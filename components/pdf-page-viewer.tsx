@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import type { DocumentRef } from '@/lib/types'
 
 type StampType = 'ORIGINAL' | 'SUPERSEDED'
@@ -11,20 +12,21 @@ interface PdfPageViewerProps {
 }
 
 /**
- * Renders a single page of a PDF inside an iframe using the #page=N fragment.
- * A CSS-positioned stamp overlay indicates the document status.
- *
- * The iframe toolbar is hidden via the &toolbar=0&navpanes=0&scrollbar=0 params
- * so the user sees only the rendered page content.
+ * Renders a document page using a pre-rendered image (imagePath) when available.
+ * Falls back to an iframe for actual PDF rendering.
+ * Supports zoom and status stamp overlays.
  */
 export function PdfPageViewer({ documentRef, stamp, height = '32rem' }: PdfPageViewerProps) {
-  const { pdfPath, pageNumber, formLabel } = documentRef
-  const iframeSrc = `${pdfPath}#page=${pageNumber}&toolbar=0&navpanes=0&scrollbar=0&view=FitH`
+  const { pageNumber, formLabel, imagePath } = documentRef
+  const [zoom, setZoom] = useState(1)
+  const [imgLoaded, setImgLoaded] = useState(false)
 
   const stampColor =
-    stamp === 'ORIGINAL' ? { bg: 'var(--status-success-subtle)', fg: 'var(--status-success)', border: 'var(--status-success-border)' } :
-    stamp === 'SUPERSEDED' ? { bg: 'var(--status-error-subtle)', fg: 'var(--status-error)', border: 'var(--status-error-border)' } :
-    null
+    stamp === 'ORIGINAL'
+      ? { bg: 'var(--status-success-subtle)', fg: 'var(--status-success)', border: 'var(--status-success-border)' }
+      : stamp === 'SUPERSEDED'
+        ? { bg: 'var(--status-error-subtle)', fg: 'var(--status-error)', border: 'var(--status-error-border)' }
+        : null
 
   return (
     <figure
@@ -36,33 +38,87 @@ export function PdfPageViewer({ documentRef, stamp, height = '32rem' }: PdfPageV
         backgroundColor: 'var(--surface-raised)',
       }}
     >
-      {/* Header bar with form label and page number */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '0.5rem 0.75rem',
-        backgroundColor: 'var(--foreground)',
-        color: 'var(--card)',
-        fontSize: '0.75rem',
-        fontWeight: 600,
-      }}>
+      {/* Header bar */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0.5rem 0.75rem',
+          backgroundColor: 'var(--foreground)',
+          color: 'var(--card)',
+          fontSize: '0.75rem',
+          fontWeight: 600,
+        }}
+      >
         <span>{formLabel}</span>
         <span style={{ color: 'var(--muted-foreground)' }}>Page {pageNumber}</span>
       </div>
 
-      {/* PDF iframe — single page view */}
-      <div style={{ position: 'relative' }}>
-        <iframe
-          src={iframeSrc}
-          title={`${formLabel} - Page ${pageNumber}`}
-          style={{
-            display: 'block',
-            inlineSize: '100%',
-            blockSize: height,
-            border: 'none',
-          }}
-        />
+      {/* Document content */}
+      <div
+        style={{
+          position: 'relative',
+          height,
+          overflow: 'auto',
+          backgroundColor: '#e5e5e5',
+        }}
+      >
+        {imagePath ? (
+          <>
+            {!imgLoaded && (
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  zIndex: 3,
+                }}
+              >
+                <div
+                  style={{
+                    width: '2rem',
+                    height: '2rem',
+                    border: '3px solid var(--border)',
+                    borderTopColor: 'var(--primary)',
+                    borderRadius: '50%',
+                    animation: 'spin 0.8s linear infinite',
+                  }}
+                />
+              </div>
+            )}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={imagePath}
+              alt={`${formLabel} - Page ${pageNumber}`}
+              onLoad={() => setImgLoaded(true)}
+              style={{
+                display: 'block',
+                width: `${zoom * 100}%`,
+                height: 'auto',
+                margin: '0 auto',
+                backgroundColor: '#ffffff',
+                opacity: imgLoaded ? 1 : 0,
+                transition: 'opacity 0.2s ease',
+              }}
+            />
+          </>
+        ) : (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: '100%',
+              color: 'var(--muted-foreground)',
+              fontSize: '0.875rem',
+            }}
+          >
+            No document preview available
+          </div>
+        )}
 
         {/* Stamp overlay */}
         {stamp && stampColor && (
@@ -90,6 +146,79 @@ export function PdfPageViewer({ documentRef, stamp, height = '32rem' }: PdfPageV
             {stamp}
           </div>
         )}
+      </div>
+
+      {/* Zoom controls */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '0.5rem',
+          padding: '0.375rem 0.75rem',
+          borderTop: '1px solid var(--border)',
+          backgroundColor: 'var(--card)',
+          fontSize: '0.6875rem',
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => setZoom(z => Math.max(0.5, z - 0.25))}
+          disabled={zoom <= 0.5}
+          style={{
+            padding: '0.125rem 0.5rem',
+            borderRadius: '0.25rem',
+            border: '1px solid var(--border)',
+            backgroundColor: 'var(--card)',
+            cursor: zoom <= 0.5 ? 'not-allowed' : 'pointer',
+            opacity: zoom <= 0.5 ? 0.4 : 1,
+            fontSize: '0.75rem',
+            fontWeight: 700,
+            color: 'var(--foreground)',
+          }}
+          aria-label="Zoom out"
+        >
+          -
+        </button>
+        <span style={{ fontWeight: 600, color: 'var(--muted-foreground)', minWidth: '3rem', textAlign: 'center' }}>
+          {Math.round(zoom * 100)}%
+        </span>
+        <button
+          type="button"
+          onClick={() => setZoom(z => Math.min(3, z + 0.25))}
+          disabled={zoom >= 3}
+          style={{
+            padding: '0.125rem 0.5rem',
+            borderRadius: '0.25rem',
+            border: '1px solid var(--border)',
+            backgroundColor: 'var(--card)',
+            cursor: zoom >= 3 ? 'not-allowed' : 'pointer',
+            opacity: zoom >= 3 ? 0.4 : 1,
+            fontSize: '0.75rem',
+            fontWeight: 700,
+            color: 'var(--foreground)',
+          }}
+          aria-label="Zoom in"
+        >
+          +
+        </button>
+        <button
+          type="button"
+          onClick={() => setZoom(1)}
+          style={{
+            padding: '0.125rem 0.5rem',
+            borderRadius: '0.25rem',
+            border: '1px solid var(--border)',
+            backgroundColor: zoom === 1 ? 'var(--muted)' : 'var(--card)',
+            cursor: 'pointer',
+            fontSize: '0.625rem',
+            fontWeight: 600,
+            color: 'var(--muted-foreground)',
+          }}
+          aria-label="Reset zoom"
+        >
+          Fit
+        </button>
       </div>
     </figure>
   )
