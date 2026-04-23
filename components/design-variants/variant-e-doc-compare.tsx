@@ -8,7 +8,6 @@
 
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { PdfPageViewer } from '@/components/pdf-page-viewer'
-import { FieldComparison } from '@/components/field-comparison'
 import { useDecisions } from '@/contexts/decision-context'
 import { useLearnedRules } from '@/contexts/learned-rules-context'
 import {
@@ -30,7 +29,6 @@ import {
   Maximize,
   Eye,
   Info,
-  Columns2,
   X,
   CheckCircle,
 } from 'lucide-react'
@@ -633,7 +631,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
     return leftDoc.comparedValues ?? []
   }, [leftDoc])
 
-  const [activeTab, setActiveTab] = useState<'fields' | 'documents' | 'analysis'>('analysis')
+  const [activeTab, setActiveTab] = useState<'documents' | 'analysis'>('analysis')
   const [selectedKpiPageId, setSelectedKpiPageId] = useState<string | null>(null)
 
   const reviewedCount = useMemo(() => {
@@ -887,9 +885,8 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
               </button>
             )
           })()}
-          {/* Fields + Documents tabs */}
+          {/* Documents tab */}
           {[
-            { id: 'fields' as const, label: 'Fields', icon: Columns2, badge: comparedValues.length > 0 ? `${comparedValues.filter(v => !v.match).length}/${comparedValues.length}` : null },
             { id: 'documents' as const, label: 'Documents', icon: Eye, badge: null },
           ].map(tab => (
             <button
@@ -922,18 +919,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
 
         {/* ── Tab content ── */}
         <div className="flex-1 overflow-auto">
-          {/* Fields tab */}
-          {activeTab === 'fields' && (
-            <div className="p-5">
-              {isGroupRejected ? (
-                <div className="flex items-center justify-center py-16 text-sm text-muted-foreground">Group excluded -- no field comparison available</div>
-              ) : comparedValues.length > 0 ? (
-                <FieldComparison values={comparedValues} labelA={leftDoc?.documentRef?.formLabel ?? 'Superseded'} labelB={rightDoc?.documentRef?.formLabel ?? 'Original'} docRefA={leftDoc?.documentRef} docRefB={rightDoc?.documentRef} isOverridden={isActiveFlipped} />
-              ) : (
-                <div className="flex items-center justify-center py-16 text-sm text-muted-foreground">No field comparison data</div>
-              )}
-            </div>
-          )}
+
 
           {/* Documents tab */}
           {activeTab === 'documents' && (
