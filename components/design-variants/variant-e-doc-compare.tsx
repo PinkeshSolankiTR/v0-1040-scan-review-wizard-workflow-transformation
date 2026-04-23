@@ -8,6 +8,7 @@
 
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { PdfPageViewer } from '@/components/pdf-page-viewer'
+import { PdfFieldThumbnail } from '@/components/pdf-field-thumbnail'
 import { useDecisions } from '@/contexts/decision-context'
 import { useLearnedRules } from '@/contexts/learned-rules-context'
 import { useWizardPipeline } from '@/contexts/wizard-pipeline-context'
@@ -250,25 +251,18 @@ function FieldLevelInsightsSection({
                     const fieldData = pageLookup.get(pid)?.get(field)
                     const docRef = r.documentRef
                     const displayValue = fieldData?.valueA ?? '--'
+                    // Find the crop coordinates from the record's comparedValues
+                    const comparedField = r.comparedValues?.find(cv => cv.field === field)
+                    const crop = comparedField?.cropA ?? { x: 0.05, y: 0.1, width: 0.9, height: 0.06 }
                     return (
                       <td key={pid} className="border-l border-border px-2 py-1.5">
                         {docRef ? (
-                          <div className="relative mx-auto h-10 w-full overflow-hidden rounded border border-border bg-white" title={`${field}: ${displayValue}`}>
-                            <iframe
-                              src={`${docRef.pdfPath}#page=${docRef.pageNumber}&toolbar=0&navpanes=0&scrollbar=0`}
-                              title={`${field} from page ${docRef.pageNumber}`}
-                              className="pointer-events-none border-none"
-                              style={{
-                                width: `${cropPos.scale * 100}%`,
-                                height: `${cropPos.scale * 100}%`,
-                                transform: `translate(-${(cropPos.scale - 1) * 18}%, -${cropPos.yPercent}%)`,
-                              }}
-                              tabIndex={-1}
-                            />
-                            <div className="absolute inset-x-0 bottom-0 px-1.5 py-0.5" style={{ backgroundColor: 'color-mix(in srgb, var(--foreground) 80%, transparent)' }}>
-                              <span className="font-mono text-[0.5625rem] font-semibold" style={{ color: 'var(--card)' }}>{displayValue}</span>
-                            </div>
-                          </div>
+                          <PdfFieldThumbnail
+                            pdfPath={docRef.pdfPath}
+                            pageNumber={docRef.pageNumber}
+                            crop={crop}
+                            displayValue={displayValue}
+                          />
                         ) : (
                           <span className="block text-center text-[0.625rem] text-muted-foreground">--</span>
                         )}
@@ -681,7 +675,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
 
       {/* ═══════════════════════════════════════════════════════════
           WIZARD CONTENT AREA
-          ═══════════════════════════════════════════════════════════ */}
+          ══════════════���════════════════════════════════════════════ */}
       {activeWizard !== 'superseded' ? (
         /* Placeholder panels for CFA / Duplicate / NFR */
         <div className="flex flex-1 items-center justify-center p-8">
