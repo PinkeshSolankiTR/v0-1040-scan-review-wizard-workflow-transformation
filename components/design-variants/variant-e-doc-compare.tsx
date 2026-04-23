@@ -13,6 +13,7 @@ import { useDecisions } from '@/contexts/decision-context'
 import { useLearnedRules } from '@/contexts/learned-rules-context'
 import {
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   FileText,
   Sparkles,
@@ -147,6 +148,164 @@ function restoreReclassifyState(
     if (exclIds.size === 0) exclCustom = savedExclReason || ''
   }
   return { roles, reasonId, reasonCustom, exclIds, exclCustom }
+}
+
+/* ── Field-Level Insights (carousel table) ── */
+const VISIBLE_PAGES = 4
+
+function FieldLevelInsightsSection({
+  allFields,
+  allPages,
+  pageLookup,
+  fieldCropPositions,
+  formType,
+}: {
+  allFields: string[]
+  allPages: SupersededRecord[]
+  pageLookup: Map<string, Map<string, { valueA: string; valueB: string; match: boolean }>>
+  fieldCropPositions: Record<string, { yPercent: number; scale: number }>
+  formType: string
+}) {
+  const [startIdx, setStartIdx] = useState(0)
+  const needsCarousel = allPages.length > VISIBLE_PAGES
+  const visiblePages = needsCarousel ? allPages.slice(startIdx, startIdx + VISIBLE_PAGES) : allPages
+  const canGoLeft = startIdx > 0
+  const canGoRight = startIdx + VISIBLE_PAGES < allPages.length
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <h3 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Field-Level Insights</h3>
+        <div className="flex items-center gap-2">
+          <span className="text-[0.625rem] text-muted-foreground">{allFields.length} fields across {allPages.length} pages</span>
+          {needsCarousel && (
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                disabled={!canGoLeft}
+                onClick={() => setStartIdx(Math.max(0, startIdx - 1))}
+                className="flex h-5 w-5 items-center justify-center rounded border border-border bg-card transition-colors hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
+                aria-label="Show previous pages"
+              >
+                <ChevronLeft className="h-3 w-3" />
+              </button>
+              <span className="text-[0.5625rem] font-medium text-muted-foreground tabular-nums">
+                {startIdx + 1}&ndash;{Math.min(startIdx + VISIBLE_PAGES, allPages.length)} of {allPages.length}
+              </span>
+              <button
+                type="button"
+                disabled={!canGoRight}
+                onClick={() => setStartIdx(Math.min(allPages.length - VISIBLE_PAGES, startIdx + 1))}
+                className="flex h-5 w-5 items-center justify-center rounded border border-border bg-card transition-colors hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
+                aria-label="Show next pages"
+              >
+                <ChevronRight className="h-3 w-3" />
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Scrollable container: vertical scroll after ~5 rows */}
+      <div className="overflow-auto rounded-lg border border-border" style={{ maxHeight: '15.5rem' }}>
+        <table className="w-full text-xs">
+          <thead className="sticky top-0 z-10">
+            <tr className="border-b border-border bg-muted">
+              <th className="sticky left-0 z-20 bg-muted px-3 py-2 text-left font-bold text-muted-foreground" style={{ minWidth: '9rem' }}>Field</th>
+              {visiblePages.map(r => {
+                const pgNum = r.documentRef?.pageNumber ?? r.engagementPageId
+                const isOrig = r.decisionType === 'Original'
+                const label = r.documentRef?.formLabel
+                  ? r.documentRef.formLabel.replace(formType, '').trim().replace(/^[-()\s]+|[-()\s]+$/g, '') || (isOrig ? 'Original' : 'Superseded')
+                  : isOrig ? 'Original' : 'Superseded'
+                return (
+                  <th key={r.engagementPageId} className="border-l border-border px-2 py-2 text-center font-bold text-muted-foreground" style={{ minWidth: '8.5rem' }}>
+                    <div className="flex flex-col items-center gap-0.5">
+                      <span className="text-[0.625rem]">Pg {pgNum}</span>
+                      <span
+                        className="inline-block max-w-[8rem] truncate rounded-full px-1.5 py-0.5 text-[0.5625rem] font-semibold"
+                        style={{
+                          backgroundColor: isOrig ? 'var(--status-success-subtle, rgba(34,197,94,0.1))' : 'var(--status-error-subtle, rgba(239,68,68,0.1))',
+                          color: isOrig ? 'var(--status-success)' : 'var(--status-error)',
+                        }}
+                      >
+                        {label}
+                      </span>
+                    </div>
+                  </th>
+                )
+              })}
+            </tr>
+          </thead>
+          <tbody>
+            {allFields.map(field => {
+              const cropPos = fieldCropPositions[field] ?? { yPercent: 30, scale: 2.5 }
+              return (
+                <tr key={field} className="border-b border-border last:border-b-0">
+                  <td className="sticky left-0 z-[5] bg-card px-3 py-2 border-r border-border">
+                    <span className="font-semibold text-foreground text-[0.6875rem]">{field}</span>
+                  </td>
+                  {visiblePages.map(r => {
+                    const pid = String(r.engagementPageId)
+                    const fieldData = pageLookup.get(pid)?.get(field)
+                    const docRef = r.documentRef
+                    const displayValue = fieldData?.valueA ?? '--'
+                    return (
+                      <td key={pid} className="border-l border-border px-2 py-1.5">
+                        {docRef ? (
+                          <div className="relative mx-auto h-10 w-full overflow-hidden rounded border border-border bg-white" title={`${field}: ${displayValue}`}>
+                            <iframe
+                              src={`${docRef.pdfPath}#page=${docRef.pageNumber}&toolbar=0&navpanes=0&scrollbar=0`}
+                              title={`${field} from page ${docRef.pageNumber}`}
+                              className="pointer-events-none border-none"
+                              style={{
+                                width: `${cropPos.scale * 100}%`,
+                                height: `${cropPos.scale * 100}%`,
+                                transform: `translate(-${(cropPos.scale - 1) * 18}%, -${cropPos.yPercent}%)`,
+                              }}
+                              tabIndex={-1}
+                            />
+                            <div className="absolute inset-x-0 bottom-0 px-1.5 py-0.5" style={{ backgroundColor: 'color-mix(in srgb, var(--foreground) 80%, transparent)' }}>
+                              <span className="font-mono text-[0.5625rem] font-semibold" style={{ color: 'var(--card)' }}>{displayValue}</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="block text-center text-[0.625rem] text-muted-foreground">--</span>
+                        )}
+                      </td>
+                    )
+                  })}
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Carousel dot indicators for many pages */}
+      {needsCarousel && (
+        <div className="flex items-center justify-center gap-1 pt-1">
+          {allPages.map((_, i) => {
+            const isActive = i >= startIdx && i < startIdx + VISIBLE_PAGES
+            return (
+              <button
+                key={i}
+                type="button"
+                onClick={() => setStartIdx(Math.min(i, allPages.length - VISIBLE_PAGES))}
+                className="rounded-full transition-all"
+                style={{
+                  width: isActive ? '0.5rem' : '0.25rem',
+                  height: '0.25rem',
+                  backgroundColor: isActive ? 'var(--foreground)' : 'var(--border)',
+                }}
+                aria-label={`Jump to page ${i + 1}`}
+              />
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
 }
 
 /* ── Main Component ── */
@@ -941,7 +1100,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                       </p>
                     </div>
 
-                    {/* ── Evidence: Field Comparison with Thumbnails ── */}
+                    {/* ── Field-Level Insights with Thumbnails ── */}
                     {activeGroup && (() => {
                       /* Collect all pages in the group (all records) */
                       const allPages = activeGroup.records
@@ -967,81 +1126,13 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                       })
 
                       return (
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <h3 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Evidence: Field Comparison</h3>
-                            <span className="text-[0.625rem] text-muted-foreground">{allFields.length} fields across {allPages.length} pages</span>
-                          </div>
-                          {/* Scrollable container: vertical scroll after ~5 rows, horizontal scroll when > 2 pages */}
-                          <div className="overflow-auto rounded-lg border border-border" style={{ maxHeight: '15.5rem' }}>
-                            <table className="text-xs" style={{ minWidth: allPages.length > 2 ? `${160 + allPages.length * 140}px` : '100%', width: allPages.length <= 2 ? '100%' : undefined }}>
-                              <thead className="sticky top-0 z-10">
-                                <tr className="border-b border-border bg-muted">
-                                  <th className="sticky left-0 z-20 bg-muted px-3 py-2 text-left font-bold text-muted-foreground" style={{ minWidth: '9rem' }}>Field</th>
-                                  {allPages.map(r => {
-                                    const pgNum = r.documentRef?.pageNumber ?? r.engagementPageId
-                                    const isOrig = r.decisionType === 'Original'
-                                    const label = r.documentRef?.formLabel
-                                      ? r.documentRef.formLabel.replace(formType, '').trim().replace(/^[-()\s]+|[-()\s]+$/g, '') || (isOrig ? 'Original' : 'Superseded')
-                                      : isOrig ? 'Original' : 'Superseded'
-                                    return (
-                                      <th key={r.engagementPageId} className="border-l border-border px-2 py-2 text-center font-bold text-muted-foreground" style={{ minWidth: '8.5rem' }}>
-                                        <div className="flex flex-col items-center gap-0.5">
-                                          <span className="text-[0.625rem]">Pg {pgNum}</span>
-                                          <span className="truncate text-[0.5625rem] font-medium" style={{ color: isOrig ? 'var(--confidence-high)' : 'var(--status-error)', maxWidth: '8rem' }}>{label}</span>
-                                        </div>
-                                      </th>
-                                    )
-                                  })}
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {allFields.map(field => {
-                                  const cropPos = fieldCropPositions[field] ?? { yPercent: 30, scale: 2.5 }
-                                  return (
-                                    <tr key={field} className="border-b border-border last:border-b-0">
-                                      <td className="sticky left-0 z-[5] bg-card px-3 py-2 border-r border-border">
-                                        <span className="font-semibold text-foreground text-[0.6875rem]">{field}</span>
-                                      </td>
-                                      {allPages.map(r => {
-                                        const pid = String(r.engagementPageId)
-                                        const fieldData = pageLookup.get(pid)?.get(field)
-                                        const docRef = r.documentRef
-                                        /* Use valueA for current page data */
-                                        const displayValue = fieldData?.valueA ?? '--'
-                                        return (
-                                          <td key={pid} className="border-l border-border px-2 py-1.5">
-                                            {docRef ? (
-                                              <div className="relative mx-auto h-10 w-full overflow-hidden rounded border border-border bg-white" title={`${field}: ${displayValue}`}>
-                                                <iframe
-                                                  src={`${docRef.pdfPath}#page=${docRef.pageNumber}&toolbar=0&navpanes=0&scrollbar=0`}
-                                                  title={`${field} from page ${docRef.pageNumber}`}
-                                                  className="pointer-events-none border-none"
-                                                  style={{
-                                                    width: `${cropPos.scale * 100}%`,
-                                                    height: `${cropPos.scale * 100}%`,
-                                                    transform: `translate(-${(cropPos.scale - 1) * 18}%, -${cropPos.yPercent}%)`,
-                                                  }}
-                                                  tabIndex={-1}
-                                                />
-                                                {/* Value overlay */}
-                                                <div className="absolute inset-x-0 bottom-0 px-1.5 py-0.5" style={{ backgroundColor: 'color-mix(in srgb, var(--foreground) 80%, transparent)' }}>
-                                                  <span className="font-mono text-[0.5625rem] font-semibold" style={{ color: 'var(--card)' }}>{displayValue}</span>
-                                                </div>
-                                              </div>
-                                            ) : (
-                                              <span className="block text-center text-[0.625rem] text-muted-foreground">--</span>
-                                            )}
-                                          </td>
-                                        )
-                                      })}
-                                    </tr>
-                                  )
-                                })}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
+                        <FieldLevelInsightsSection
+                          allFields={allFields}
+                          allPages={allPages}
+                          pageLookup={pageLookup}
+                          fieldCropPositions={fieldCropPositions}
+                          formType={formType}
+                        />
                       )
                     })()}
 
