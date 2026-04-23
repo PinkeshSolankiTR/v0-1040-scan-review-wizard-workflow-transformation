@@ -941,106 +941,100 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                       </p>
                     </div>
 
-                    {/* ── Inline Field Comparison with Thumbnails ── */}
-                    {comparedValues.length > 0 && (() => {
-                      const mismatches = comparedValues.filter(v => !v.match)
-                      const matches = comparedValues.filter(v => v.match)
-                      /* Simulated field-level crop positions for thumbnail zoom effect */
-                      const fieldCropPositions: Record<string, { yPercent: number; scale: number }> = {}
-                      comparedValues.forEach((v, idx) => {
-                        /* Spread fields evenly across the page, simulating real OCR crop coordinates */
-                        const yPercent = 12 + (idx * (68 / Math.max(comparedValues.length, 1)))
-                        fieldCropPositions[v.field] = { yPercent, scale: 2.8 }
+                    {/* ── Evidence: Field Comparison with Thumbnails ── */}
+                    {activeGroup && (() => {
+                      /* Collect all pages in the group (all records) */
+                      const allPages = activeGroup.records
+                      /* Collect unique field names across ALL pages */
+                      const fieldSet = new Set<string>()
+                      allPages.forEach(r => (r.comparedValues ?? []).forEach(v => fieldSet.add(v.field)))
+                      const allFields = Array.from(fieldSet)
+                      if (allFields.length === 0) return null
+
+                      /* Build a lookup: pageId -> { field -> ComparedValue } */
+                      const pageLookup = new Map<string, Map<string, { valueA: string; valueB: string; match: boolean }>>()
+                      allPages.forEach(r => {
+                        const map = new Map<string, { valueA: string; valueB: string; match: boolean }>()
+                        ;(r.comparedValues ?? []).forEach(v => map.set(v.field, v))
+                        pageLookup.set(String(r.engagementPageId), map)
                       })
+
+                      /* Simulated field-level crop positions */
+                      const fieldCropPositions: Record<string, { yPercent: number; scale: number }> = {}
+                      allFields.forEach((field, idx) => {
+                        const yPercent = 12 + (idx * (68 / Math.max(allFields.length, 1)))
+                        fieldCropPositions[field] = { yPercent, scale: 2.8 }
+                      })
+
                       return (
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
                             <h3 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Evidence: Field Comparison</h3>
-                            <span className="text-[0.625rem] text-muted-foreground">
-                              {mismatches.length} differ / {matches.length} match of {comparedValues.length}
-                            </span>
+                            <span className="text-[0.625rem] text-muted-foreground">{allFields.length} fields across {allPages.length} pages</span>
                           </div>
-                          <div className="overflow-hidden rounded-lg border border-border">
-                            <table className="w-full text-xs">
-                              <thead>
-                                <tr className="border-b border-border bg-muted/50">
-                                  <th className="px-3 py-2 text-left font-bold text-muted-foreground" style={{ width: '30%' }}>Field</th>
-                                  <th className="px-3 py-2 text-center font-bold text-muted-foreground" style={{ width: '1.5rem' }}></th>
-                                  <th className="border-l border-border px-2 py-2 text-center font-bold text-muted-foreground" style={{ width: '35%' }}>
-                                    {leftDoc?.documentRef?.formLabel ? leftDoc.documentRef.formLabel.replace(formType, '').trim().replace(/^[-()\s]+|[-()\s]+$/g, '') || 'Superseded' : 'Superseded'}
-                                  </th>
-                                  <th className="border-l border-border px-2 py-2 text-center font-bold text-muted-foreground" style={{ width: '35%' }}>
-                                    {rightDoc?.documentRef?.formLabel ? rightDoc.documentRef.formLabel.replace(formType, '').trim().replace(/^[-()\s]+|[-()\s]+$/g, '') || 'Original' : 'Original'}
-                                  </th>
+                          {/* Scrollable container: vertical scroll after ~5 rows, horizontal scroll when > 2 pages */}
+                          <div className="overflow-auto rounded-lg border border-border" style={{ maxHeight: '15.5rem' }}>
+                            <table className="text-xs" style={{ minWidth: allPages.length > 2 ? `${160 + allPages.length * 140}px` : '100%', width: allPages.length <= 2 ? '100%' : undefined }}>
+                              <thead className="sticky top-0 z-10">
+                                <tr className="border-b border-border bg-muted">
+                                  <th className="sticky left-0 z-20 bg-muted px-3 py-2 text-left font-bold text-muted-foreground" style={{ minWidth: '9rem' }}>Field</th>
+                                  {allPages.map(r => {
+                                    const pgNum = r.documentRef?.pageNumber ?? r.engagementPageId
+                                    const isOrig = r.decisionType === 'Original'
+                                    const label = r.documentRef?.formLabel
+                                      ? r.documentRef.formLabel.replace(formType, '').trim().replace(/^[-()\s]+|[-()\s]+$/g, '') || (isOrig ? 'Original' : 'Superseded')
+                                      : isOrig ? 'Original' : 'Superseded'
+                                    return (
+                                      <th key={r.engagementPageId} className="border-l border-border px-2 py-2 text-center font-bold text-muted-foreground" style={{ minWidth: '8.5rem' }}>
+                                        <div className="flex flex-col items-center gap-0.5">
+                                          <span className="text-[0.625rem]">Pg {pgNum}</span>
+                                          <span className="truncate text-[0.5625rem] font-medium" style={{ color: isOrig ? 'var(--confidence-high)' : 'var(--status-error)', maxWidth: '8rem' }}>{label}</span>
+                                        </div>
+                                      </th>
+                                    )
+                                  })}
                                 </tr>
                               </thead>
                               <tbody>
-                                {/* Show mismatched fields first, then matched */}
-                                {[...mismatches, ...matches].map(v => {
-                                  const cropPos = fieldCropPositions[v.field] ?? { yPercent: 30, scale: 2.5 }
+                                {allFields.map(field => {
+                                  const cropPos = fieldCropPositions[field] ?? { yPercent: 30, scale: 2.5 }
                                   return (
-                                    <tr key={v.field} className="border-b border-border last:border-b-0 transition-colors" style={{ backgroundColor: v.match ? 'var(--card)' : 'var(--status-error-subtle)' }}>
-                                      <td className="px-3 py-2">
-                                        <span className="font-semibold text-foreground">{v.field}</span>
+                                    <tr key={field} className="border-b border-border last:border-b-0">
+                                      <td className="sticky left-0 z-[5] bg-card px-3 py-2 border-r border-border">
+                                        <span className="font-semibold text-foreground text-[0.6875rem]">{field}</span>
                                       </td>
-                                      <td className="px-1 py-2 text-center">
-                                        {v.match ? (
-                                          <CheckCircle className="mx-auto h-3.5 w-3.5" style={{ color: 'var(--confidence-high)' }} />
-                                        ) : (
-                                          <X className="mx-auto h-3.5 w-3.5" style={{ color: 'var(--status-error)' }} />
-                                        )}
-                                      </td>
-                                      {/* Thumbnail A (Superseded doc) */}
-                                      <td className="border-l border-border px-2 py-1.5">
-                                        {leftDoc?.documentRef ? (
-                                          <div className="relative mx-auto h-10 w-full overflow-hidden rounded border border-border bg-white" title={`${v.field}: ${v.valueA}`}>
-                                            <iframe
-                                              src={`${leftDoc.documentRef.pdfPath}#page=${leftDoc.documentRef.pageNumber}&toolbar=0&navpanes=0&scrollbar=0`}
-                                              title={`${v.field} from superseded`}
-                                              className="pointer-events-none border-none"
-                                              style={{
-                                                width: `${cropPos.scale * 100}%`,
-                                                height: `${cropPos.scale * 100}%`,
-                                                transform: `translate(-${(cropPos.scale - 1) * 18}%, -${cropPos.yPercent}%)`,
-                                              }}
-                                              tabIndex={-1}
-                                            />
-                                            {/* Value overlay */}
-                                            <div className="absolute inset-x-0 bottom-0 px-1.5 py-0.5" style={{ backgroundColor: 'color-mix(in srgb, var(--foreground) 80%, transparent)' }}>
-                                              <span className="font-mono text-[0.5625rem] font-semibold" style={{ color: 'var(--card)' }}>{v.valueA}</span>
-                                            </div>
-                                          </div>
-                                        ) : (
-                                          <span className="block text-center text-[0.625rem] text-muted-foreground">--</span>
-                                        )}
-                                      </td>
-                                      {/* Thumbnail B (Original doc) */}
-                                      <td className="border-l border-border px-2 py-1.5">
-                                        {rightDoc?.documentRef ? (
-                                          <div className="relative mx-auto h-10 w-full overflow-hidden rounded border border-border bg-white" title={`${v.field}: ${v.valueB}`} style={{ borderColor: v.match ? 'var(--border)' : 'var(--status-error-border)' }}>
-                                            <iframe
-                                              src={`${rightDoc.documentRef.pdfPath}#page=${rightDoc.documentRef.pageNumber}&toolbar=0&navpanes=0&scrollbar=0`}
-                                              title={`${v.field} from original`}
-                                              className="pointer-events-none border-none"
-                                              style={{
-                                                width: `${cropPos.scale * 100}%`,
-                                                height: `${cropPos.scale * 100}%`,
-                                                transform: `translate(-${(cropPos.scale - 1) * 18}%, -${cropPos.yPercent}%)`,
-                                              }}
-                                              tabIndex={-1}
-                                            />
-                                            {/* Value overlay */}
-                                            <div className="absolute inset-x-0 bottom-0 px-1.5 py-0.5" style={{ backgroundColor: v.match ? 'color-mix(in srgb, var(--foreground) 80%, transparent)' : 'color-mix(in srgb, var(--status-error) 88%, transparent)' }}>
-                                              <span className="font-mono text-[0.5625rem] font-semibold" style={{ color: v.match ? 'var(--card)' : 'var(--status-warning-subtle)' }}>
-                                                {v.valueB}
-                                                {!v.match && <span className="ml-1 text-[0.5rem] font-normal opacity-80">(differs)</span>}
-                                              </span>
-                                            </div>
-                                          </div>
-                                        ) : (
-                                          <span className="block text-center text-[0.625rem] text-muted-foreground">--</span>
-                                        )}
-                                      </td>
+                                      {allPages.map(r => {
+                                        const pid = String(r.engagementPageId)
+                                        const fieldData = pageLookup.get(pid)?.get(field)
+                                        const docRef = r.documentRef
+                                        /* Use valueA for current page data */
+                                        const displayValue = fieldData?.valueA ?? '--'
+                                        return (
+                                          <td key={pid} className="border-l border-border px-2 py-1.5">
+                                            {docRef ? (
+                                              <div className="relative mx-auto h-10 w-full overflow-hidden rounded border border-border bg-white" title={`${field}: ${displayValue}`}>
+                                                <iframe
+                                                  src={`${docRef.pdfPath}#page=${docRef.pageNumber}&toolbar=0&navpanes=0&scrollbar=0`}
+                                                  title={`${field} from page ${docRef.pageNumber}`}
+                                                  className="pointer-events-none border-none"
+                                                  style={{
+                                                    width: `${cropPos.scale * 100}%`,
+                                                    height: `${cropPos.scale * 100}%`,
+                                                    transform: `translate(-${(cropPos.scale - 1) * 18}%, -${cropPos.yPercent}%)`,
+                                                  }}
+                                                  tabIndex={-1}
+                                                />
+                                                {/* Value overlay */}
+                                                <div className="absolute inset-x-0 bottom-0 px-1.5 py-0.5" style={{ backgroundColor: 'color-mix(in srgb, var(--foreground) 80%, transparent)' }}>
+                                                  <span className="font-mono text-[0.5625rem] font-semibold" style={{ color: 'var(--card)' }}>{displayValue}</span>
+                                                </div>
+                                              </div>
+                                            ) : (
+                                              <span className="block text-center text-[0.625rem] text-muted-foreground">--</span>
+                                            )}
+                                          </td>
+                                        )
+                                      })}
                                     </tr>
                                   )
                                 })}
