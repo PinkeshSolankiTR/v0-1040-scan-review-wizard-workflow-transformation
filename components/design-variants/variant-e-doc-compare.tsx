@@ -644,6 +644,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
   const [showShortcuts, setShowShortcuts] = useState(false)
   const [feedbackText, setFeedbackText] = useState('')
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false)
+  const [activeWizard, setActiveWizard] = useState<'superseded' | 'cfa' | 'duplicate' | 'nfr'>('superseded')
 
   /* Close utility dropdowns on outside click */
   useEffect(() => {
@@ -684,8 +685,163 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
      RENDER: Teams-style layout
      Left sidebar (document list) | Right panel (title bar + tabs + content)
      ────────────────────────────────────────────────────────────────── */
+  /* ── Wizard pipeline definitions ── */
+  const isSupersededComplete = reviewedCount === groups.length && groups.length > 0
+  const wizardSteps = useMemo(() => {
+    const supersededPageCount = data.length
+    return [
+      { id: 'superseded' as const, label: 'Superseded', count: supersededPageCount, completed: isSupersededComplete, enabled: true },
+      { id: 'cfa' as const, label: 'CFA', count: isSupersededComplete ? 4 : 0, completed: false, enabled: isSupersededComplete },
+      { id: 'duplicate' as const, label: 'Duplicate', count: isSupersededComplete ? 0 : 0, completed: false, enabled: isSupersededComplete },
+      { id: 'nfr' as const, label: 'NFR', count: isSupersededComplete ? 2 : 0, completed: false, enabled: isSupersededComplete },
+    ] as const
+  }, [data.length, isSupersededComplete])
+
   return (
-    <div className="flex h-full overflow-hidden bg-background">
+    <div className="flex h-full flex-col overflow-hidden bg-background">
+
+      {/* ═══════════════════════════════════════════════════════════
+          WIZARD PIPELINE STEPPER BAR
+          ═══════════════════════════════════════════════════════════ */}
+      <div className="flex shrink-0 items-center gap-0 border-b border-border bg-card px-4" style={{ height: '2.5rem' }}>
+        {wizardSteps.map((step, idx) => {
+          const isActive = activeWizard === step.id
+          const isCompleted = step.completed
+          const hasItems = step.count > 0
+          const isEnabled = step.enabled
+          const isLast = idx === wizardSteps.length - 1
+
+          return (
+            <div key={step.id} className="flex items-center">
+              <button
+                type="button"
+                disabled={!isEnabled && !isCompleted}
+                onClick={() => { if (isEnabled || isCompleted) setActiveWizard(step.id) }}
+                className={`group relative flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-semibold transition-all ${
+                  isActive
+                    ? 'text-foreground'
+                    : isCompleted
+                      ? 'text-muted-foreground hover:text-foreground'
+                      : isEnabled
+                        ? 'text-muted-foreground hover:text-foreground'
+                        : 'cursor-not-allowed text-muted-foreground/40'
+                }`}
+              >
+                {/* Step indicator */}
+                <span
+                  className="flex h-5 w-5 items-center justify-center rounded-full text-[0.5625rem] font-bold transition-all"
+                  style={{
+                    backgroundColor: isActive
+                      ? 'var(--primary)'
+                      : isCompleted
+                        ? 'var(--status-success)'
+                        : isEnabled && hasItems
+                          ? 'var(--muted)'
+                          : 'var(--muted)',
+                    color: isActive || isCompleted ? 'var(--primary-foreground)' : 'var(--muted-foreground)',
+                  }}
+                >
+                  {isCompleted ? <Check className="h-3 w-3" /> : idx + 1}
+                </span>
+
+                {/* Label */}
+                <span>{step.label}</span>
+
+                {/* Count badge */}
+                {hasItems && !isCompleted && (
+                  <span
+                    className="rounded-full px-1.5 py-0.5 font-mono text-[0.5625rem] font-bold leading-none"
+                    style={{
+                      backgroundColor: isActive ? 'color-mix(in srgb, var(--primary) 15%, transparent)' : 'var(--muted)',
+                      color: isActive ? 'var(--primary)' : 'var(--muted-foreground)',
+                    }}
+                  >
+                    {step.count}
+                  </span>
+                )}
+
+                {/* N/A label for empty wizard */}
+                {!hasItems && !isCompleted && isEnabled && (
+                  <span className="text-[0.5625rem] font-normal text-muted-foreground/60">N/A</span>
+                )}
+
+                {/* Pending label when not yet enabled */}
+                {!isEnabled && !isCompleted && (
+                  <span className="text-[0.5625rem] font-normal italic text-muted-foreground/40">Pending</span>
+                )}
+
+                {/* Active underline */}
+                {isActive && (
+                  <span className="absolute inset-x-2 -bottom-[0.5625rem] h-0.5 rounded-full bg-primary" />
+                )}
+              </button>
+
+              {/* Connector line */}
+              {!isLast && (
+                <div className="mx-0.5 flex items-center">
+                  <div
+                    className="h-px w-6 transition-colors"
+                    style={{ backgroundColor: isCompleted ? 'var(--status-success)' : 'var(--border)' }}
+                  />
+                  <ChevronRight
+                    className="h-3 w-3"
+                    style={{ color: isCompleted ? 'var(--status-success)' : 'var(--muted-foreground)', opacity: 0.5 }}
+                  />
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      {/* ═══════════════════════════════════════════════════════════
+          WIZARD CONTENT AREA
+          ═══════════════════════════════════════════════════════════ */}
+      {activeWizard !== 'superseded' ? (
+        /* Placeholder panels for CFA / Duplicate / NFR */
+        <div className="flex flex-1 items-center justify-center p-8">
+          <div className="flex flex-col items-center gap-4 text-center" style={{ maxWidth: '24rem' }}>
+            {(() => {
+              const step = wizardSteps.find(s => s.id === activeWizard)!
+              if (!step.enabled) return (
+                <>
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
+                    <AlertTriangle className="h-6 w-6 text-muted-foreground" />
+                  </div>
+                  <h3 className="text-lg font-bold text-foreground">{step.label} Wizard</h3>
+                  <p className="text-sm text-muted-foreground">Complete the Superseded Wizard first. Documents eligible for {step.label} review will appear here once superseded classification is finalized.</p>
+                  <button type="button" onClick={() => setActiveWizard('superseded')} className="mt-2 inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-xs font-bold text-primary-foreground">
+                    <ArrowRight className="h-3.5 w-3.5 rotate-180" /> Return to Superseded
+                  </button>
+                </>
+              )
+              if (step.count === 0) return (
+                <>
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full" style={{ backgroundColor: 'var(--status-success-subtle)' }}>
+                    <Check className="h-6 w-6" style={{ color: 'var(--status-success)' }} />
+                  </div>
+                  <h3 className="text-lg font-bold text-foreground">{step.label} -- No Items</h3>
+                  <p className="text-sm text-muted-foreground">No documents in this binder require {step.label} review. All documents passed the automated {step.label} checks.</p>
+                </>
+              )
+              return (
+                <>
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full" style={{ backgroundColor: 'color-mix(in srgb, var(--primary) 12%, transparent)' }}>
+                    <FileText className="h-6 w-6 text-primary" />
+                  </div>
+                  <h3 className="text-lg font-bold text-foreground">{step.label} Wizard</h3>
+                  <p className="text-sm text-muted-foreground">{step.count} document{step.count !== 1 ? 's' : ''} identified for {step.label} review. This wizard will follow the same review pattern as Superseded.</p>
+                  <span className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-xs font-medium text-muted-foreground">
+                    <Sparkles className="h-3 w-3" /> Coming soon
+                  </span>
+                </>
+              )
+            })()}
+          </div>
+        </div>
+      ) : (
+      /* Superseded wizard content (existing layout) */
+      <div className="flex flex-1 overflow-hidden">
 
       {/* ═══════════════════════════════════════════════════════════
           LEFT SIDEBAR: Document group list (Teams chat list style)
@@ -1941,6 +2097,8 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
             </div>
           </div>
         </div>
+      )}
+      </div>
       )}
     </div>
   )
