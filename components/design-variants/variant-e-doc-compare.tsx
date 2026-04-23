@@ -262,6 +262,7 @@ function FieldLevelInsightsSection({
                             pageNumber={docRef.pageNumber}
                             crop={crop}
                             displayValue={displayValue}
+                            imagePath={docRef.imagePath}
                           />
                         ) : (
                           <span className="block text-center text-[0.625rem] text-muted-foreground">--</span>

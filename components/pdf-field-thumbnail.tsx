@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 
 interface CropRegion {
   x: number      // 0-1 fraction from left
@@ -15,99 +15,65 @@ interface PdfFieldThumbnailProps {
   crop: CropRegion
   displayValue: string
   className?: string
+  /** Pre-rendered page image path (used instead of pdfjs rendering) */
+  imagePath?: string
 }
 
 /**
- * Renders a cropped region of a PDF page using pdfjs-dist.
- * The component loads the PDF, renders the specified page to an offscreen canvas,
- * then draws only the cropped region to a visible canvas.
+ * Renders a cropped region of a document page as a field-level thumbnail.
+ * Uses a pre-rendered image with CSS object-position cropping for reliable rendering.
+ * Falls back to showing the display value as text if no image is available.
  */
 export function PdfFieldThumbnail({
-  pdfPath,
-  pageNumber,
   crop,
   displayValue,
   className = '',
+  imagePath,
 }: PdfFieldThumbnailProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
+  const [loaded, setLoaded] = useState(false)
+  const [errored, setErrored] = useState(false)
 
-  useEffect(() => {
-    let cancelled = false
+  // Calculate CSS object-position for cropping
+  // The image needs to be scaled up so the crop region fills the container
+  const scaleX = 1 / crop.width
+  const scaleY = 1 / crop.height
+  const scale = Math.min(scaleX, scaleY)
 
-    async function render() {
-      try {
-        const pdfjsLib = await import('pdfjs-dist')
+  // Object position as percentage to center the crop region
+  const posX = crop.width < 1 ? (crop.x / (1 - crop.width)) * 100 : 50
+  const posY = crop.height < 1 ? (crop.y / (1 - crop.height)) * 100 : 50
 
-        // Set worker source
-        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`
-
-        const loadingTask = pdfjsLib.getDocument(pdfPath)
-        const pdf = await loadingTask.promise
-
-        if (cancelled) return
-
-        const page = await pdf.getPage(pageNumber)
-        if (cancelled) return
-
-        // Render at 2x scale for crisp thumbnails
-        const scale = 2
-        const viewport = page.getViewport({ scale })
-
-        // Create offscreen canvas for the full page
-        const offscreen = document.createElement('canvas')
-        offscreen.width = viewport.width
-        offscreen.height = viewport.height
-        const offCtx = offscreen.getContext('2d')
-        if (!offCtx) { setStatus('error'); return }
-
-        await page.render({ canvasContext: offCtx, viewport }).promise
-        if (cancelled) return
-
-        // Now crop the relevant region
-        const srcX = Math.round(crop.x * viewport.width)
-        const srcY = Math.round(crop.y * viewport.height)
-        const srcW = Math.round(crop.width * viewport.width)
-        const srcH = Math.round(crop.height * viewport.height)
-
-        const canvas = canvasRef.current
-        if (!canvas) return
-
-        // Set canvas to match the crop dimensions
-        canvas.width = srcW
-        canvas.height = srcH
-        const ctx = canvas.getContext('2d')
-        if (!ctx) { setStatus('error'); return }
-
-        ctx.drawImage(offscreen, srcX, srcY, srcW, srcH, 0, 0, srcW, srcH)
-        setStatus('ready')
-      } catch {
-        if (!cancelled) setStatus('error')
-      }
-    }
-
-    render()
-    return () => { cancelled = true }
-  }, [pdfPath, pageNumber, crop.x, crop.y, crop.width, crop.height])
+  if (!imagePath || errored) {
+    // Fallback: show value as styled text
+    return (
+      <div className={`relative overflow-hidden rounded border border-border bg-white ${className}`} title={displayValue} style={{ height: '2.5rem' }}>
+        <div className="flex h-full w-full items-center justify-center bg-muted/20 px-1.5">
+          <span className="truncate font-mono text-[0.625rem] font-semibold text-foreground">{displayValue}</span>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className={`relative overflow-hidden rounded border border-border bg-white ${className}`} title={displayValue} style={{ height: '2.5rem' }}>
-      {status === 'loading' && (
+      {!loaded && (
         <div className="flex h-full w-full items-center justify-center">
           <div className="h-3 w-3 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground" />
         </div>
       )}
-      {status === 'error' && (
-        <div className="flex h-full w-full items-center justify-center bg-muted/30">
-          <span className="font-mono text-[0.5625rem] font-semibold text-foreground">{displayValue}</span>
-        </div>
-      )}
-      <canvas
-        ref={canvasRef}
-        className="h-full w-full"
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={imagePath}
+        alt={displayValue}
+        onLoad={() => setLoaded(true)}
+        onError={() => setErrored(true)}
         style={{
-          display: status === 'ready' ? 'block' : 'none',
+          display: loaded ? 'block' : 'none',
+          width: `${scale * 100}%`,
+          height: `${scale * 100}%`,
           objectFit: 'cover',
+          objectPosition: `${posX}% ${posY}%`,
+          maxWidth: 'none',
         }}
       />
       {/* Value overlay */}
