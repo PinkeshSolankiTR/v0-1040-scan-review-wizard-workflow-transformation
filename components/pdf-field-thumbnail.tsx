@@ -20,8 +20,8 @@ interface PdfFieldThumbnailProps {
 
 /**
  * Renders a cropped region of a document page as a field-level thumbnail.
- * Shows the extracted text value below. On hover, the thumbnail enlarges
- * in a floating popover for easier inspection.
+ * Shows only the extracted field value (e.g. payer name, SSN, dollar amount).
+ * On hover, enlarges into a floating popover for inspection.
  */
 export function PdfFieldThumbnail({
   crop,
@@ -47,21 +47,19 @@ export function PdfFieldThumbnail({
     if (hovered && cellRef.current) {
       const rect = cellRef.current.getBoundingClientRect()
       const spaceAbove = rect.top
-      setPopoverPos(spaceAbove > 200 ? 'above' : 'below')
+      setPopoverPos(spaceAbove > 220 ? 'above' : 'below')
     }
   }, [hovered])
 
   if (!imagePath || errored) {
     return (
-      <div className={`flex flex-col gap-1 ${className}`}>
-        <div className="relative overflow-hidden rounded border border-border bg-muted/30" style={{ height: '2.5rem' }}>
-          <div className="flex h-full w-full items-center justify-center px-1.5">
-            <span className="text-[0.5625rem] text-muted-foreground italic">No preview</span>
-          </div>
+      <div className={`flex flex-col items-center gap-0.5 ${className}`}>
+        <div
+          className="flex w-full items-center justify-center rounded border border-border bg-muted/20 px-2"
+          style={{ height: '2rem' }}
+        >
+          <span className="truncate text-[0.6875rem] font-semibold text-foreground">{displayValue}</span>
         </div>
-        <span className="truncate font-mono text-[0.625rem] font-semibold text-foreground" title={displayValue}>
-          {displayValue}
-        </span>
       </div>
     )
   }
@@ -69,14 +67,14 @@ export function PdfFieldThumbnail({
   return (
     <div
       ref={cellRef}
-      className={`group relative flex flex-col gap-1 ${className}`}
+      className={`group relative ${className}`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {/* Thumbnail */}
+      {/* Thumbnail -- cropped image region */}
       <div
-        className="relative overflow-hidden rounded border border-border bg-white cursor-pointer transition-shadow group-hover:shadow-md group-hover:border-primary/40"
-        style={{ height: '2.5rem' }}
+        className="relative overflow-hidden rounded border border-border bg-white cursor-pointer transition-all group-hover:shadow-md group-hover:border-primary/50"
+        style={{ height: '2.25rem' }}
       >
         {!loaded && (
           <div className="flex h-full w-full items-center justify-center">
@@ -89,6 +87,7 @@ export function PdfFieldThumbnail({
           alt={displayValue}
           onLoad={() => setLoaded(true)}
           onError={() => setErrored(true)}
+          className="absolute inset-0"
           style={{
             display: loaded ? 'block' : 'none',
             width: `${scale * 100}%`,
@@ -100,9 +99,9 @@ export function PdfFieldThumbnail({
         />
       </div>
 
-      {/* Data value text below thumbnail */}
+      {/* Extracted value shown below thumbnail */}
       <span
-        className="truncate font-mono text-[0.625rem] font-semibold text-foreground leading-tight"
+        className="mt-0.5 block truncate font-mono text-[0.625rem] font-semibold leading-tight text-foreground"
         title={displayValue}
       >
         {displayValue}
@@ -111,18 +110,20 @@ export function PdfFieldThumbnail({
       {/* Hover popover -- enlarged preview */}
       {hovered && loaded && (
         <div
-          className="absolute left-1/2 z-50 w-[18rem] -translate-x-1/2 rounded-lg border border-border bg-card shadow-xl animate-in fade-in-0 zoom-in-95 duration-150"
+          className="absolute left-1/2 z-50 w-[20rem] -translate-x-1/2 overflow-hidden rounded-lg border border-border bg-card shadow-xl animate-in fade-in-0 zoom-in-95 duration-150"
           style={{
             ...(popoverPos === 'above'
               ? { bottom: 'calc(100% + 0.5rem)' }
               : { top: 'calc(100% + 0.5rem)' }),
           }}
         >
-          <div className="overflow-hidden rounded-t-lg bg-white" style={{ height: '10rem' }}>
+          {/* Enlarged cropped image */}
+          <div className="relative overflow-hidden bg-white" style={{ height: '8rem' }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={imagePath}
               alt={displayValue}
+              className="absolute inset-0"
               style={{
                 width: `${scale * 100}%`,
                 height: `${scale * 100}%`,
@@ -132,8 +133,9 @@ export function PdfFieldThumbnail({
               }}
             />
           </div>
-          <div className="border-t border-border px-3 py-1.5">
-            <span className="font-mono text-xs font-semibold text-foreground">{displayValue}</span>
+          {/* Value label inside popover */}
+          <div className="border-t border-border bg-muted/30 px-3 py-1.5">
+            <span className="font-mono text-xs font-bold text-foreground">{displayValue}</span>
           </div>
         </div>
       )}
