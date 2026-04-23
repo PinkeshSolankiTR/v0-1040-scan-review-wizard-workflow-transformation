@@ -703,95 +703,115 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
       {/* ═══════════════════════════════════════════════════════════
           WIZARD PIPELINE STEPPER BAR
           ═══════════════════════════════════════════════════════════ */}
-      <div className="flex shrink-0 items-center gap-0 border-b border-border bg-card px-4" style={{ height: '2.5rem' }}>
-        {wizardSteps.map((step, idx) => {
-          const isActive = activeWizard === step.id
-          const isCompleted = step.completed
-          const hasItems = step.count > 0
-          const isEnabled = step.enabled
-          const isLast = idx === wizardSteps.length - 1
+      <div
+        className="flex shrink-0 items-center border-b px-5"
+        style={{
+          height: '2.75rem',
+          backgroundColor: 'var(--muted)',
+          borderColor: 'var(--border)',
+        }}
+      >
+        <div className="flex items-center gap-1">
+          {wizardSteps.map((step, idx) => {
+            const isActive = activeWizard === step.id
+            const isCompleted = step.completed
+            const hasItems = step.count > 0
+            const isEnabled = step.enabled
+            const isLast = idx === wizardSteps.length - 1
 
-          return (
-            <div key={step.id} className="flex items-center">
-              <button
-                type="button"
-                disabled={!isEnabled && !isCompleted}
-                onClick={() => { if (isEnabled || isCompleted) setActiveWizard(step.id) }}
-                className={`group relative flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-semibold transition-all ${
-                  isActive
-                    ? 'text-foreground'
-                    : isCompleted
-                      ? 'text-muted-foreground hover:text-foreground'
-                      : isEnabled
-                        ? 'text-muted-foreground hover:text-foreground'
-                        : 'cursor-not-allowed text-muted-foreground/40'
-                }`}
-              >
-                {/* Step indicator */}
-                <span
-                  className="flex h-5 w-5 items-center justify-center rounded-full text-[0.5625rem] font-bold transition-all"
+            return (
+              <div key={step.id} className="flex items-center">
+                <button
+                  type="button"
+                  disabled={!isEnabled && !isCompleted}
+                  onClick={() => { if (isEnabled || isCompleted) setActiveWizard(step.id) }}
+                  className="group relative flex items-center gap-2 rounded-md px-3 py-1.5 transition-all"
                   style={{
-                    backgroundColor: isActive
-                      ? 'var(--primary)'
-                      : isCompleted
-                        ? 'var(--status-success)'
-                        : isEnabled && hasItems
-                          ? 'var(--muted)'
-                          : 'var(--muted)',
-                    color: isActive || isCompleted ? 'var(--primary-foreground)' : 'var(--muted-foreground)',
+                    backgroundColor: isActive ? 'var(--card)' : 'transparent',
+                    boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                    cursor: !isEnabled && !isCompleted ? 'not-allowed' : 'pointer',
+                    opacity: !isEnabled && !isCompleted ? 0.45 : 1,
                   }}
                 >
-                  {isCompleted ? <Check className="h-3 w-3" /> : idx + 1}
-                </span>
-
-                {/* Label */}
-                <span>{step.label}</span>
-
-                {/* Count badge */}
-                {hasItems && !isCompleted && (
+                  {/* Step indicator circle */}
                   <span
-                    className="rounded-full px-1.5 py-0.5 font-mono text-[0.5625rem] font-bold leading-none"
+                    className="flex h-[1.25rem] w-[1.25rem] items-center justify-center rounded-full text-[0.5625rem] font-bold"
                     style={{
-                      backgroundColor: isActive ? 'color-mix(in srgb, var(--primary) 15%, transparent)' : 'var(--muted)',
-                      color: isActive ? 'var(--primary)' : 'var(--muted-foreground)',
+                      backgroundColor: isActive
+                        ? 'var(--primary)'
+                        : isCompleted
+                          ? 'var(--status-success)'
+                          : 'var(--border)',
+                      color: isActive || isCompleted ? '#fff' : 'var(--muted-foreground)',
                     }}
                   >
-                    {step.count}
+                    {isCompleted ? <Check className="h-3 w-3" /> : idx + 1}
                   </span>
-                )}
 
-                {/* N/A label for empty wizard */}
-                {!hasItems && !isCompleted && isEnabled && (
-                  <span className="text-[0.5625rem] font-normal text-muted-foreground/60">N/A</span>
-                )}
+                  {/* Label */}
+                  <span
+                    className="text-xs font-semibold"
+                    style={{ color: isActive ? 'var(--foreground)' : 'var(--muted-foreground)' }}
+                  >
+                    {step.label}
+                  </span>
 
-                {/* Pending label when not yet enabled */}
-                {!isEnabled && !isCompleted && (
-                  <span className="text-[0.5625rem] font-normal italic text-muted-foreground/40">Pending</span>
-                )}
+                  {/* Count badge */}
+                  {hasItems && !isCompleted && (
+                    <span
+                      className="rounded-full px-1.5 py-0.5 font-mono text-[0.5625rem] font-bold leading-none"
+                      style={{
+                        backgroundColor: isActive ? 'color-mix(in srgb, var(--primary) 15%, transparent)' : 'var(--card)',
+                        color: isActive ? 'var(--primary)' : 'var(--muted-foreground)',
+                        border: isActive ? 'none' : '1px solid var(--border)',
+                      }}
+                    >
+                      {step.count}
+                    </span>
+                  )}
 
-                {/* Active underline */}
-                {isActive && (
-                  <span className="absolute inset-x-2 -bottom-[0.5625rem] h-0.5 rounded-full bg-primary" />
-                )}
-              </button>
+                  {/* N/A for empty but enabled wizard */}
+                  {!hasItems && !isCompleted && isEnabled && (
+                    <span className="text-[0.5625rem] font-normal" style={{ color: 'var(--muted-foreground)' }}>N/A</span>
+                  )}
 
-              {/* Connector line */}
-              {!isLast && (
-                <div className="mx-0.5 flex items-center">
-                  <div
-                    className="h-px w-6 transition-colors"
-                    style={{ backgroundColor: isCompleted ? 'var(--status-success)' : 'var(--border)' }}
-                  />
-                  <ChevronRight
-                    className="h-3 w-3"
-                    style={{ color: isCompleted ? 'var(--status-success)' : 'var(--muted-foreground)', opacity: 0.5 }}
-                  />
-                </div>
-              )}
-            </div>
-          )
-        })}
+                  {/* Pending label when not yet enabled */}
+                  {!isEnabled && !isCompleted && (
+                    <span className="text-[0.5625rem] font-normal italic" style={{ color: 'var(--muted-foreground)' }}>Pending</span>
+                  )}
+
+                  {/* Active indicator underline */}
+                  {isActive && (
+                    <span
+                      className="absolute inset-x-1 rounded-full"
+                      style={{ bottom: '-0.375rem', height: '2px', backgroundColor: 'var(--primary)' }}
+                    />
+                  )}
+                </button>
+
+                {/* Connector between steps */}
+                {!isLast && (
+                  <div className="mx-1 flex items-center">
+                    <div
+                      className="w-5"
+                      style={{
+                        height: '1px',
+                        backgroundColor: isCompleted ? 'var(--status-success)' : 'var(--border)',
+                      }}
+                    />
+                    <ChevronRight
+                      className="h-3.5 w-3.5"
+                      style={{
+                        color: isCompleted ? 'var(--status-success)' : 'var(--muted-foreground)',
+                        opacity: 0.6,
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
       </div>
 
       {/* ═══════════════════════════════════════════════════════════
