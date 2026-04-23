@@ -71,10 +71,10 @@ export function PdfFieldThumbnail({
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {/* Thumbnail -- cropped image region */}
+      {/* Thumbnail -- cropped image region with value overlay */}
       <div
         className="relative overflow-hidden rounded border border-border bg-white cursor-pointer transition-all group-hover:shadow-md group-hover:border-primary/50"
-        style={{ height: '2.25rem' }}
+        style={{ height: '2.5rem' }}
       >
         {!loaded && (
           <div className="flex h-full w-full items-center justify-center">
@@ -97,15 +97,19 @@ export function PdfFieldThumbnail({
             maxWidth: 'none',
           }}
         />
+        {/* Value overlay inside thumbnail */}
+        {loaded && (
+          <div className="absolute inset-x-0 bottom-0 flex items-center justify-center px-1 py-px" style={{ backgroundColor: 'rgba(255,255,255,0.88)' }}>
+            <span
+              className="truncate font-mono text-[0.5625rem] font-bold leading-tight"
+              style={{ color: 'var(--foreground)' }}
+              title={displayValue}
+            >
+              {displayValue}
+            </span>
+          </div>
+        )}
       </div>
-
-      {/* Extracted value shown below thumbnail */}
-      <span
-        className="mt-0.5 block truncate font-mono text-[0.625rem] font-semibold leading-tight text-foreground"
-        title={displayValue}
-      >
-        {displayValue}
-      </span>
 
       {/* Hover popover -- enlarged preview */}
       {hovered && loaded && (
