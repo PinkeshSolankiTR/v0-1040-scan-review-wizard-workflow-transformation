@@ -120,16 +120,21 @@ async function fetchWorkItemsBatch(
 export async function GET() {
   try {
     const auth = getAuthHeader()
+    const queryUrl = adoApiUrl(`wit/wiql/${QUERY_ID}`)
+    console.log('[v0] ADO_ORG env:', process.env.ADO_ORG ? `"${process.env.ADO_ORG.substring(0, 10)}..."` : 'NOT SET')
+    console.log('[v0] ADO_PAT env:', process.env.ADO_PAT ? `SET (length: ${process.env.ADO_PAT.length})` : 'NOT SET')
+    console.log('[v0] Resolved ORG for URL:', ADO_ORG)
+    console.log('[v0] Query URL:', queryUrl)
 
     /* 1. Execute the saved query */
-    const queryResp = await fetch(adoApiUrl(`wit/wiql/${QUERY_ID}`), {
+    const queryResp = await fetch(queryUrl, {
       headers: { Authorization: auth, 'Content-Type': 'application/json' },
     })
     if (!queryResp.ok) {
       const text = await queryResp.text()
-      console.error('[ADO] Query failed:', queryResp.status, text)
+      console.error('[v0] ADO Query failed:', queryResp.status, text.substring(0, 500))
       return NextResponse.json(
-        { error: `ADO query failed (${queryResp.status})`, details: text },
+        { error: `ADO query failed (${queryResp.status})`, details: text.substring(0, 500) },
         { status: queryResp.status === 401 ? 401 : 502 },
       )
     }
