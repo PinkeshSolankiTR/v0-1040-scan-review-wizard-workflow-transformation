@@ -9,7 +9,8 @@ export const runtime = 'nodejs'
 import { NextResponse } from 'next/server'
 
 /* ── ADO config ── */
-const ADO_ORG = process.env.ADO_ORG || 'tr-tax'
+/* If ADO_ORG looks like a PAT (>20 chars), ignore it and use the default org name */
+const ADO_ORG = (process.env.ADO_ORG && process.env.ADO_ORG.length <= 20) ? process.env.ADO_ORG : 'tr-tax'
 const ADO_PROJECT = 'TaxProf'
 const QUERY_ID = '2788c428-8768-429b-8b28-4bcfa0bb26cc'
 const ADO_API_VERSION = '7.1'
@@ -120,21 +121,16 @@ async function fetchWorkItemsBatch(
 export async function GET() {
   try {
     const auth = getAuthHeader()
-    const queryUrl = adoApiUrl(`wit/wiql/${QUERY_ID}`)
-    console.log('[v0] ADO_ORG env:', process.env.ADO_ORG ? `"${process.env.ADO_ORG.substring(0, 10)}..."` : 'NOT SET')
-    console.log('[v0] ADO_PAT env:', process.env.ADO_PAT ? `SET (length: ${process.env.ADO_PAT.length})` : 'NOT SET')
-    console.log('[v0] Resolved ORG for URL:', ADO_ORG)
-    console.log('[v0] Query URL:', queryUrl)
 
     /* 1. Execute the saved query */
-    const queryResp = await fetch(queryUrl, {
+    const queryResp = await fetch(adoApiUrl(`wit/wiql/${QUERY_ID}`), {
       headers: { Authorization: auth, 'Content-Type': 'application/json' },
     })
     if (!queryResp.ok) {
       const text = await queryResp.text()
-      console.error('[v0] ADO Query failed:', queryResp.status, text.substring(0, 500))
+      console.error('[ADO] Query failed:', queryResp.status)
       return NextResponse.json(
-        { error: `ADO query failed (${queryResp.status})`, details: text.substring(0, 500) },
+        { error: `ADO query failed (${queryResp.status})` },
         { status: queryResp.status === 401 ? 401 : 502 },
       )
     }
