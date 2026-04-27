@@ -9,7 +9,8 @@ export const runtime = 'nodejs'
 import { NextResponse } from 'next/server'
 
 /* ── ADO config ── */
-const ADO_ORG = process.env.ADO_ORG || 'tr-tax'
+/* If ADO_ORG looks like a PAT (>20 chars), ignore it and use the default org name */
+const ADO_ORG = (process.env.ADO_ORG && process.env.ADO_ORG.length <= 20) ? process.env.ADO_ORG : 'tr-tax'
 const ADO_PROJECT = 'TaxProf'
 const QUERY_ID = '2788c428-8768-429b-8b28-4bcfa0bb26cc'
 const ADO_API_VERSION = '7.1'
@@ -28,6 +29,7 @@ export interface AdoWorkItemFlat {
   url: string
   parentId: number | null
   childIds: number[]
+  targetDate: string | null
 }
 
 export interface AdoQueryResponse {
@@ -127,9 +129,9 @@ export async function GET() {
     })
     if (!queryResp.ok) {
       const text = await queryResp.text()
-      console.error('[ADO] Query failed:', queryResp.status, text)
+      console.error('[ADO] Query failed:', queryResp.status)
       return NextResponse.json(
-        { error: `ADO query failed (${queryResp.status})`, details: text },
+        { error: `ADO query failed (${queryResp.status})` },
         { status: queryResp.status === 401 ? 401 : 502 },
       )
     }
@@ -174,6 +176,7 @@ export async function GET() {
       'System.Tags',
       'System.IterationPath',
       'System.AreaPath',
+      'Microsoft.VSTS.Scheduling.TargetDate',
     ]
     const workItemFields = await fetchWorkItemsBatch(allIds, fields, auth)
 
@@ -195,6 +198,7 @@ export async function GET() {
         url: workItemWebUrl(id),
         parentId: parentOf.get(id) ?? null,
         childIds: childrenOf.get(id) ?? [],
+        targetDate: extractStr(f, 'Microsoft.VSTS.Scheduling.TargetDate') || null,
       })
     }
 
