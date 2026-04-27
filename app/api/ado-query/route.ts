@@ -29,6 +29,7 @@ export interface AdoWorkItemFlat {
   url: string
   parentId: number | null
   childIds: number[]
+  targetDate: string | null
 }
 
 export interface AdoQueryResponse {
@@ -175,6 +176,7 @@ export async function GET() {
       'System.Tags',
       'System.IterationPath',
       'System.AreaPath',
+      'Microsoft.VSTS.Scheduling.TargetDate',
     ]
     const workItemFields = await fetchWorkItemsBatch(allIds, fields, auth)
 
@@ -196,6 +198,7 @@ export async function GET() {
         url: workItemWebUrl(id),
         parentId: parentOf.get(id) ?? null,
         childIds: childrenOf.get(id) ?? [],
+        targetDate: extractStr(f, 'Microsoft.VSTS.Scheduling.TargetDate') || null,
       })
     }
 

@@ -427,9 +427,21 @@ function CollapsibleSection({ icon: Icon, title, subtitle, badge, defaultOpen = 
 /* ──────────────────────────────────────────────
    PO Dashboard: Feature progress row (expandable)
    ────────────────────────────────────────────── */
+type DeliveryHealth = 'on-track' | 'needs-attention' | 'delayed' | 'done' | 'no-date'
+
+const HEALTH_CONFIG: Record<DeliveryHealth, { label: string; color: string; bg: string; tooltip: string }> = {
+  'done':            { label: 'Done',            color: 'oklch(0.4 0.16 145)',  bg: 'oklch(0.94 0.04 145)',  tooltip: 'All child items are completed.' },
+  'on-track':        { label: 'On Track',        color: 'oklch(0.4 0.14 240)',  bg: 'oklch(0.94 0.04 240)',  tooltip: 'Progress is on pace to meet the target release date.' },
+  'needs-attention': { label: 'Needs Attention', color: 'oklch(0.45 0.16 60)',  bg: 'oklch(0.94 0.04 60)',   tooltip: 'Target date is approaching but significant work remains. Review scope or add capacity.' },
+  'delayed':         { label: 'Delayed',         color: 'oklch(0.45 0.18 25)',  bg: 'oklch(0.94 0.04 25)',   tooltip: 'Target date has passed or projected completion exceeds the deadline. Escalation recommended.' },
+  'no-date':         { label: 'No Date',         color: 'oklch(0.55 0.01 260)', bg: 'oklch(0.95 0.005 260)', tooltip: 'No target release date set for this feature in Azure DevOps.' },
+}
+
 type FeatureProgressItem = {
   id: number; title: string; state: string; url: string; assignedTo: string | null
   total: number; done: number; active: number; remaining: number
+  targetDate: string | null
+  deliveryHealth: DeliveryHealth
   byType: { type: string; total: number; done: number; active: number }[]
   children: AdoWorkItemFlat[]
 }
@@ -438,6 +450,17 @@ function FeatureRow({ feature, idx }: { feature: FeatureProgressItem; idx: numbe
   const [expanded, setExpanded] = useState(false)
   const pct = feature.total > 0 ? Math.round((feature.done / feature.total) * 100) : 0
   const barColor = pct === 100 ? 'oklch(0.5 0.18 145)' : feature.active > 0 ? 'oklch(0.55 0.18 240)' : 'oklch(0.7 0.01 260)'
+  const health = HEALTH_CONFIG[feature.deliveryHealth]
+
+  // Format target date
+  const formattedDate = feature.targetDate
+    ? new Date(feature.targetDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    : '--'
+
+  // Days until target
+  const daysUntil = feature.targetDate
+    ? Math.ceil((new Date(feature.targetDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+    : null
 
   return (
     <>
@@ -462,6 +485,27 @@ function FeatureRow({ feature, idx }: { feature: FeatureProgressItem; idx: numbe
             {feature.state}
           </span>
         </td>
+        {/* Target Date */}
+        <td className="text-center px-2 py-2.5 border-b border-border">
+          <div className="flex flex-col items-center gap-0.5">
+            <span className="text-[0.6875rem] font-mono text-foreground">{formattedDate}</span>
+            {daysUntil !== null && !isDone(feature.state) && (
+              <span className="text-[0.5rem] font-mono" style={{ color: daysUntil < 0 ? 'oklch(0.45 0.18 25)' : daysUntil <= 14 ? 'oklch(0.45 0.16 60)' : 'oklch(0.55 0.01 260)' }}>
+                {daysUntil < 0 ? `${Math.abs(daysUntil)}d overdue` : `${daysUntil}d left`}
+              </span>
+            )}
+          </div>
+        </td>
+        {/* Health */}
+        <td className="text-center px-2 py-2.5 border-b border-border">
+          <span
+            className="inline-flex items-center rounded-sm px-1.5 py-0.5 text-[0.5rem] font-semibold cursor-help"
+            style={{ backgroundColor: health.bg, color: health.color }}
+            title={health.tooltip}
+          >
+            {health.label}
+          </span>
+        </td>
         <td className="text-center px-2 py-2.5 border-b border-border text-[0.6875rem] font-mono text-foreground">{feature.total}</td>
         <td className="text-center px-2 py-2.5 border-b border-border text-[0.6875rem] font-mono" style={{ color: 'oklch(0.4 0.16 145)' }}>{feature.done}</td>
         <td className="text-center px-2 py-2.5 border-b border-border text-[0.6875rem] font-mono" style={{ color: 'oklch(0.4 0.14 240)' }}>{feature.active}</td>
@@ -478,7 +522,7 @@ function FeatureRow({ feature, idx }: { feature: FeatureProgressItem; idx: numbe
       {/* Expanded: show child items grouped by type */}
       {expanded && (
         <tr>
-          <td colSpan={7} className="px-0 py-0 border-b border-border" style={{ backgroundColor: 'oklch(0.98 0.003 260)' }}>
+          <td colSpan={9} className="px-0 py-0 border-b border-border" style={{ backgroundColor: 'oklch(0.98 0.003 260)' }}>
             <div className="px-6 py-3">
               {/* Type breakdown chips */}
               <div className="flex items-center gap-2 mb-2.5">
@@ -695,6 +739,31 @@ export default function DeliveryRoadmapPage() {
         byType.set(c.workItemType, entry)
       }
 
+      // Compute delivery health based on target date
+      const targetDate = f.targetDate ?? null
+      let deliveryHealth: DeliveryHealth = 'no-date'
+      if (isDone(f.state) || (total > 0 && done === total)) {
+        deliveryHealth = 'done'
+      } else if (targetDate) {
+        const target = new Date(targetDate)
+        const now = new Date()
+        const daysUntilTarget = Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+        const pctDone = total > 0 ? done / total : 0
+
+        if (daysUntilTarget < 0) {
+          // Target date has passed
+          deliveryHealth = 'delayed'
+        } else if (daysUntilTarget <= 21 && pctDone < 0.7) {
+          // Less than 3 weeks left and less than 70% done
+          deliveryHealth = 'needs-attention'
+        } else if (daysUntilTarget <= 14 && pctDone < 0.9) {
+          // Less than 2 weeks left and less than 90% done
+          deliveryHealth = 'delayed'
+        } else {
+          deliveryHealth = 'on-track'
+        }
+      }
+
       return {
         id: f.id,
         title: f.title,
@@ -705,6 +774,8 @@ export default function DeliveryRoadmapPage() {
         done,
         active,
         remaining,
+        targetDate,
+        deliveryHealth,
         byType: Array.from(byType.entries()).map(([type, counts]) => ({ type, ...counts })),
         children,
       }
@@ -1323,13 +1394,15 @@ export default function DeliveryRoadmapPage() {
                         <table className="w-full text-[0.6875rem]">
                           <thead>
                             <tr style={{ backgroundColor: 'oklch(0.97 0.005 260)' }}>
-                              <th className="text-left px-3 py-2.5 font-semibold text-foreground border-b border-border" style={{ minWidth: '16rem' }}>Feature</th>
+                              <th className="text-left px-3 py-2.5 font-semibold text-foreground border-b border-border" style={{ minWidth: '14rem' }}>Feature</th>
                               <th className="text-center px-2 py-2.5 font-semibold text-muted-foreground border-b border-border" style={{ width: '4.5rem' }}>State</th>
+                              <th className="text-center px-2 py-2.5 font-semibold text-muted-foreground border-b border-border" style={{ width: '6rem' }}>Target Date</th>
+                              <th className="text-center px-2 py-2.5 font-semibold text-muted-foreground border-b border-border" style={{ width: '6rem' }}>Health</th>
                               <th className="text-center px-2 py-2.5 font-semibold text-muted-foreground border-b border-border" style={{ width: '3.5rem' }}>Total</th>
                               <th className="text-center px-2 py-2.5 font-semibold text-muted-foreground border-b border-border" style={{ width: '3.5rem' }}>Done</th>
                               <th className="text-center px-2 py-2.5 font-semibold text-muted-foreground border-b border-border" style={{ width: '3.5rem' }}>Active</th>
                               <th className="text-center px-2 py-2.5 font-semibold text-muted-foreground border-b border-border" style={{ width: '4rem' }}>Remaining</th>
-                              <th className="text-left px-3 py-2.5 font-semibold text-muted-foreground border-b border-border" style={{ minWidth: '8rem' }}>Progress</th>
+                              <th className="text-left px-3 py-2.5 font-semibold text-muted-foreground border-b border-border" style={{ minWidth: '7rem' }}>Progress</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -1340,7 +1413,7 @@ export default function DeliveryRoadmapPage() {
                         </table>
                       </div>
                       {/* Summary footer */}
-                      <div className="flex items-center gap-6 px-3 py-2 border-t border-border text-[0.5625rem]" style={{ backgroundColor: 'oklch(0.97 0.005 260)' }}>
+                      <div className="flex flex-wrap items-center gap-x-6 gap-y-1 px-3 py-2 border-t border-border text-[0.5625rem]" style={{ backgroundColor: 'oklch(0.97 0.005 260)' }}>
                         <span className="font-semibold text-foreground">
                           {dashboardData.featureProgress.length} Features
                         </span>
@@ -1356,6 +1429,19 @@ export default function DeliveryRoadmapPage() {
                         <span className="text-muted-foreground">
                           {dashboardData.featureProgress.reduce((s, f) => s + f.remaining, 0)} remaining
                         </span>
+                        {/* Health distribution */}
+                        <span className="border-l border-border pl-4 ml-2" />
+                        {(['on-track', 'needs-attention', 'delayed', 'done', 'no-date'] as DeliveryHealth[]).map(h => {
+                          const count = dashboardData.featureProgress.filter(f => f.deliveryHealth === h).length
+                          if (count === 0) return null
+                          const cfg = HEALTH_CONFIG[h]
+                          return (
+                            <span key={h} className="inline-flex items-center gap-1" title={cfg.tooltip}>
+                              <span className="inline-block size-1.5 rounded-full" style={{ backgroundColor: cfg.color }} />
+                              <span style={{ color: cfg.color }}>{count} {cfg.label}</span>
+                            </span>
+                          )
+                        })}
                       </div>
                     </div>
                   </CollapsibleSection>
