@@ -1235,9 +1235,6 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                           </div>
                         )
                       })()}
-                    </div>
-
-                    {/* Classifications and disagree sections removed -- now handled via sidebar checkboxes */}
                   </div>
                 )
               })()}
