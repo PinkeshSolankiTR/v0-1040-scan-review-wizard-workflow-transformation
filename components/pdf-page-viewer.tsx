@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import type { DocumentRef } from '@/lib/types'
 
-type StampType = 'ORIGINAL' | 'SUPERSEDED'
+type StampType = 'SUPERSEDED'
 
 interface PdfPageViewerProps {
   documentRef: DocumentRef
@@ -22,11 +22,9 @@ export function PdfPageViewer({ documentRef, stamp, height = '32rem' }: PdfPageV
   const [imgLoaded, setImgLoaded] = useState(false)
 
   const stampColor =
-    stamp === 'ORIGINAL'
-      ? { bg: 'var(--status-success-subtle)', fg: 'var(--status-success)', border: 'var(--status-success-border)' }
-      : stamp === 'SUPERSEDED'
-        ? { bg: 'var(--status-error-subtle)', fg: 'var(--status-error)', border: 'var(--status-error-border)' }
-        : null
+    stamp === 'SUPERSEDED'
+      ? { bg: 'var(--status-error-subtle)', fg: 'var(--status-error)', border: 'var(--status-error-border)' }
+      : null
 
   return (
     <figure

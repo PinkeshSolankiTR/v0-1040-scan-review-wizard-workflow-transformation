@@ -19,7 +19,7 @@ import {
   FileText,
   Sparkles,
   Check,
-  Undo2,
+
   AlertTriangle,
   ArrowRight,
   ArrowLeftRight,
@@ -32,7 +32,7 @@ import {
   Eye,
   Info,
   X,
-  CheckCircle,
+
 
 } from 'lucide-react'
 import type { SupersededRecord, OverrideDetail } from '@/lib/types'
@@ -217,8 +217,8 @@ function FieldLevelInsightsSection({
                 const pgNum = r.documentRef?.pageNumber ?? r.engagementPageId
                 const isOrig = r.decisionType === 'Original'
                 const label = r.documentRef?.formLabel
-                  ? r.documentRef.formLabel.replace(formType, '').trim().replace(/^[-()\s]+|[-()\s]+$/g, '') || (isOrig ? 'Original' : 'Superseded')
-                  : isOrig ? 'Original' : 'Superseded'
+          ? r.documentRef.formLabel.replace(formType, '').trim().replace(/^[-()\s]+|[-()\s]+$/g, '') || (isOrig ? 'Retained' : 'Superseded')
+          : isOrig ? 'Retained' : 'Superseded'
                 return (
                   <th key={r.engagementPageId} className="border-l border-border px-2 py-2 text-center font-bold text-muted-foreground" style={{ minWidth: '8.5rem' }}>
                     <div className="flex flex-col items-center gap-0.5">
@@ -757,8 +757,8 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
             else { statusDot = avgConfPct >= 90 ? 'bg-emerald-500' : avgConfPct >= 70 ? 'bg-amber-500' : 'bg-red-500'; statusLabel = 'Pending' }
 
             return (
+              <div key={group.formType}>
               <button
-                key={group.formType}
                 type="button"
                 onClick={() => selectGroup(gIdx)}
                 className={`flex w-full items-start gap-3 border-b border-border/50 px-4 py-3 text-start transition-colors ${
@@ -793,6 +793,56 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                   </span>
                 </div>
               </button>
+
+              {/* Page checkboxes -- shown under the active group */}
+              {isActive && !isThisGroupRejected && (
+                <div className="border-b border-border/50 bg-accent/30 px-4 py-2 space-y-1">
+                  <span className="text-[0.5625rem] font-bold uppercase tracking-wide text-muted-foreground">Pages</span>
+                  {group.records.map(r => {
+                    const pgNum = r.documentRef?.pageNumber ?? r.engagementPageId
+                    const pageId = String(r.engagementPageId)
+                    const pageLabel = r.documentRef?.formLabel?.replace(group.formType, '').replace(/[-()\s]+/g, ' ').trim() || group.formType
+                    const isChecked = docRoles.get(pageId) === 'superseded' || (!docRoles.has(pageId) && r.decisionType === 'Superseded')
+                    return (
+                      <label
+                        key={r.engagementPageId}
+                        className="flex items-center gap-2 rounded px-2 py-1.5 cursor-pointer transition-colors hover:bg-accent/50"
+                        title={isChecked ? 'Checked = Superseded. Uncheck to keep this page.' : 'Unchecked = Not superseded. Check to mark as superseded.'}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => {
+                            e.stopPropagation()
+                            const newRole = isChecked ? 'original' : 'superseded'
+                            setDocRoles(prev => {
+                              const next = new Map(prev)
+                              for (const rec of group.records) {
+                                const rid = String(rec.engagementPageId)
+                                if (!next.has(rid)) next.set(rid, rec.decisionType === 'Original' ? 'original' : 'superseded')
+                              }
+                              next.set(pageId, newRole)
+                              return next
+                            })
+                          }}
+                          className="h-3.5 w-3.5 rounded cursor-pointer"
+                          style={{ accentColor: isChecked ? 'var(--status-error)' : undefined }}
+                        />
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-[0.6875rem] font-semibold text-foreground truncate">Pg {pgNum}</span>
+                          <span className="text-[0.5625rem] text-muted-foreground truncate">{pageLabel}</span>
+                        </div>
+                        {isChecked && (
+                          <span className="ml-auto shrink-0 rounded px-1.5 py-0.5 text-[0.5rem] font-bold" style={{ backgroundColor: 'var(--status-error-subtle)', color: 'var(--status-error)' }}>
+                            Superseded
+                          </span>
+                        )}
+                      </label>
+                    )
+                  })}
+                </div>
+              )}
+              </div>
             )
           })}
         </div>
@@ -847,55 +897,6 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
             )}
             <span className="text-xs text-muted-foreground">{reviewedCount}/{groups.length} reviewed</span>
             <div className="mx-1 h-5 w-px bg-border" />
-            {/* Accept / Undo toggle */}
-            {allGroupAccepted ? (
-              <button
-                type="button"
-                onClick={handleUndoAcceptGroup}
-                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted"
-              >
-                <Undo2 className="h-3.5 w-3.5" /> Undo
-              </button>
-            ) : isGroupRejected ? (
-              <button
-                type="button"
-                onClick={handleUndoRejectAll}
-                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted"
-              >
-                <Undo2 className="h-3.5 w-3.5" /> Undo
-              </button>
-            ) : aiAnalysisData.isGroupOverridden ? (
-              <button
-                type="button"
-                onClick={() => {
-                  handleUndoOverride()
-                  // Also clear any partial rejections from the reclassification table
-                  if (activeGroup) {
-                    setRejectedDocs(prev => {
-                      const next = new Map(prev)
-                      for (const r of activeGroup.records) next.delete(String(r.engagementPageId))
-                      return next
-                    })
-                  }
-                }}
-                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted"
-              >
-                <Undo2 className="h-3.5 w-3.5" /> Undo
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  handleAcceptGroup()
-                  setShowAcceptDropdown(false)
-                  setTimeout(() => { if (selectedGroupIdx < groups.length - 1) selectGroup(selectedGroupIdx + 1) }, 300)
-                }}
-                className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-bold text-white"
-                style={{ backgroundColor: 'var(--status-success)' }}
-              >
-                <Check className="h-3.5 w-3.5" /> Accept
-              </button>
-            )}
             {/* Next */}
             <button
               type="button"
@@ -1010,7 +1011,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                     ))}
                   </div>
                   <div className="overflow-auto p-3">
-                    {rightDoc?.documentRef ? <PdfPageViewer documentRef={rightDoc.documentRef} stamp="ORIGINAL" height="30rem" /> : <div className="flex h-full items-center justify-center text-sm text-muted-foreground">No original document</div>}
+                    {rightDoc?.documentRef ? <PdfPageViewer documentRef={rightDoc.documentRef} height="30rem" /> : <div className="flex h-full items-center justify-center text-sm text-muted-foreground">No original document</div>}
                   </div>
                 </div>
               )}
@@ -1049,7 +1050,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                     <div className="rounded-lg border border-border bg-muted/50 p-4">
                       <span className="block text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2">AI Recommended</span>
                       <div className="flex flex-wrap gap-1.5">
-                        {allRecords.map(r => <span key={r.engagementPageId} className={`rounded px-2 py-0.5 text-xs font-semibold ${r.decisionType === 'Original' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-red-500/10 text-red-600'}`}>Pg {r.documentRef?.pageNumber ?? r.engagementPageId}: {r.decisionType}</span>)}
+                        {allRecords.map(r => <span key={r.engagementPageId} className={`rounded px-2 py-0.5 text-xs font-semibold ${r.decisionType === 'Original' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-red-500/10 text-red-600'}`}>Pg {r.documentRef?.pageNumber ?? r.engagementPageId}: {r.decisionType === 'Original' ? 'Retained' : 'Superseded'}</span>)}
                       </div>
                     </div>
                     <div className="rounded-lg border p-4" style={{ borderColor: 'var(--status-warning-border)', backgroundColor: 'var(--status-warning-subtle)' }}>
@@ -1060,13 +1061,13 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                           const isRej = rejectedPageIds.has(String(r.engagementPageId)); const sd = overrides[`sup-pg${r.engagementPageId}`]; const sDec = sd?.userOverrideDecision
                           let newLabel: string
                           if (isRej || sDec?.includes('Not Superseded')) newLabel = 'Not Sup.'
-                          else if (sDec?.endsWith('= Original')) newLabel = 'Original'
+                          else if (sDec?.endsWith('= Original')) newLabel = 'Retained'
                           else if (sDec?.endsWith('= Superseded')) newLabel = 'Superseded'
-                          else if (overriddenRecord && r.engagementPageId === overriddenRecord.engagementPageId) newLabel = 'Original'
-                          else newLabel = r.decisionType === 'Original' ? 'Original' : 'Superseded'
+                          else if (overriddenRecord && r.engagementPageId === overriddenRecord.engagementPageId) newLabel = 'Retained'
+                          else newLabel = r.decisionType === 'Original' ? 'Retained' : 'Superseded'
                           const isExcluded = newLabel === 'Not Sup.'
-                          const changed = !isExcluded && ((r.decisionType === 'Original' && newLabel === 'Superseded') || (r.decisionType === 'Superseded' && newLabel === 'Original'))
-                          return <span key={r.engagementPageId} className={`rounded px-2 py-0.5 text-xs font-semibold ${isExcluded ? 'bg-muted text-muted-foreground' : newLabel === 'Original' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-red-500/10 text-red-600'}`} style={changed ? { outline: '2px solid var(--status-warning)' } : undefined}>Pg {pgNum}: {newLabel}{changed && ' *'}</span>
+                          const changed = !isExcluded && ((r.decisionType === 'Original' && newLabel === 'Superseded') || (r.decisionType === 'Superseded' && newLabel === 'Retained'))
+                          return <span key={r.engagementPageId} className={`rounded px-2 py-0.5 text-xs font-semibold ${isExcluded ? 'bg-muted text-muted-foreground' : newLabel === 'Retained' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-red-500/10 text-red-600'}`} style={changed ? { outline: '2px solid var(--status-warning)' } : undefined}>Pg {pgNum}: {newLabel}{changed && ' *'}</span>
                         })}
                       </div>
                       {/* Show reasons for each changed/excluded record */}
@@ -1084,7 +1085,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                           } else {
                             const sd = overrides[`sup-pg${r.engagementPageId}`]
                             if (sd && sd.overrideReason && sd.overrideReason !== 'Verifier decision' && sd.userOverrideDecision !== sd.originalAIDecision) {
-                              const dec = sd.userOverrideDecision?.endsWith('= Original') ? 'Original' : 'Superseded'
+                              const dec = sd.userOverrideDecision?.endsWith('= Original') ? 'Retained' : 'Superseded'
                               reasons.push({ pageId: pgNum, label: dec, reason: sd.overrideReason })
                             }
                           }
@@ -1182,73 +1183,10 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                       )
                     })()}
 
-                    {/* ── Toggleable KPI Page Cards ── */}
-                    <div className="space-y-2">
-                      <h3 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Page Classifications</h3>
-                      <div className="flex flex-wrap gap-3">
-                        {activeGroup!.records.map(r => {
-                          const pgNum = r.documentRef?.pageNumber ?? r.engagementPageId
-                          const pageId = String(r.engagementPageId)
-                          const label = r.documentRef?.formLabel?.replace(formType, '').replace(/[-()\s]+/g, ' ').trim() || formType
-                          const currentRole = docRoles.get(pageId)
-                          const isOrig = currentRole === 'original' || (!currentRole && r.decisionType === 'Original')
-                          const aiRole = r.decisionType === 'Original' ? 'original' : 'superseded'
-                          const wasChanged = currentRole && currentRole !== aiRole
-                          const isSelected = selectedKpiPageId === pageId
-                          return (
-                            <div
-                              key={r.engagementPageId}
-                              className={`flex min-w-[8rem] flex-1 flex-col gap-2 rounded-lg border p-3 transition-all cursor-pointer ${isSelected ? 'ring-2 ring-primary/30 shadow-sm' : 'hover:shadow-sm'}`}
-                              style={{ borderColor: isSelected ? 'var(--primary)' : wasChanged ? 'var(--status-warning-border)' : 'var(--border)', backgroundColor: isSelected ? 'var(--accent)' : 'var(--card)' }}
-                              onClick={() => setSelectedKpiPageId(isSelected ? null : pageId)}
-                            >
-                              <div className="flex items-center justify-between">
-                                <span className="text-xs font-bold text-foreground">Pg {pgNum}</span>
-                                {wasChanged && <span className="rounded px-1 py-0.5 text-[0.5rem] font-bold" style={{ backgroundColor: 'var(--status-warning-subtle)', color: 'var(--status-warning)' }}>Changed</span>}
-                              </div>
-                              <span className="truncate text-[0.625rem] text-muted-foreground">{label}</span>
-                              {/* Toggleable classification button */}
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  const newRole = isOrig ? 'superseded' : 'original'
-                                  setDocRoles(prev => {
-                                    const next = new Map(prev)
-                                    // Ensure all records are in the map
-                                    for (const rec of activeGroup!.records) {
-                                      const rid = String(rec.engagementPageId)
-                                      if (!next.has(rid)) next.set(rid, rec.decisionType === 'Original' ? 'original' : 'superseded')
-                                    }
-                                    next.set(pageId, newRole)
-                                    // If setting to original, flip others from original to superseded
-                                    if (newRole === 'original') {
-                                      for (const [otherId, otherRole] of next.entries()) {
-                                        if (otherId !== pageId && otherRole === 'original') next.set(otherId, 'superseded')
-                                      }
-                                    }
-                                    return next
-                                  })
-                                }}
-                                className="group mt-auto inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-[0.625rem] font-bold transition-all"
-                                style={{
-                                  backgroundColor: isOrig ? 'var(--status-success-subtle, rgba(34,197,94,0.1))' : 'var(--status-error-subtle, rgba(239,68,68,0.1))',
-                                  color: isOrig ? 'var(--status-success)' : 'var(--status-error)',
-                                  border: `1px solid ${isOrig ? 'var(--status-success-border, rgba(34,197,94,0.2))' : 'var(--status-error-border, rgba(239,68,68,0.2))'}`,
-                                }}
-                                title={`Click to change to ${isOrig ? 'Superseded' : 'Original'}`}
-                              >
-                                {isOrig ? <CheckCircle className="h-3 w-3" /> : <X className="h-3 w-3" />}
-                                {isOrig ? 'Original' : 'Superseded'}
-                                <ArrowLeftRight className="ml-0.5 h-2.5 w-2.5 opacity-0 transition-opacity group-hover:opacity-60" />
-                              </button>
-                            </div>
-                          )
-                        })}
-                      </div>
+                    {/* Page classifications are now in the left sidebar as checkboxes */}
 
-                      {/* KPI card detail panel -- only visible when a card is selected */}
-                      {selectedKpiPageId && (() => {
+                    {/* Page detail panel -- only visible when a page is selected from sidebar */}
+                    {selectedKpiPageId && (() => {
                         const selectedRecord = activeGroup!.records.find(r => String(r.engagementPageId) === selectedKpiPageId)
                         if (!selectedRecord) return null
                         const pgNum = selectedRecord.documentRef?.pageNumber ?? selectedRecord.engagementPageId
@@ -1299,462 +1237,7 @@ export function VariantEDocCompare({ data }: { data: SupersededRecord[] }) {
                       })()}
                     </div>
 
-                    {/* ── Quick Apply bar for KPI card toggles ── */}
-                    {!allGroupAccepted && !isGroupRejected && (() => {
-                      const kpiChangedRows = activeGroup!.records.filter(r => {
-                        const cur = docRoles.get(String(r.engagementPageId))
-                        const ai = r.decisionType === 'Original' ? 'original' : 'superseded'
-                        return cur && cur !== ai
-                      })
-                      if (kpiChangedRows.length === 0 || disagreeChoice === 'reclassify') return null
-                      const origCount = Array.from(docRoles.values()).filter(v => v === 'original').length
-                      const supCount = Array.from(docRoles.values()).filter(v => v === 'superseded').length
-                      const valError = origCount === 0 ? 'At least one page must be Original.' : supCount === 0 ? 'At least one page must be Superseded.' : null
-                      return (
-                        <div className="flex items-center gap-3 rounded-lg border px-4 py-2.5" style={{ borderColor: 'var(--status-warning-border)', backgroundColor: 'var(--status-warning-subtle)' }}>
-                          <ArrowLeftRight className="h-3.5 w-3.5 shrink-0" style={{ color: 'var(--status-warning)' }} />
-                          <span className="flex-1 text-xs font-semibold text-foreground">
-                            {valError ?? `${kpiChangedRows.length} page${kpiChangedRows.length > 1 ? 's' : ''} reclassified`}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const fresh = new Map<string, 'original' | 'superseded' | 'not-superseded'>()
-                              for (const r of activeGroup!.records) fresh.set(String(r.engagementPageId), r.decisionType === 'Original' ? 'original' : 'superseded')
-                              setDocRoles(fresh)
-                            }}
-                            className="rounded-md border border-border bg-card px-2.5 py-1 text-[0.625rem] font-semibold text-muted-foreground hover:bg-muted"
-                          >
-                            Reset
-                          </button>
-                          <button
-                            type="button"
-                            disabled={!!valError}
-                            onClick={() => {
-                              if (!activeGroup) return
-                              const newOriginalPageId = Array.from(docRoles.entries()).find(([, role]) => role === 'original')?.[0]
-                              const aiOriginalId = String(activeGroup.originalRecord?.engagementPageId)
-                              if (newOriginalPageId && newOriginalPageId !== aiOriginalId) {
-                                const targetIdx = activeGroup.supersededRecords.findIndex(s => String(s.engagementPageId) === newOriginalPageId)
-                                setFlippedGroups(prev => { const next = new Map(prev); if (targetIdx >= 0) next.set(activeGroup.formType, targetIdx); return next })
-                              }
-                              for (const r of activeGroup.records) {
-                                const pid = String(r.engagementPageId)
-                                const docRole = docRoles.get(pid)
-                                const aiRole = r.decisionType === 'Original' ? 'original' : 'superseded'
-                                if (docRole === aiRole && !newOriginalPageId) continue
-                                const key = `sup-pg${r.engagementPageId}`
-                                const newDecision = docRole === 'original' ? 'Original' : 'Superseded'
-                                const detailObj: OverrideDetail = {
-                                  originalAIDecision: `Page ${r.engagementPageId} = ${r.decisionType}`,
-                                  userOverrideDecision: `Page ${r.engagementPageId} = ${newDecision}`,
-                                  overrideReason: 'Verifier decision',
-                                  formType: r.documentRef?.formType ?? 'Unknown',
-                                  fieldContext: r.comparedValues ?? [],
-                                }
-                                override(key, 'superseded', r.confidenceLevel, detailObj)
-                              }
-                              setTimeout(() => { if (selectedGroupIdx < groups.length - 1) selectGroup(selectedGroupIdx + 1) }, 300)
-                            }}
-                            className="rounded-md px-3 py-1 text-[0.625rem] font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
-                            style={{ backgroundColor: valError ? 'var(--muted)' : 'var(--primary)' }}
-                          >
-                            Apply
-                          </button>
-                        </div>
-                      )
-                    })()}
-
-                    {/* ── Disagree trigger + inline options ── */}
-                    {!allGroupAccepted && !isGroupRejected && (() => {
-                      const tableRecords = activeGroup?.records.filter(record => !rejectedPageIds.has(String(record.engagementPageId))) ?? []
-                      // Hide Not Sup. column for 2-doc groups (use the whole-group button instead)
-                      const showNotSupColumn = tableRecords.length > 2
-                      // Compute changed rows
-                      const changedRows = tableRecords.filter(r => {
-                        const cur = docRoles.get(String(r.engagementPageId))
-                        const ai = r.decisionType === 'Original' ? 'original' : 'superseded'
-                        return cur && cur !== ai
-                      })
-                      const _hasAnyChange = changedRows.length > 0
-                      const _origCount = Array.from(docRoles.values()).filter(v => v === 'original').length
-                      const _supCount = Array.from(docRoles.values()).filter(v => v === 'superseded').length
-                      const _hasNotSup = Array.from(docRoles.values()).some(v => v === 'not-superseded')
-                      const _valError = _hasAnyChange ? (_origCount === 0 ? 'At least one document must be Original.' : _supCount === 0 && !_hasNotSup ? 'At least one document must be Superseded.' : null) : null
-                      // Validate: every changed row must have a reason
-                      const _allReasonsSet = changedRows.every(r => {
-                        const rr = rowReasons.get(String(r.engagementPageId))
-                        return rr && (rr.reasonId !== null || rr.customText.trim() !== '')
-                      })
-                      const _canApply = _hasAnyChange && !_valError && _allReasonsSet
-
-                      return (
-                        <>
-                          {/* Single "Disagree" trigger */}
-                          <div className="border-t border-border pt-4">
-                            {!showDisagreeOptions && !disagreeChoice ? (
-                              <button
-                                type="button"
-                                onClick={() => setShowDisagreeOptions(true)}
-                                className="text-xs font-medium text-muted-foreground underline decoration-dotted underline-offset-4 transition-colors hover:text-foreground"
-                              >
-                                Disagree with this recommendation?
-                              </button>
-                            ) : showDisagreeOptions && !disagreeChoice ? (
-                              <div className="space-y-2">
-                                <p className="text-xs font-bold text-foreground">What would you like to change?</p>
-                                <div className="flex gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setDisagreeChoice('reclassify')
-                                      setShowDisagreeOptions(false)
-                                      setShowOverridePanel(true)
-                                    }}
-                                    className="flex flex-1 flex-col gap-0.5 rounded-lg border border-border bg-card p-3 text-left transition-colors hover:border-primary/30 hover:bg-accent/50"
-                                  >
-                                    <span className="text-xs font-bold text-foreground">Change page classifications</span>
-                                    <span className="text-[0.625rem] text-muted-foreground">Reassign which page is Original or Superseded.</span>
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setDisagreeChoice('not-superseded')
-                                      setShowDisagreeOptions(false)
-                                      setShowRejectPanel(true)
-                                      setSelectedRejectReasons(new Set())
-                                      setCustomRejectReason('')
-                                    }}
-                                    className="flex flex-1 flex-col gap-0.5 rounded-lg border border-border bg-card p-3 text-left transition-colors hover:border-red-300 hover:bg-red-500/5"
-                                  >
-                                    <span className="text-xs font-bold" style={{ color: 'var(--status-error)' }}>These are not related</span>
-                                    <span className="text-[0.625rem] text-muted-foreground">Both documents remain as-is in the binder.</span>
-                                  </button>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => setShowDisagreeOptions(false)}
-                                  className="text-[0.625rem] text-muted-foreground underline decoration-dotted underline-offset-2 hover:text-foreground"
-                                >
-                                  Cancel
-                                </button>
-                              </div>
-                            ) : disagreeChoice === 'reclassify' ? (
-                              <div className="flex items-center justify-between">
-                                <p className="text-xs font-bold text-foreground">Reclassify pages</p>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setDisagreeChoice(null)
-                                    setShowOverridePanel(false)
-                                    setShowDisagreeOptions(false)
-                                  }}
-                                  className="text-[0.625rem] text-muted-foreground underline decoration-dotted underline-offset-2 hover:text-foreground"
-                                >
-                                  Cancel
-                                </button>
-                              </div>
-                            ) : null}
-                          </div>
-
-                          {/* Expanded: Classification table */}
-                          {disagreeChoice === 'reclassify' && showOverridePanel && (
-                            <>
-                              <div className="overflow-hidden rounded-lg border border-border">
-                                <table className="w-full text-xs">
-                                  <thead>
-                                    <tr className="border-b border-border bg-muted/50">
-                                      <th className="px-3 py-2 text-left font-bold text-muted-foreground">Page</th>
-                                      <th className="px-3 py-2 text-center font-bold" style={{ color: 'var(--status-success)' }}>Original</th>
-                                      <th className="px-3 py-2 text-center font-bold" style={{ color: 'var(--status-info)' }}>Superseded</th>
-                                      {showNotSupColumn && <th className="px-3 py-2 text-center font-bold text-muted-foreground">Not Sup.</th>}
-                                      <th className="min-w-[10rem] px-3 py-2 text-left font-bold text-muted-foreground">Reason</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {tableRecords.map((record) => {
-                                      const pageId = String(record.engagementPageId)
-                                      const aiRole = record.decisionType === 'Original' ? 'original' : 'superseded'
-                                      const currentRole = docRoles.get(pageId) ?? aiRole
-                                      const isChanged = currentRole !== aiRole
-                                      const radioName = `role-${pageId}`
-                                      const isNotSup = currentRole === 'not-superseded'
-                                      // Per-row reason
-                                      const rowReason = rowReasons.get(pageId)
-                                      const rowReasonId = rowReason?.reasonId ?? null
-                                      const rowCustomText = rowReason?.customText ?? ''
-                                      // Which reason options to show for this row
-                                      const reasonOptions = isNotSup ? REJECTION_REASONS : OVERRIDE_REASONS
-
-                                      return (
-                                        <tr key={pageId} className={`border-b border-border last:border-b-0 transition-colors ${isChanged ? (isNotSup ? 'bg-red-500/5' : 'bg-amber-500/5') : ''}`}>
-                                          <td className="px-3 py-2.5">
-                                            <div className="flex items-center gap-2">
-                                              <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                                              <span className="font-semibold text-foreground">Pg {record.documentRef?.pageNumber ?? record.engagementPageId}</span>
-                                              {!isChanged && <span className="rounded bg-muted px-1.5 py-0.5 text-[0.5625rem] text-muted-foreground">AI</span>}
-                                              {isChanged && !isNotSup && <span className="rounded px-1.5 py-0.5 text-[0.5625rem] font-bold" style={{ backgroundColor: 'var(--status-warning-subtle)', color: 'var(--status-warning)' }}>Changed</span>}
-                                              {isNotSup && <span className="rounded px-1.5 py-0.5 text-[0.5625rem] font-bold" style={{ backgroundColor: 'var(--status-error-subtle)', color: 'var(--status-error)' }}>Excluded</span>}
-                                            </div>
-                                          </td>
-                                          {(['original', 'superseded', ...(showNotSupColumn ? ['not-superseded'] : [])] as const).map(role => (
-                                            <td key={role} className="px-3 py-2.5 text-center">
-                                              <input
-                                                type="radio"
-                                                name={radioName}
-                                                checked={currentRole === role}
-                                                onChange={() => {
-                                                  setDocRoles(prev => {
-                                                    const next = new Map(prev)
-                                                    for (const rec of tableRecords) {
-                                                      const rid = String(rec.engagementPageId)
-                                                      if (!next.has(rid)) { next.set(rid, rec.decisionType === 'Original' ? 'original' : 'superseded') }
-                                                    }
-                                                    next.set(pageId, role)
-                                                    if (role === 'original') {
-                                                      for (const [otherId, otherRole] of next.entries()) {
-                                                        if (otherId !== pageId && otherRole === 'original') {
-                                                          next.set(otherId, 'superseded')
-                                                        }
-                                                      }
-                                                    }
-                                                    return next
-                                                  })
-                                                  // Set per-row reason: blank for Original/Superseded, copy from existing Not Sup row if available
-                                                  setRowReasons(prev => {
-                                                    const next = new Map(prev)
-                                                    if (role === 'not-superseded') {
-                                                      // Copy reason from an existing Not Superseded row if one has a reason set
-                                                      let prefillReason: { reasonId: string | null; customText: string } | null = null
-                                                      for (const [otherId, otherReason] of next.entries()) {
-                                                        if (otherId !== pageId && otherReason.reasonId !== null) {
-                                                          const otherRole = docRoles.get(otherId)
-                                                          if (otherRole === 'not-superseded') { prefillReason = otherReason; break }
-                                                        }
-                                                      }
-                                                      next.set(pageId, prefillReason ? { ...prefillReason } : { reasonId: null, customText: '' })
-                                                    } else {
-                                                      // Original or Superseded: leave blank, user picks first
-                                                      if (!next.has(pageId) || !next.get(pageId)?.reasonId) {
-                                                        next.set(pageId, { reasonId: null, customText: '' })
-                                                      }
-                                                    }
-                                                    return next
-                                                  })
-                                                }}
-                                                className="h-3.5 w-3.5 cursor-pointer"
-                                                style={{ accentColor: role === 'original' ? 'var(--status-success)' : role === 'superseded' ? 'var(--status-info)' : 'var(--muted-foreground)' }}
-                                              />
-                                            </td>
-                                          ))}
-                                          <td className="px-3 py-2.5">
-                                            {isChanged ? (
-                                              <div className="flex flex-col gap-1">
-                                                <select
-                                                  value={rowReasonId ?? ''}
-                                                  onChange={(e) => {
-                                                    const v = e.target.value
-                                                    const newEntry = v === 'custom'
-                                                      ? { reasonId: 'custom' as const, customText: rowCustomText }
-                                                      : v ? { reasonId: v, customText: '' } : { reasonId: null, customText: '' }
-                                                    setRowReasons(prev => {
-                                                      const next = new Map(prev)
-                                                      next.set(pageId, newEntry)
-                                                      // Auto-fill other changed rows of the same category that have no reason yet
-                                                      if (v && v !== 'custom') {
-                                                        const thisRole = docRoles.get(pageId)
-                                                        const thisIsNotSup = thisRole === 'not-superseded'
-                                                        for (const rec of tableRecords) {
-                                                          const rid = String(rec.engagementPageId)
-                                                          if (rid === pageId) continue
-                                                          const rRole = docRoles.get(rid)
-                                                          const rAi = rec.decisionType === 'Original' ? 'original' : 'superseded'
-                                                          const rChanged = rRole && rRole !== rAi
-                                                          if (!rChanged) continue
-                                                          const rIsNotSup = rRole === 'not-superseded'
-                                                          // Same category: both Not Sup, or both Original/Superseded
-                                                          if (thisIsNotSup !== rIsNotSup) continue
-                                                          const existing = next.get(rid)
-                                                          if (!existing || !existing.reasonId) {
-                                                            next.set(rid, { reasonId: v, customText: '' })
-                                                          }
-                                                        }
-                                                      }
-                                                      return next
-                                                    })
-                                                  }}
-                                                  className="w-full cursor-pointer rounded border border-border bg-card px-2 py-1 text-[0.625rem] font-semibold text-foreground"
-                                                >
-                                                  <option value="">Select reason...</option>
-                                                  {reasonOptions.map(opt => (
-                                                    <option key={opt.id} value={opt.id}>{opt.label}</option>
-                                                  ))}
-                                                  <option value="custom">Other...</option>
-                                                </select>
-                                                {rowReasonId === 'custom' && (
-                                                  <input
-                                                    type="text"
-                                                    value={rowCustomText}
-                                                    onChange={(e) => {
-                                                      const val = e.target.value
-                                                      setRowReasons(prev => {
-                                                        const next = new Map(prev)
-                                                        next.set(pageId, { reasonId: 'custom', customText: val })
-                                                        return next
-                                                      })
-                                                    }}
-                                                    placeholder="Enter reason..."
-                                                    className="w-full rounded border border-border px-2 py-1 text-[0.625rem]"
-                                                  />
-                                                )}
-                                              </div>
-                                            ) : (
-                                              <span className="text-[0.625rem] text-muted-foreground">AI Recommendation</span>
-                                            )}
-                                          </td>
-                                        </tr>
-                                      )
-                                    })}
-                                  </tbody>
-                                </table>
-                              </div>
-
-                              {/* Validation error */}
-                              {_valError && (
-                                <div className="flex items-center gap-2 rounded-md border px-3 py-2" style={{ backgroundColor: 'var(--status-error-subtle)', borderColor: 'var(--status-error-border)' }}>
-                                  <AlertTriangle className="h-3 w-3 shrink-0" style={{ color: 'var(--status-error)' }} />
-                                  <span className="text-xs" style={{ color: 'var(--status-error)' }}>{_valError}</span>
-                                </div>
-                              )}
-
-                              {/* Apply / Reset -- only visible when changes exist */}
-                              {_hasAnyChange && (
-                                <div className="flex gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      if (!activeGroup) return
-                                      const fresh = new Map<string, 'original' | 'superseded' | 'not-superseded'>()
-                                      for (const r of activeGroup.records) { fresh.set(String(r.engagementPageId), r.decisionType === 'Original' ? 'original' : 'superseded') }
-                                      setDocRoles(fresh); setRowReasons(new Map())
-                                      if (isActiveFlipped) handleUndoOverride()
-                                    }}
-                                    className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted"
-                                  >
-                                    <Undo2 className="h-3 w-3" /> Reset
-                                  </button>
-                                  <button
-                                    type="button"
-                                    disabled={!_canApply}
-                                    onClick={() => {
-                                      if (!activeGroup) return
-                                      const newOriginalPageId = Array.from(docRoles.entries()).find(([, role]) => role === 'original')?.[0]
-                                      const aiOriginalId = String(activeGroup.originalRecord?.engagementPageId)
-                                      const hasSwap = newOriginalPageId && newOriginalPageId !== aiOriginalId
-                                      const hasExclusion = Array.from(docRoles.values()).some(v => v === 'not-superseded')
-                                      const hasAnyRoleChange = activeGroup.records.some(r => { const cur = docRoles.get(String(r.engagementPageId)); const ai = r.decisionType === 'Original' ? 'original' : 'superseded'; return cur && cur !== ai })
-                                      if (!hasSwap && !hasExclusion && !hasAnyRoleChange) return
-                                      if (hasSwap) {
-                                        const targetIdx = activeGroup.supersededRecords.findIndex(s => String(s.engagementPageId) === newOriginalPageId)
-                                        setFlippedGroups(prev => { const next = new Map(prev); if (targetIdx >= 0) next.set(activeGroup.formType, targetIdx); return next })
-                                      }
-                                      if (hasExclusion) {
-                                        const rejPageIds = Array.from(docRoles.entries()).filter(([, role]) => role === 'not-superseded').map(([pid]) => pid)
-                                        setRejectedDocs(prev => {
-                                          const next = new Map(prev)
-                                          for (const pid of rejPageIds) {
-                                            const rec = activeGroup.records.find(r => String(r.engagementPageId) === pid)
-                                            if (rec) {
-                                              const rr = rowReasons.get(pid)
-                                              const reasonText = rr?.reasonId === 'custom' ? rr.customText.trim() || 'Verifier decision' : rr?.reasonId ? REJECTION_REASONS.find(x => x.id === rr.reasonId)?.label ?? 'Verifier decision' : 'Verifier decision'
-                                              next.set(pid, { reason: reasonText, detail: reasonText, formType: activeGroup.formType })
-                                            }
-                                          }
-                                          return next
-                                        })
-                                      }
-                                      for (const r of activeGroup.records) {
-                                        const pid = String(r.engagementPageId)
-                                        const docRole = docRoles.get(pid)
-                                        if (docRole === 'not-superseded') continue
-                                        const aiRole = r.decisionType === 'Original' ? 'original' : 'superseded'
-                                        // Only write overrides for docs whose role actually changed
-                                        if (docRole === aiRole && !hasSwap) continue
-                                        const key = `sup-pg${r.engagementPageId}`
-                                        const rr = rowReasons.get(pid)
-                                        const reasonText = rr?.reasonId === 'custom' ? rr.customText.trim() || 'Verifier decision' : rr?.reasonId ? OVERRIDE_REASONS.find(x => x.id === rr.reasonId)?.label ?? 'Verifier decision' : 'Verifier decision'
-                                        let newDecision: string
-                                        if (docRole === 'original') newDecision = 'Original'
-                                        else newDecision = 'Superseded'
-                                        const detailObj: OverrideDetail = {
-                                          originalAIDecision: `Page ${r.engagementPageId} = ${r.decisionType}`,
-                                          userOverrideDecision: `Page ${r.engagementPageId} = ${newDecision}`,
-                                          overrideReason: reasonText,
-                                          formType: r.documentRef?.formType ?? 'Unknown',
-                                          fieldContext: r.comparedValues ?? [],
-                                        }
-                                        override(key, 'superseded', r.confidenceLevel, detailObj)
-                                      }
-                                      setShowOverridePanel(false)
-                                      // Auto-advance to next group after applying
-                                      setTimeout(() => { if (selectedGroupIdx < groups.length - 1) selectGroup(selectedGroupIdx + 1) }, 300)
-                                    }}
-                                    className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
-                                    style={{ backgroundColor: _canApply ? 'var(--primary)' : 'var(--muted)' }}
-                                  >
-                                    <Check className="h-3 w-3" /> Apply Changes
-                                  </button>
-                                </div>
-                              )}
-                            </>
-                          )}
-
-                          {/* ── Not Superseded (inline, triggered by disagree choice) ── */}
-                          {disagreeChoice === 'not-superseded' && showRejectPanel && (
-                            <div className="rounded-lg border px-4 py-3" style={{ borderColor: 'var(--status-error-border)', backgroundColor: 'var(--status-error-subtle)' }}>
-                              <p className="mb-2 text-xs font-bold text-foreground">Reason</p>
-                              <fieldset className="border-none p-0">
-                                <legend className="sr-only">Select reason for not superseded</legend>
-                                {REJECTION_REASONS.map((reason) => (
-                                  <label key={reason.id} className={`flex cursor-pointer items-start gap-2 rounded-md px-3 py-1.5 ${selectedRejectReasons.has(reason.id) ? 'bg-red-500/10' : ''}`}>
-                                    <input type="checkbox" checked={selectedRejectReasons.has(reason.id)} onChange={() => toggleRejectReason(reason.id)} className="mt-0.5 accent-red-500" />
-                                    <div>
-                                      <span className="block text-xs font-semibold text-foreground">{reason.label}</span>
-                                      <span className="text-[0.625rem] text-muted-foreground">{reason.description}</span>
-                                    </div>
-                                  </label>
-                                ))}
-                                <label className={`flex cursor-pointer items-start gap-2 rounded-md px-3 py-1.5 ${selectedRejectReasons.has('custom') ? 'bg-red-500/10' : ''}`}>
-                                  <input type="checkbox" checked={selectedRejectReasons.has('custom')} onChange={() => toggleRejectReason('custom')} className="mt-0.5 accent-red-500" />
-                                  <span className="text-xs font-semibold text-foreground">Other</span>
-                                </label>
-                                {selectedRejectReasons.has('custom') && (
-                                  <input
-                                    type="text"
-                                    value={customRejectReason}
-                                    onChange={(e) => setCustomRejectReason(e.target.value)}
-                                    placeholder="Describe your reason..."
-                                    className="mt-1 w-full rounded-md border border-border px-2 py-1.5 text-xs"
-                                  />
-                                )}
-                              </fieldset>
-                              <div className="mt-3 flex gap-2">
-                                <button type="button" onClick={() => { setShowRejectPanel(false); setDisagreeChoice(null); setShowDisagreeOptions(false) }} className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted">Cancel</button>
-                                <button
-                                  type="button"
-                                  onClick={handleRejectDoc}
-                                  disabled={!hasRejectSelection}
-                                  className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
-                                  style={{ backgroundColor: hasRejectSelection ? 'var(--status-error)' : 'var(--muted)' }}
-                                >
-                                  <X className="h-3 w-3" /> Confirm Not Superseded
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                        </>
-                      )
-                    })()}
+                    {/* Classifications and disagree sections removed -- now handled via sidebar checkboxes */}
                   </div>
                 )
               })()}
